@@ -1,12 +1,12 @@
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import healthRoutes from "./routes/healthRoutes.js";
+import employeeRoutes from "./routes/employeeRoutes.js";
 
-dotenv.config();
+
 
 const app = express();
 
@@ -25,6 +25,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use ("/api/health", healthRoutes);
+app.use("/api/employees", employeeRoutes)
 
 app.listen(PORT, () => {
   console.log(`Server is running on the port http://localhost:${PORT}`);
