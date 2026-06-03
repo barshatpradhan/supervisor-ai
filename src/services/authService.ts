@@ -1,4 +1,4 @@
-import { supabase } from "../config/supabase.js";
+import { supabase, supabaseAuth } from "../config/supabase.js";
 import type {
   AuthenticatedAppUser,
   AuthSessionResponse,
@@ -77,11 +77,13 @@ export async function signup(input: SignupInput) {
 
   if (appUserError) {
     await supabase.auth.admin.deleteUser(authUserId);
-    throw new Error("Unable to create application user profile.");
+    throw new Error(
+      `Unable to create application user profile: ${appUserError.message}`
+    );
   }
 
   const { data: sessionData, error: loginError } =
-    await supabase.auth.signInWithPassword({
+    await supabaseAuth.auth.signInWithPassword({
       email: input.email,
       password: input.password,
     });
@@ -101,7 +103,7 @@ export async function signup(input: SignupInput) {
 }
 
 export async function login(input: LoginInput) {
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabaseAuth.auth.signInWithPassword({
     email: input.email,
     password: input.password,
   });
