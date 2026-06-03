@@ -22,10 +22,10 @@ app.get("/", (req, res) => {
 });
 
 
-app.use("/api/auth", authRoutes);
-app.use("/api/admin", adminRoutes);
-app.use ("/api/health", healthRoutes);
-app.use("/api/employees", employeeRoutes)
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/admin", adminRoutes);
+app.use("/api/v1/health", healthRoutes);
+app.use("/api/v1/employees", employeeRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on the port http://localhost:${PORT}`);
