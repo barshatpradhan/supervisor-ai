@@ -5,6 +5,7 @@ import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import healthRoutes from "./routes/healthRoutes.js";
 import employeeRoutes from "./routes/employeeRoutes.js";
+import supervisorRoutes from "./routes/supervisorRoutes.js";
 
 
 
@@ -26,6 +27,7 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/health", healthRoutes);
 app.use("/api/v1/employees", employeeRoutes);
+app.use("/api/v1/supervisors", supervisorRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on the port http://localhost:${PORT}`);

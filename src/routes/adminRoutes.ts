@@ -1,13 +1,14 @@
 import { Router } from "express";
+import { getUsers, updateUserRole } from "../controllers/adminController.js";
 import { authenticateUser } from "../middleware/authMiddleware.js";
 import { requireRole } from "../middleware/roleMiddleware.js";
 
 const router = Router();
 
+router.use(authenticateUser, requireRole("admin"));
+
 router.get(
   "/dashboard",
-  authenticateUser,
-  requireRole("admin"),
   (req,res) => {
     return res.json({
       success: true,
@@ -15,5 +16,8 @@ router.get(
     });
   }
 );
+
+router.get("/users", getUsers);
+router.patch("/users/:userId/role", updateUserRole);
 
 export default router;
