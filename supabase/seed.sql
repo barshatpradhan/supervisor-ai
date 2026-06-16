@@ -1,0 +1,2 @@
+-- Seed application data here after creating Supabase Auth users.
+-- Keep auth users out of this file unless their auth_user_id values are known.
