@@ -1,50 +1,25 @@
 import type { Request, Response, NextFunction } from "express";
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function isValidEmail(value: unknown): value is string {
-  return typeof value === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
-function isValidPassword(value: unknown): value is string {
-  return typeof value === "string" && value.length >= 8;
-}
+import { AppError } from "../utils/appError.js";
+import { requireBody, requireEmail, requirePassword } from "../utils/validation.js";
 
 export function validateSignupRequest(
   req: Request,
   res: Response,
   next: NextFunction
 ) {
-  if (!isRecord(req.body)) {
-    return res.status(400).json({
-      success: false,
-      error: "Request body is required.",
-    });
-  }
+  try {
+    const body = requireBody(req.body);
+    requireEmail(body, "email");
+    requirePassword(body, "password");
 
-  if (!isValidEmail(req.body.email)) {
-    return res.status(400).json({
-      success: false,
-      error: "A valid email is required.",
-    });
-  }
+    if (body.role !== undefined) {
+      throw new AppError("Role cannot be assigned during public signup.", 400);
+    }
 
-  if (!isValidPassword(req.body.password)) {
-    return res.status(400).json({
-      success: false,
-      error: "Password must be at least 8 characters.",
-    });
+    next();
+  } catch (error) {
+    next(error);
   }
-
-  if (req.body.role !== undefined) {
-    return res.status(400).json({
-      success: false,
-      error: "Role cannot be assigned during public signup.",
-    });
-  }
-
-  next();
 }
 
 export function validateLoginRequest(
@@ -52,19 +27,12 @@ export function validateLoginRequest(
   res: Response,
   next: NextFunction
 ) {
-  if (!isRecord(req.body)) {
-    return res.status(400).json({
-      success: false,
-      error: "Request body is required.",
-    });
+  try {
+    const body = requireBody(req.body);
+    requireEmail(body, "email");
+    requirePassword(body, "password");
+    next();
+  } catch {
+    next(new AppError("A valid email and password are required.", 400));
   }
-
-  if (!isValidEmail(req.body.email) || !isValidPassword(req.body.password)) {
-    return res.status(400).json({
-      success: false,
-      error: "A valid email and password are required.",
-    });
-  }
-
-  next();
 }

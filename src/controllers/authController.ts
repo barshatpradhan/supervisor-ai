@@ -1,12 +1,14 @@
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import {
   getCurrentAppUser,
   login,
   signup,
 } from "../services/authService.js";
 import type { LoginInput, SignupInput } from "../types/auth.js";
+import { AppError } from "../utils/appError.js";
+import { sendSuccess } from "../utils/apiResponse.js";
 
-export async function signupUser(req: Request, res: Response) {
+export async function signupUser(req: Request, res: Response, next: NextFunction) {
   try {
     const input: SignupInput = {
       email: req.body.email,
@@ -16,19 +18,13 @@ export async function signupUser(req: Request, res: Response) {
 
     const data = await signup(input);
 
-    return res.status(201).json({
-      success: true,
-      data,
-    });
+    return sendSuccess(res, 201, "Account created successfully.", data);
   } catch (error) {
-    return res.status(400).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Unable to create account.",
-    });
+    return next(error);
   }
 }
 
-export async function loginUser(req: Request, res: Response) {
+export async function loginUser(req: Request, res: Response, next: NextFunction) {
   try {
     const input: LoginInput = {
       email: req.body.email,
@@ -37,38 +33,22 @@ export async function loginUser(req: Request, res: Response) {
 
     const data = await login(input);
 
-    return res.status(200).json({
-      success: true,
-      data,
-    });
+    return sendSuccess(res, 200, "Login successful.", data);
   } catch (error) {
-    return res.status(401).json({
-      success: false,
-      error: error instanceof Error ? error.message : "Invalid email or password.",
-    });
+    return next(error);
   }
 }
 
-export async function getCurrentUser(req: Request, res: Response) {
+export async function getCurrentUser(req: Request, res: Response, next: NextFunction) {
   if (!req.user) {
-    return res.status(401).json({
-      success: false,
-      error: "Unauthorized.",
-    });
+    return next(new AppError("Unauthorized.", 401));
   }
 
   try {
     const data = await getCurrentAppUser(req.user.id);
 
-    return res.status(200).json({
-      success: true,
-      data,
-    });
+    return sendSuccess(res, 200, "Current user fetched successfully.", data);
   } catch (error) {
-    return res.status(404).json({
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Application user profile was not found.",
-    });
+    return next(error);
   }
 }

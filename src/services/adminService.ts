@@ -1,5 +1,6 @@
 import { supabase } from "../config/supabase.js";
 import type { UserRole } from "../types/auth.js";
+import { AppError } from "../utils/appError.js";
 
 const VALID_ROLES: UserRole[] = ["admin", "supervisor", "employee"];
 
@@ -14,7 +15,7 @@ export async function listAppUsers() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    throw new Error(error.message);
+    throw new AppError("Unable to fetch users.", 500);
   }
 
   return data;
@@ -29,7 +30,7 @@ export async function updateAppUserRole(userId: string, role: UserRole) {
     .single();
 
   if (error) {
-    throw new Error(error.message);
+    throw new AppError("Unable to update user role.", 400);
   }
 
   return data;

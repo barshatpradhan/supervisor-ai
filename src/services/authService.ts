@@ -6,6 +6,7 @@ import type {
   SignupInput,
   UserRole,
 } from "../types/auth.js";
+import { AppError } from "../utils/appError.js";
 
 interface AppUserRow {
   id: string;
@@ -31,7 +32,7 @@ async function getAppUserByAuthId(authUserId: string) {
     .single<AppUserRow>();
 
   if (error || !data) {
-    throw new Error("Application user profile was not found.");
+    throw new AppError("Application user profile was not found.", 404);
   }
 
   return mapAppUser(data);
@@ -44,7 +45,7 @@ function buildSessionResponse(
   expiresAt: number | undefined
 ): AuthSessionResponse {
   if (!accessToken || !refreshToken) {
-    throw new Error("Authentication session was not created.");
+    throw new AppError("Authentication session was not created.", 500, false);
   }
 
   return {
@@ -64,7 +65,7 @@ export async function signup(input: SignupInput) {
     });
 
   if (createUserError || !createdUser.user) {
-    throw new Error("Unable to create account.");
+    throw new AppError("Unable to create account.", 400);
   }
 
   const authUserId = createdUser.user.id;
@@ -77,9 +78,7 @@ export async function signup(input: SignupInput) {
 
   if (appUserError) {
     await supabase.auth.admin.deleteUser(authUserId);
-    throw new Error(
-      `Unable to create application user profile: ${appUserError.message}`
-    );
+    throw new AppError("Unable to create application user profile.", 500);
   }
 
   const { data: sessionData, error: loginError } =
@@ -89,7 +88,7 @@ export async function signup(input: SignupInput) {
     });
 
   if (loginError || !sessionData.session) {
-    throw new Error("Account created, but login failed.");
+    throw new AppError("Account created, but login failed.", 500);
   }
 
   const appUser = await getAppUserByAuthId(authUserId);
@@ -109,7 +108,7 @@ export async function login(input: LoginInput) {
   });
 
   if (error || !data.user || !data.session) {
-    throw new Error("Invalid email or password.");
+    throw new AppError("Invalid email or password.", 401);
   }
 
   const appUser = await getAppUserByAuthId(data.user.id);

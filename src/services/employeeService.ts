@@ -1,5 +1,5 @@
-import { availableMemory } from "node:process";
 import { supabase } from "../config/supabase.js";
+import { AppError } from "../utils/appError.js";
 
 export async function getEmployeeProfileByAuthId(authUserId: string) {
   const { data, error } = await supabase
@@ -22,7 +22,7 @@ export async function getEmployeeProfileByAuthId(authUserId: string) {
     .single();
 
   if (error) {
-    throw new Error(error.message);
+    throw new AppError("Employee profile not found.", 404);
   }
 
   return data;
@@ -39,12 +39,16 @@ export async function createEmployeeProfile(
 ) {
   const { data: appUser, error: userError } = await supabase
     .from("users")
-    .select("id")
+    .select("id, role")
     .eq("auth_user_id", authUserId)
-    .single();
+    .single<{ id: string; role: string }>();
 
   if (userError || !appUser) {
-    throw new Error("App user not found");
+    throw new AppError("Application user profile was not found.", 404);
+  }
+
+  if (appUser.role !== "employee") {
+    throw new AppError("Only employee users can create employee profiles.", 403);
   }
 
   const { data, error } = await supabase
@@ -62,7 +66,7 @@ export async function createEmployeeProfile(
     .single()
 
   if (error) {
-    throw new Error(error.message)
+    throw new AppError("Unable to create employee profile.", 400);
   }
 
   return data;

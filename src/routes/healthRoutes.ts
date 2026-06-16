@@ -1,27 +1,25 @@
 import { Router } from "express";
 import { supabase } from "../config/supabase.js";
+import { sendError, sendSuccess } from "../utils/apiResponse.js";
 
 const router = Router();
 
 router.get("/supabase", async (req, res) => {
-  const {data, error } = await supabase
+  const { error } = await supabase
     .from("users")
-    .select("*")
+    .select("id")
     .limit(1);
 
     if(error) {
-      return res.status(500). json({
-        success: false,
-        message: "Supabase connection failed",
-        error: error.message,
-      });
+      return sendError(
+        res,
+        500,
+        "Supabase connection failed.",
+        "Database health check failed."
+      );
     }
 
-    return res.json({
-      success: true,
-      message: "Supabase connected successfully",
-      data,
-    });
+    return sendSuccess(res, 200, "Supabase connected successfully.");
 })
 
 export default router;

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { getUsers, updateUserRole } from "../controllers/adminController.js";
 import { authenticateUser } from "../middleware/authMiddleware.js";
 import { requireRole } from "../middleware/roleMiddleware.js";
+import { sendSuccess } from "../utils/apiResponse.js";
 
 const router = Router();
 
@@ -9,11 +10,8 @@ router.use(authenticateUser, requireRole("admin"));
 
 router.get(
   "/dashboard",
-  (req,res) => {
-    return res.json({
-      success: true,
-      message: "welcome admin"
-    });
+  (req, res) => {
+    return sendSuccess(res, 200, "Welcome admin.");
   }
 );
 

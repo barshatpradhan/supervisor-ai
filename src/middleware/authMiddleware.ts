@@ -1,35 +1,34 @@
 import type { Request, Response, NextFunction } from "express";
 import { supabase } from "../config/supabase.js";
+import { AppError } from "../utils/appError.js";
 
 export async function authenticateUser(
   req: Request,
   res: Response,
   next: NextFunction
 ) {
-  const authHeader = req.headers.authorization;
+  try {
+    const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({
-      success: false,
-      error: "Missing or invalid authorization header.",
-    });
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      throw new AppError("Missing or invalid authorization header.", 401);
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(token);
+
+    if (error || !user) {
+      throw new AppError("Invalid or expired token.", 401);
+    }
+
+    req.user = user;
+
+    next();
+  } catch (error) {
+    next(error);
   }
-
-  const token = authHeader.split(" ")[1];
-
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser(token);
-
-  if (error || !user) {
-    return res.status(401).json({
-      success: false,
-      error: "Invalid or expired token.",
-    });
-  }
-
-  req.user = user;
-
-  next();
 }

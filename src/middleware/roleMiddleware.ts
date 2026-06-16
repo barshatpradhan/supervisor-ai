@@ -1,34 +1,32 @@
-import { Request, Response, NextFunction } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { supabase } from "../config/supabase.js";
+import { AppError } from "../utils/appError.js";
+import type { UserRole } from "../types/auth.js";
 
-export function requireRole(...allowedRoles: string[]) {
+export function requireRole(...allowedRoles: UserRole[]) {
   return async (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: "Unathorized",
-      });
-    }
+    try {
+      if (!req.user) {
+        throw new AppError("Unauthorized.", 401);
+      }
 
-    const { data: appUser, error } = await supabase
-      .from("users")
-      .select("role")
-      .eq("auth_user_id", req.user.id)
-      .single();
+      const { data: appUser, error } = await supabase
+        .from("users")
+        .select("role")
+        .eq("auth_user_id", req.user.id)
+        .single<{ role: UserRole }>();
 
-    if (error || !appUser) {
-      return res.status(403).json({
-        success: false,
-        message: "User role not found"
-      });
-    }
+      if (error || !appUser) {
+        throw new AppError("User role not found.", 403);
+      }
 
-    if (!allowedRoles.includes(appUser.role)) {
-      return res.status(403).json({
-        success: false,
-        message: "Forbidden",
-      });
+      if (!allowedRoles.includes(appUser.role)) {
+        throw new AppError("Forbidden.", 403);
+      }
+
+      next();
+    } catch (error) {
+      next(error);
     }
-    next();
-  }
+  };
 }

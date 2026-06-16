@@ -1,70 +1,53 @@
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import {
   createSupervisorProfile,
   getSupervisorProfileByAuthId,
 } from "../services/supervisorService.js";
+import { AppError } from "../utils/appError.js";
+import { sendSuccess } from "../utils/apiResponse.js";
+import { optionalString, requireBody, requireString } from "../utils/validation.js";
 
-export async function getMySupervisorProfile(req: Request, res: Response) {
+export async function getMySupervisorProfile(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   if (!req.user) {
-    return res.status(401).json({
-      success: false,
-      message: "Unauthorized",
-    });
+    return next(new AppError("Unauthorized.", 401));
   }
 
   try {
     const supervisor = await getSupervisorProfileByAuthId(req.user.id);
 
-    return res.json({
-      success: true,
-      message: "Supervisor profile fetched successfully",
-      data: supervisor,
-    });
+    return sendSuccess(res, 200, "Supervisor profile fetched successfully.", supervisor);
   } catch (error) {
-    return res.status(404).json({
-      success: false,
-      message:
-        error instanceof Error ? error.message : "Supervisor profile not found",
-    });
+    return next(error);
   }
 }
 
-export async function createMySupervisorProfile(req: Request, res: Response) {
+export async function createMySupervisorProfile(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   if (!req.user) {
-    return res.status(401).json({
-      success: false,
-      message: "Unauthorized",
-    });
-  }
-
-  const { full_name, department, bio } = req.body;
-
-  if (!full_name) {
-    return res.status(400).json({
-      success: false,
-      message: "Full name is required",
-    });
+    return next(new AppError("Unauthorized.", 401));
   }
 
   try {
+    const body = requireBody(req.body);
+    const fullName = requireString(body, "full_name", "Full name");
+    const department = optionalString(body, "department");
+    const bio = optionalString(body, "bio");
+
     const supervisor = await createSupervisorProfile(req.user.id, {
-      full_name,
+      full_name: fullName,
       department,
       bio,
     });
 
-    return res.status(201).json({
-      success: true,
-      message: "Supervisor profile created successfully",
-      data: supervisor,
-    });
+    return sendSuccess(res, 201, "Supervisor profile created successfully.", supervisor);
   } catch (error) {
-    return res.status(400).json({
-      success: false,
-      message:
-        error instanceof Error
-          ? error.message
-          : "Unable to create supervisor profile",
-    });
+    return next(error);
   }
 }

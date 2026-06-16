@@ -1,59 +1,37 @@
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import {
   isValidUserRole,
   listAppUsers,
   updateAppUserRole,
 } from "../services/adminService.js";
+import { AppError } from "../utils/appError.js";
+import { sendSuccess } from "../utils/apiResponse.js";
+import { requireBody, requireUuid } from "../utils/validation.js";
 
-export async function getUsers(req: Request, res: Response) {
+export async function getUsers(req: Request, res: Response, next: NextFunction) {
   try {
     const users = await listAppUsers();
 
-    return res.json({
-      success: true,
-      message: "Users fetched successfully",
-      data: users,
-    });
+    return sendSuccess(res, 200, "Users fetched successfully.", users);
   } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error instanceof Error ? error.message : "Unable to fetch users",
-    });
+    return next(error);
   }
 }
 
-export async function updateUserRole(req: Request, res: Response) {
-  const userIdParam = req.params.userId;
-  const userId = Array.isArray(userIdParam) ? userIdParam[0] : userIdParam;
-  const { role } = req.body;
-
-  if (!userId) {
-    return res.status(400).json({
-      success: false,
-      message: "User id is required",
-    });
-  }
-
-  if (!isValidUserRole(role)) {
-    return res.status(400).json({
-      success: false,
-      message: "Role must be one of: admin, supervisor, employee",
-    });
-  }
-
+export async function updateUserRole(req: Request, res: Response, next: NextFunction) {
   try {
+    const userId = requireUuid(req.params.userId, "User id");
+    const body = requireBody(req.body);
+    const role = body.role;
+
+    if (!isValidUserRole(role)) {
+      throw new AppError("Role must be one of: admin, supervisor, employee.", 400);
+    }
+
     const user = await updateAppUserRole(userId, role);
 
-    return res.json({
-      success: true,
-      message: "User role updated successfully",
-      data: user,
-    });
+    return sendSuccess(res, 200, "User role updated successfully.", user);
   } catch (error) {
-    return res.status(400).json({
-      success: false,
-      message:
-        error instanceof Error ? error.message : "Unable to update user role",
-    });
+    return next(error);
   }
 }
