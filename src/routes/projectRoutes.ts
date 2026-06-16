@@ -5,8 +5,10 @@ import {
   getProjects,
   updateProjectHandler,
 } from "../controllers/projectController.js";
+import { uploadProjectDocumentHandler } from "../controllers/projectDocumentController.js";
 import { authenticateUser } from "../middleware/authMiddleware.js";
 import { requireRole } from "../middleware/roleMiddleware.js";
+import { uploadProjectDocumentFile } from "../middleware/uploadMiddleware.js";
 
 const router = Router();
 
@@ -14,6 +16,7 @@ router.use(authenticateUser, requireRole("admin", "supervisor"));
 
 router.get("/", getProjects);
 router.post("/", createProjectHandler);
+router.post("/:projectId/documents", uploadProjectDocumentFile, uploadProjectDocumentHandler);
 router.get("/:projectId", getProject);
 router.patch("/:projectId", updateProjectHandler);
 
