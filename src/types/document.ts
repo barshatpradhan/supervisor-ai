@@ -42,9 +42,12 @@ export interface ProjectDocumentUploadResult {
     document_id: string;
     project_id: string;
     required_skills: string[];
+    preferred_skills: string[];
     complexity: "low" | "medium" | "high";
     estimated_hours: number;
     summary: string;
+    suggested_roles: string[];
+    risks: string[];
     provider: string;
     model: string | null;
     created_at: string;
