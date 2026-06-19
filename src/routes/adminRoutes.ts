@@ -1,10 +1,35 @@
 import { Router } from "express";
-import { getUsers, updateUserRole } from "../controllers/adminController.js";
+import {
+  approveSkillHandler,
+  getPendingSkills,
+  getUsers,
+  rejectSkillHandler,
+  updateUserRole,
+} from "../controllers/adminController.js";
 import { authenticateUser } from "../middleware/authMiddleware.js";
 import { requireRole } from "../middleware/roleMiddleware.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 
 const router = Router();
+
+router.get(
+  "/skills/pending",
+  authenticateUser,
+  requireRole("admin", "supervisor"),
+  getPendingSkills
+);
+router.patch(
+  "/skills/:skillId/approve",
+  authenticateUser,
+  requireRole("admin", "supervisor"),
+  approveSkillHandler
+);
+router.delete(
+  "/skills/:skillId",
+  authenticateUser,
+  requireRole("admin", "supervisor"),
+  rejectSkillHandler
+);
 
 router.use(authenticateUser, requireRole("admin"));
 

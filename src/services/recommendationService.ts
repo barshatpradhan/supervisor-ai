@@ -43,6 +43,7 @@ interface SkillRow {
   id: string;
   name: string;
   normalized_name: string | null;
+  is_approved: boolean;
 }
 
 interface RecommendationRow {
@@ -231,7 +232,8 @@ async function getEmployeeSkills() {
 
   const { data: skills, error: skillsError } = await supabase
     .from("skills")
-    .select("id, name, normalized_name")
+    .select("id, name, normalized_name, is_approved")
+    .eq("is_approved", true)
     .returns<SkillRow[]>();
 
   if (skillsError) {

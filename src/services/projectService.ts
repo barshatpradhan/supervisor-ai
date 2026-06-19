@@ -16,6 +16,7 @@ const PROJECT_SELECT = `
 `;
 
 function mapRequiredSkills(requiredSkills?: string[]) {
+  // TODO: projects.required_skills text[] is MVP-only; migrate to project_required_skills.
   return requiredSkills?.map((skill) => skill.trim()).filter(Boolean);
 }
 

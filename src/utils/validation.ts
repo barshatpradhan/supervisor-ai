@@ -43,6 +43,26 @@ export function optionalString(body: Record<string, unknown>, field: string) {
   return value.trim();
 }
 
+export function optionalStringArray(
+  body: Record<string, unknown>,
+  field: string
+) {
+  const value = body[field];
+
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (
+    !Array.isArray(value) ||
+    !value.every((item) => typeof item === "string")
+  ) {
+    throw new AppError(`${field} must be an array of strings.`, 400);
+  }
+
+  return value.map((item) => item.trim()).filter(Boolean);
+}
+
 export function requireUuid(value: unknown, label: string) {
   if (typeof value !== "string" || !UUID_PATTERN.test(value)) {
     throw new AppError(`${label} must be a valid UUID.`, 400);
