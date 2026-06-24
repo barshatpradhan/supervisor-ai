@@ -1,0 +1,7 @@
+Project: Supervisor Assistant Document Upload MVP
+
+Build a backend feature that allows supervisors to upload project documents for analysis. The API should support TXT, PDF, and DOCX files, validate file size and type, store files in Supabase Storage, and save document metadata in the database.
+
+The initial implementation should extract text from TXT files and provide clean extension points for PDF and DOCX extraction. The analysis service should identify required skills, estimate implementation effort, classify project complexity, and return a concise summary for supervisor review.
+
+Required skills include API design, TypeScript, Supabase, authentication, database design, file uploads, and analytics. The work should preserve the existing Express route, controller, service, and middleware architecture.
