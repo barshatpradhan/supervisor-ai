@@ -100,6 +100,16 @@ function roundScore(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+function normalizePerformanceScore(value: number | null) {
+  const score = Number(value);
+
+  if (!Number.isFinite(score) || score <= 0) {
+    return 50;
+  }
+
+  return clampPercentage(score);
+}
+
 function isSkillMatch(requiredSkill: string, employeeSkills: Set<string>) {
   const normalizedRequiredSkill = normalizeSkill(requiredSkill);
 
@@ -135,9 +145,7 @@ function scoreEmployee(
   const availabilityScore = clampPercentage(
     Number(employee.availability_percentage ?? 0)
   );
-  const performanceScore = clampPercentage(
-    Number(employee.performance_score ?? 50)
-  );
+  const performanceScore = normalizePerformanceScore(employee.performance_score);
   const workloadScore = clampPercentage(
     100 - Number(employee.workload_percentage ?? 100)
   );

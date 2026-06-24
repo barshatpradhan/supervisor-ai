@@ -30,6 +30,19 @@ interface AssignedTaskHoursRow {
   estimated_hours: number;
 }
 
+interface EmployeePerformanceTaskRow {
+  id: string;
+  status: string;
+  estimated_hours: number;
+}
+
+interface TaskProgressPerformanceRow {
+  task_id: string;
+  progress_percentage: number;
+  status: string | null;
+  created_at: string;
+}
+
 async function getEmployeeForAuthUser(authUserId: string) {
   const { data, error } = await supabase
     .from("employees")
@@ -111,6 +124,110 @@ async function recalculateEmployeeCapacity(employeeId: string) {
 
   if (updateError) {
     throw new AppError("Unable to update employee capacity.", 500);
+  }
+}
+
+function clampScore(value: number) {
+  return Math.max(0, Math.min(100, value));
+}
+
+function scoreTaskPerformance(
+  task: EmployeePerformanceTaskRow,
+  latestProgress: TaskProgressPerformanceRow | undefined
+) {
+  const status = latestProgress?.status ?? task.status;
+  const progressPercentage = Number(
+    latestProgress?.progress_percentage ?? (status === "completed" ? 100 : 50)
+  );
+  const progressScore = clampScore(progressPercentage);
+
+  if (status === "completed") {
+    return 100;
+  }
+
+  if (status === "review") {
+    return Math.max(progressScore, 85);
+  }
+
+  if (status === "blocked") {
+    return Math.min(progressScore, 60);
+  }
+
+  if (status === "cancelled") {
+    return undefined;
+  }
+
+  return progressScore;
+}
+
+async function recalculateEmployeePerformance(employeeId: string) {
+  const { data: tasks, error: tasksError } = await supabase
+    .from("tasks")
+    .select("id, status, estimated_hours")
+    .eq("assigned_employee_id", employeeId)
+    .is("deleted_at", null)
+    .returns<EmployeePerformanceTaskRow[]>();
+
+  if (tasksError) {
+    throw new AppError("Unable to recalculate employee performance.", 500);
+  }
+
+  const taskRows = tasks ?? [];
+
+  if (taskRows.length === 0) {
+    return;
+  }
+
+  const taskIds = taskRows.map((task) => task.id);
+  const { data: progressRows, error: progressError } = await supabase
+    .from("task_progress")
+    .select("task_id, progress_percentage, status, created_at")
+    .in("task_id", taskIds)
+    .order("created_at", { ascending: false })
+    .returns<TaskProgressPerformanceRow[]>();
+
+  if (progressError) {
+    throw new AppError("Unable to recalculate employee performance.", 500);
+  }
+
+  const latestProgressByTaskId = new Map<string, TaskProgressPerformanceRow>();
+
+  for (const progress of progressRows ?? []) {
+    if (!latestProgressByTaskId.has(progress.task_id)) {
+      latestProgressByTaskId.set(progress.task_id, progress);
+    }
+  }
+
+  let weightedScore = 0;
+  let totalWeight = 0;
+
+  for (const task of taskRows) {
+    const taskScore = scoreTaskPerformance(
+      task,
+      latestProgressByTaskId.get(task.id)
+    );
+
+    if (taskScore === undefined) {
+      continue;
+    }
+
+    const weight = Math.max(0.25, Number(task.estimated_hours));
+    weightedScore += taskScore * weight;
+    totalWeight += weight;
+  }
+
+  if (totalWeight === 0) {
+    return;
+  }
+
+  const performanceScore = Math.round((weightedScore / totalWeight) * 100) / 100;
+  const { error: updateError } = await supabase
+    .from("employees")
+    .update({ performance_score: performanceScore })
+    .eq("id", employeeId);
+
+  if (updateError) {
+    throw new AppError("Unable to update employee performance.", 500);
   }
 }
 
@@ -288,6 +405,7 @@ export async function createTaskProgress(
   }
 
   await recalculateEmployeeCapacity(employee.id);
+  await recalculateEmployeePerformance(employee.id);
 
   return progress;
 }
