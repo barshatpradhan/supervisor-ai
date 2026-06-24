@@ -1,11 +1,24 @@
-node_modules/
-dist/
-build/
-.env
-.env.local
-npm-debug.log*
-yarn-error.log*
+# Dependencies
+backend/node_modules/
+frontend/node_modules/
+
+# Production builds
+backend/dist/
+backend/build/
+frontend/dist/
+frontend/build/
+
+# Environment variables
+**/.env
+**/.env.local
+
+# Logs
+**/npm-debug.log*
+**/yarn-error.log*
+
+# System Files
 .DS_Store
 
-CLAUDE.MD
-CODEX.MD
+# AI/Context Files (if applicable to root or subfolders)
+**/CLAUDE.MD
+**/CODEX.MD
