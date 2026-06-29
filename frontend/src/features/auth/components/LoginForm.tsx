@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth'
 
 export function LoginForm() {
   const navigate = useNavigate()
-  const { loginUser } = useAuth()
+  const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -19,7 +19,7 @@ export function LoginForm() {
     setIsSubmitting(true)
 
     try {
-      await loginUser({ email, password })
+      await login({ email, password })
       navigate('/dashboard')
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Unable to log in.')

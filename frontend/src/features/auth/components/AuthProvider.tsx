@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AuthContext } from '../hooks/authContext'
 import type { AuthContextValue } from '../hooks/authContext'
-import { getCurrentUser, login, signup } from '../services/authService'
+import {
+  getCurrentUser,
+  login as loginWithBackend,
+  signup as signupWithBackend,
+} from '../services/authService'
 import type {
   AuthSession,
   AuthenticatedUser,
@@ -10,6 +15,7 @@ import type {
   SignupCredentials,
 } from '../types/auth'
 import {
+  authSessionExpiredEvent,
   clearAuthTokens,
   getStoredAccessToken,
   storeAuthTokens,
@@ -20,9 +26,16 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
+  const navigate = useNavigate()
   const [user, setUser] = useState<AuthenticatedUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const clearSession = useCallback(() => {
+    clearAuthTokens()
+    setUser(null)
+    setError(null)
+  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -59,16 +72,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [])
 
+  useEffect(() => {
+    function handleSessionExpired() {
+      clearSession()
+    }
+
+    window.addEventListener(authSessionExpiredEvent, handleSessionExpired)
+
+    return () => {
+      window.removeEventListener(authSessionExpiredEvent, handleSessionExpired)
+    }
+  }, [clearSession])
+
   const handleSession = useCallback((session: AuthSession) => {
     storeAuthTokens(session.accessToken, session.refreshToken)
     setUser(session.user)
     setError(null)
   }, [])
 
-  const loginUser = useCallback(
+  const login = useCallback(
     async (credentials: LoginCredentials) => {
       try {
-        const session = await login(credentials)
+        const session = await loginWithBackend(credentials)
         handleSession(session)
       } catch (caughtError) {
         const message =
@@ -80,10 +105,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [handleSession],
   )
 
-  const signupUser = useCallback(
+  const signup = useCallback(
     async (credentials: SignupCredentials) => {
       try {
-        const session = await signup(credentials)
+        const session = await signupWithBackend(credentials)
         handleSession(session)
       } catch (caughtError) {
         const message =
@@ -95,23 +120,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [handleSession],
   )
 
-  const logoutUser = useCallback(() => {
-    clearAuthTokens()
-    setUser(null)
-    setError(null)
-  }, [])
+  const logout = useCallback(() => {
+    clearSession()
+    navigate('/login', { replace: true })
+  }, [clearSession, navigate])
 
   const value = useMemo<AuthContextValue>(
     () => ({
       error,
       isAuthenticated: Boolean(user),
       isLoading,
-      loginUser,
-      logoutUser,
-      signupUser,
+      login,
+      logout,
+      role: user?.role ?? null,
+      signup,
       user,
     }),
-    [error, isLoading, loginUser, logoutUser, signupUser, user],
+    [error, isLoading, login, logout, signup, user],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -14,7 +14,7 @@ export function RoleGuard({ allowedRoles }: RoleGuardProps) {
   }
 
   if (!allowedRoles.includes(user.role)) {
-    return <Navigate replace to="/dashboard" />
+    return <Navigate replace to="/forbidden" />
   }
 
   return <Outlet />

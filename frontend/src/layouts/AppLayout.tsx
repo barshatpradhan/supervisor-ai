@@ -18,6 +18,7 @@ const routeTitles: Record<string, string> = {
   '/ai-recommendations': 'AI Recommendations',
   '/dashboard': 'Dashboard',
   '/employees': 'Employees',
+  '/forbidden': 'Access restricted',
   '/profile': 'Profile',
   '/projects': 'Projects',
   '/tasks': 'Tasks',
@@ -25,13 +26,13 @@ const routeTitles: Record<string, string> = {
 
 export function AppLayout() {
   const location = useLocation()
-  const { logoutUser } = useAuth()
+  const { logout } = useAuth()
   const title = routeTitles[location.pathname] ?? 'Dashboard'
 
   return (
     <PageShell
       actions={
-        <Button onClick={logoutUser} variant="secondary">
+        <Button onClick={logout} variant="secondary">
           Sign out
         </Button>
       }
