@@ -1,5 +1,9 @@
 import axios, { AxiosError } from 'axios'
-import { getStoredAccessToken } from '../features/auth/utils/tokenStorage'
+import {
+  clearAuthTokens,
+  getStoredAccessToken,
+  notifyAuthSessionExpired,
+} from '../features/auth/utils/tokenStorage'
 import type { ApiErrorResponse } from '../types/api'
 
 const fallbackApiBaseUrl = '/api/v1'
@@ -10,6 +14,10 @@ function getErrorMessage(error: unknown) {
 
     if (responseData?.success === false && responseData.error) {
       return responseData.error
+    }
+
+    if (typeof responseData?.message === 'string') {
+      return responseData.message
     }
   }
 
@@ -35,5 +43,16 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error: unknown) => Promise.reject(new Error(getErrorMessage(error))),
+  (error: unknown) => {
+    if (error instanceof AxiosError && error.response?.status === 401) {
+      clearAuthTokens()
+      notifyAuthSessionExpired()
+
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.assign('/login')
+      }
+    }
+
+    return Promise.reject(new Error(getErrorMessage(error), { cause: error }))
+  },
 )

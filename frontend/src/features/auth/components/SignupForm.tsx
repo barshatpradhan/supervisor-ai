@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth'
 
 export function SignupForm() {
   const navigate = useNavigate()
-  const { signupUser } = useAuth()
+  const { signup } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -19,7 +19,7 @@ export function SignupForm() {
     setIsSubmitting(true)
 
     try {
-      await signupUser({ email, password })
+      await signup({ email, password })
       navigate('/dashboard')
     } catch (caughtError) {
       setError(
