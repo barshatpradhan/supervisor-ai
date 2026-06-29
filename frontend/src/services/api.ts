@@ -1,11 +1,8 @@
 import axios, { AxiosError } from 'axios'
+import { getStoredAccessToken } from '../features/auth/utils/tokenStorage'
 import type { ApiErrorResponse } from '../types/api'
 
 const fallbackApiBaseUrl = '/api/v1'
-
-function getAccessToken() {
-  return window.localStorage.getItem('supervisor_ai_access_token')
-}
 
 function getErrorMessage(error: unknown) {
   if (error instanceof AxiosError) {
@@ -27,7 +24,7 @@ export const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  const token = getAccessToken()
+  const token = getStoredAccessToken()
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
