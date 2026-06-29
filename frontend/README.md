@@ -6,274 +6,37 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38BDF8?logo=tailwindcss&logoColor=fff)](https://tailwindcss.com/)
 [![Axios](https://img.shields.io/badge/Axios-1-5A29E4?logo=axios&logoColor=fff)](https://axios-http.com/)
 
-Supervisor AI is a React frontend for an authenticated supervisor workspace. The current implementation provides the application foundation: a branded shell, route structure, reusable UI primitives, backend-backed authentication, session restoration, protected routes, and placeholder workspace pages for the next product phases.
+The Supervisor AI frontend is a Vite React application for the authenticated workspace. It currently implements the frontend foundation: brand tokens, app shell, route structure, login/signup screens, auth provider, protected routing, and placeholder workspace pages.
 
-This README documents the frontend as it exists today. Dashboard, project, task, employee, AI recommendation, and profile business workflows are intentionally not implemented yet.
+Data-connected dashboards, project management screens, task workflows, employee views, and recommendation review screens are planned but not implemented in the frontend yet.
 
-## Screenshots
+## Frontend Architecture
 
-> Screenshot assets are placeholders until the product screens are finalized.
-
-| Login | App Shell |
-| --- | --- |
-| `docs/screenshots/login.png` | `docs/screenshots/app-shell.png` |
-
-## Current Status
-
-Implemented:
-
-- Vite, React, TypeScript, and Tailwind CSS foundation.
-- Locked Supervisor AI color tokens and logo component.
-- Responsive application shell with sidebar navigation and header.
-- Public login and signup screens.
-- Backend-integrated authentication for signup, login, session restore, and logout.
-- Axios API client with authorization header injection and 401 handling.
-- Protected routes and role-aware route checks for `admin`, `supervisor`, and `employee`.
-- Placeholder route containers for dashboard and workspace sections.
-
-Not implemented yet:
-
-- Real dashboard analytics.
-- Project, task, employee, profile, and AI recommendation data flows.
-- Production-grade refresh-token rotation.
-- Automated test suite.
-
-## Tech Stack
-
-| Area | Tooling |
-| --- | --- |
-| UI | React 19 |
-| Language | TypeScript 6, strict mode |
-| Build | Vite 8 |
-| Routing | React Router 7 |
-| Styling | Tailwind CSS 4 with CSS design tokens |
-| HTTP | Axios |
-| Linting | ESLint 10 |
-
-## Setup
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Start the frontend dev server:
-
-```bash
-npm run dev
-```
-
-By default, the Vite dev server proxies `/api` requests to the backend at `http://localhost:4000`. Start the backend separately before testing login, signup, or session restoration.
-
-Build for production:
-
-```bash
-npm run build
-```
-
-Preview a production build:
-
-```bash
-npm run preview
-```
-
-## Environment Variables
-
-The frontend reads environment variables through Vite. Create `.env.local` in this directory when local overrides are needed.
-
-| Variable | Required | Default | Description |
-| --- | --- | --- | --- |
-| `VITE_API_BASE_URL` | No | `/api/v1` | Base URL used by the Axios client. In local development, `/api/v1` is proxied by Vite to `http://localhost:4000/api/v1`. |
-
-Example using the Vite proxy:
-
-```env
-VITE_API_BASE_URL=/api/v1
-```
-
-Example using a direct backend URL:
-
-```env
-VITE_API_BASE_URL=http://localhost:4000/api/v1
-```
-
-## Development Scripts
-
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start the Vite development server. |
-| `npm run build` | Type-check the project and create a production build. |
-| `npm run lint` | Run ESLint against `src`. |
-| `npm run preview` | Serve the production build locally. |
-
-## Architecture
-
-The frontend is organized around small route containers, feature-level business logic, shared layout primitives, and a single API client. Pages remain thin and compose feature components, layout, and shared UI rather than owning data-fetching or authentication logic directly.
+The frontend uses route containers, shared layout primitives, feature-owned business logic, and one shared Axios API client.
 
 ```mermaid
 flowchart TD
-  Browser[Browser] --> App[App.tsx]
+  Main[main.tsx] --> App[App.tsx]
   App --> Router[React Router]
   App --> AuthProvider[AuthProvider]
-  Router --> PublicRoutes[Login and Signup]
+  Router --> PublicPages[LoginPage and SignupPage]
   Router --> ProtectedRoute[ProtectedRoute]
   ProtectedRoute --> AppLayout[AppLayout]
-  AppLayout --> Pages[Route Container Pages]
-  Pages --> SharedComponents[Shared Components]
-  Pages --> FeatureComponents[Feature Components]
+  AppLayout --> LayoutComponents[PageShell, Sidebar, Header, Container]
+  AppLayout --> Pages[Placeholder Route Pages]
+  Pages --> Shared[Shared State Components]
   AuthProvider --> AuthService[Auth Service]
   AuthService --> ApiClient[Axios API Client]
-  ApiClient --> Backend[Backend API]
-  ApiClient --> TokenStorage[Token Storage]
+  ApiClient --> Backend[Express API]
 ```
 
-### Architecture Decisions
+Architectural decisions:
 
-- Route files stay as containers. They compose components and do not own backend integration.
-- API calls go through `src/services/api.ts` and feature services.
-- Authentication state is centralized in `AuthProvider`; components use `useAuth()`.
+- Pages stay as route containers.
+- Auth logic lives in `features/auth`.
+- API communication goes through `src/services/api.ts` and feature services.
 - Direct token storage access is isolated to `features/auth/utils/tokenStorage.ts`.
-- UI primitives are small, typed, accessible, and styled with design tokens.
-- The shell and placeholder pages exist to validate routing, layout, and auth before product workflows are built.
-
-## Backend Communication
-
-The shared Axios client lives in `src/services/api.ts`.
-
-It currently:
-
-- Uses `import.meta.env.VITE_API_BASE_URL` with `/api/v1` as the fallback.
-- Sends JSON requests.
-- Reads the stored access token and attaches `Authorization: Bearer <token>`.
-- Normalizes backend error responses into thrown `Error` instances.
-- Handles `401 Unauthorized` by clearing stored tokens, dispatching a session-expired event, and redirecting to `/login`.
-
-The authentication service in `src/features/auth/services/authService.ts` calls:
-
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| `POST` | `/auth/signup` | Create a user session after signup. |
-| `POST` | `/auth/login` | Authenticate and return a session. |
-| `GET` | `/auth/me` | Restore the current authenticated user. |
-
-With the default base URL, these resolve to:
-
-- `POST /api/v1/auth/signup`
-- `POST /api/v1/auth/login`
-- `GET /api/v1/auth/me`
-
-## Authentication Flow
-
-Authentication is implemented in `src/features/auth`.
-
-`AuthProvider` exposes:
-
-- `user`
-- `role`
-- `isAuthenticated`
-- `isLoading`
-- `login(credentials)`
-- `signup(credentials)`
-- `logout()`
-
-On refresh, the provider checks for an access token and calls `/auth/me`. If the token is valid, the user is restored. If the token is missing or invalid, the session is cleared and protected routes redirect to `/login`.
-
-```mermaid
-sequenceDiagram
-  participant User
-  participant Form as Login or Signup Form
-  participant AuthProvider
-  participant AuthService
-  participant API as Axios Client
-  participant Backend
-  participant Storage as tokenStorage
-
-  User->>Form: Submit credentials
-  Form->>AuthProvider: login or signup
-  AuthProvider->>AuthService: Call auth service
-  AuthService->>API: POST auth endpoint
-  API->>Backend: Request session
-  Backend-->>API: User and tokens
-  API-->>AuthService: ApiResponse<AuthSession>
-  AuthService-->>AuthProvider: AuthSession
-  AuthProvider->>Storage: Store access and refresh tokens
-  AuthProvider-->>Form: Resolve
-  Form->>User: Navigate into app
-```
-
-Logout clears auth state, removes stored tokens, and redirects to `/login`.
-
-## Routing
-
-Routes are defined in `src/App.tsx`.
-
-| Route | Access | Current Implementation |
-| --- | --- | --- |
-| `/login` | Public | Login screen. |
-| `/signup` | Public | Signup screen. |
-| `/dashboard` | Protected | Placeholder dashboard route. |
-| `/projects` | Protected | Placeholder projects route. |
-| `/tasks` | Protected | Placeholder tasks route. |
-| `/employees` | Protected | Placeholder employees route. |
-| `/ai-recommendations` | Protected | Placeholder AI recommendations route. |
-| `/profile` | Protected | Placeholder profile route. |
-| `/forbidden` | Protected | Access restricted placeholder. |
-| `*` | Redirect | Redirects to `/dashboard`. |
-
-Protected workspace routes currently allow `admin`, `supervisor`, and `employee` roles. Role-specific business behavior has not been implemented yet.
-
-```mermaid
-flowchart TD
-  Request[Route Request] --> IsPublic{Public route?}
-  IsPublic -->|Yes| PublicPage[Login or Signup]
-  IsPublic -->|No| Loading{Auth loading?}
-  Loading -->|Yes| LoadingState[Session Loading State]
-  Loading -->|No| Authenticated{Authenticated?}
-  Authenticated -->|No| LoginRedirect[Redirect to /login]
-  Authenticated -->|Yes| RoleAllowed{Role allowed?}
-  RoleAllowed -->|No| Forbidden[Redirect to /forbidden]
-  RoleAllowed -->|Yes| Shell[AppLayout]
-  Shell --> Page[Route Container Page]
-```
-
-## Design System
-
-The design system is token-driven and based on the locked Supervisor AI brand documentation:
-
-- `07-logo-final-locked.md`
-- `08-color-system.md`
-
-The active implementation lives in:
-
-- `src/styles/tokens.css`
-- `src/index.css`
-- `src/components/ui`
-- `src/components/layout`
-- `src/components/shared`
-
-The token layer defines brand blues, expressive accent colors, semantic status colors, neutral scales, surfaces, borders, shadows, and dark-mode values. Tailwind CSS consumes these tokens through `@theme`, allowing components to use semantic classes such as `bg-surface-page`, `text-ink-900`, `border-border-subtle`, and `text-brand-700`.
-
-Reusable UI primitives currently include:
-
-| Component | Purpose |
-| --- | --- |
-| `Button` | Typed button primitive with `primary`, `secondary`, and `ghost` variants. |
-| `Card` | Small surface primitive for grouped content. |
-| `SupervisorLogo` | Brand logo component using the locked symbol geometry and wordmark treatment. |
-| `LoadingState` | Shared loading display. |
-| `ErrorState` | Shared error display. |
-| `EmptyState` | Shared empty-state display. |
-| `PlaceholderScreen` | Temporary content surface for not-yet-built pages. |
-
-Layout primitives currently include:
-
-| Component | Purpose |
-| --- | --- |
-| `PageShell` | Responsive application frame with sidebar and header. |
-| `Sidebar` | Primary navigation and brand entry point. |
-| `Header` | Page title, eyebrow, and action area. |
-| `Container` | Responsive content width and page padding. |
+- Reusable UI is built from small typed primitives and design tokens.
 
 ## Folder Structure
 
@@ -282,10 +45,10 @@ src/
   assets/              Static frontend assets.
   components/
     layout/            Shared shell and layout primitives.
-    shared/            Reusable loading, error, empty, and placeholder states.
-    ui/                Low-level reusable UI primitives and brand components.
+    shared/            Loading, error, empty, and placeholder states.
+    ui/                Button, Card, and SupervisorLogo primitives.
   features/
-    auth/              Authentication provider, hooks, forms, guards, services, and types.
+    auth/              Auth provider, forms, hooks, guards, service, types.
     ai-recommendations/ Reserved feature directory.
     analytics/         Reserved feature directory.
     employees/         Reserved feature directory.
@@ -301,59 +64,253 @@ src/
   utils/               Reserved shared utilities directory.
 ```
 
-## API, Services, Hooks, and Provider
+## Routing
 
-The current frontend separates responsibilities as follows:
+Routes are defined in `src/App.tsx`.
 
-| Layer | Files | Responsibility |
+| Route | Access | Current Implementation |
 | --- | --- | --- |
-| API client | `src/services/api.ts` | Axios configuration, base URL, auth header, error handling, 401 redirect behavior. |
-| API types | `src/types/api.ts` | Shared API response and pagination contracts. |
-| Auth service | `src/features/auth/services/authService.ts` | Backend auth endpoint calls and response unwrapping. |
-| Auth provider | `src/features/auth/components/AuthProvider.tsx` | Session state, session hydration, login, signup, logout. |
-| Auth hook | `src/features/auth/hooks/useAuth.ts` | Public component access to auth context. |
-| Token storage | `src/features/auth/utils/tokenStorage.ts` | Local development token persistence and session-expired event dispatch. |
-| Route guards | `ProtectedRoute.tsx`, `RoleGuard.tsx` | Authentication and role validation boundaries. |
+| `/login` | Public | Login form connected to backend auth. |
+| `/signup` | Public | Signup form connected to backend auth. |
+| `/dashboard` | Protected | Placeholder route inside app shell. |
+| `/projects` | Protected | Placeholder route inside app shell. |
+| `/tasks` | Protected | Placeholder route inside app shell. |
+| `/employees` | Protected | Placeholder route inside app shell. |
+| `/ai-recommendations` | Protected | Placeholder route inside app shell. |
+| `/profile` | Protected | Placeholder route inside app shell. |
+| `/forbidden` | Protected | Access restricted placeholder. |
+| `*` | Redirect | Redirects to `/dashboard`. |
 
-## Project Philosophy
+```mermaid
+flowchart TD
+  Request[Route Request] --> Public{Public route?}
+  Public -->|Yes| PublicPage[Login or Signup]
+  Public -->|No| Loading{Auth loading?}
+  Loading -->|Yes| LoadingState[LoadingState]
+  Loading -->|No| Authenticated{Authenticated?}
+  Authenticated -->|No| LoginRedirect[Redirect to /login]
+  Authenticated -->|Yes| RoleAllowed{Role allowed?}
+  RoleAllowed -->|No| Forbidden[Redirect to /forbidden]
+  RoleAllowed -->|Yes| Shell[AppLayout]
+  Shell --> Page[Route Container Page]
+```
 
-The frontend is being built incrementally. Each phase should leave the app runnable, typed, and aligned with the existing architecture before new product behavior is added.
+## Protected Routes
 
-Guiding principles:
+`ProtectedRoute` handles:
 
-- Build only the current phase of functionality.
-- Keep pages thin and feature logic colocated.
-- Use shared services for backend communication.
-- Keep auth state behind a provider and hook.
-- Prefer semantic design tokens over one-off colors.
-- Preserve accessible focus states and responsive behavior in shared primitives.
-- Avoid mock user flows when real backend endpoints exist.
+- Auth hydration loading state.
+- Redirect to `/login` for unauthenticated users.
+- Optional role validation.
+- Redirect to `/forbidden` when the authenticated role is not allowed.
 
-## Roadmap
+Current protected workspace roles are `admin`, `supervisor`, and `employee`.
 
-| Status | Item |
+`RoleGuard` is also present as a reusable role-based guard, but the current route tree primarily uses `ProtectedRoute`.
+
+## Authentication Provider
+
+`AuthProvider` is the source of truth for frontend auth state.
+
+It exposes:
+
+- `user`
+- `role`
+- `isAuthenticated`
+- `isLoading`
+- `login(credentials)`
+- `signup(credentials)`
+- `logout()`
+
+On app load, the provider checks for a stored access token and calls `/auth/me`. If the backend validates the token, the user is restored. If validation fails, tokens and auth state are cleared.
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant Form as Auth Form
+  participant Provider as AuthProvider
+  participant Service as authService
+  participant API as Axios Client
+  participant Backend
+  participant Storage as tokenStorage
+
+  User->>Form: Submit credentials
+  Form->>Provider: login or signup
+  Provider->>Service: Call backend auth service
+  Service->>API: POST /auth/login or /auth/signup
+  API->>Backend: /api/v1/auth request
+  Backend-->>API: Auth session
+  API-->>Service: ApiResponse<AuthSession>
+  Service-->>Provider: AuthSession
+  Provider->>Storage: Store development tokens
+  Provider-->>Form: Resolve
+  Form->>User: Navigate to /dashboard
+```
+
+## API Layer and Services
+
+`src/services/api.ts` configures Axios.
+
+Current behavior:
+
+- Base URL comes from `VITE_API_BASE_URL`.
+- Fallback base URL is `/api/v1`.
+- Requests attach `Authorization: Bearer <token>` when a token exists.
+- `401` responses clear tokens, dispatch a session-expired event, and redirect to `/login`.
+- Backend errors are normalized to thrown `Error` objects.
+
+The auth feature service calls:
+
+| Function | Endpoint |
 | --- | --- |
-| Done | Frontend foundation with Vite, React, TypeScript, and Tailwind CSS. |
-| Done | Locked brand color tokens and logo component. |
-| Done | Responsive app shell and temporary navigation. |
-| Done | Login and signup screens. |
-| Done | Backend-integrated authentication and session restoration. |
-| Done | Protected routes and role-aware guard placeholders. |
-| Planned | Real dashboard data and analytics. |
-| Planned | Project, task, and employee workflows. |
-| Planned | AI recommendation review experience. |
-| Planned | Profile management. |
-| Planned | Role-specific application behavior. |
-| Planned | Automated tests. |
-| Planned | Production deployment hardening. |
+| `signup` | `POST /auth/signup` |
+| `login` | `POST /auth/login` |
+| `getCurrentUser` | `GET /auth/me` |
 
-## Contributing Notes
+With the default base URL, those resolve to `/api/v1/auth/*`.
 
-Before changing frontend behavior, review `CODEX.md`, `07-logo-final-locked.md`, and `08-color-system.md`. Keep new pages as route containers, place business logic in feature folders, and route backend communication through services.
+```mermaid
+flowchart LR
+  Component[Component] --> Hook[useAuth]
+  Hook --> Provider[AuthProvider]
+  Provider --> AuthService[authService]
+  AuthService --> ApiClient[api.ts]
+  ApiClient --> Backend[Express API]
+  ApiClient --> TokenStorage[tokenStorage]
+```
 
-Run these before opening a change:
+## Services and Hooks
+
+| Layer | Current Files | Responsibility |
+| --- | --- | --- |
+| Shared API client | `src/services/api.ts` | Axios base URL, auth header, error normalization, 401 handling. |
+| Auth service | `src/features/auth/services/authService.ts` | Calls backend auth endpoints and unwraps API responses. |
+| Auth context | `src/features/auth/hooks/authContext.ts` | Defines the typed auth context contract. |
+| Auth hook | `src/features/auth/hooks/useAuth.ts` | Provides safe component access to auth state and actions. |
+
+Project, task, employee, profile, and recommendation service hooks are planned with their corresponding data-connected feature screens.
+
+## Layout System
+
+The authenticated workspace is composed through `AppLayout`.
+
+| Component | Purpose |
+| --- | --- |
+| `PageShell` | Responsive shell with sidebar and content column. |
+| `Sidebar` | Brand entry point and primary navigation. |
+| `Header` | Page title, eyebrow, and actions. |
+| `Container` | Max-width content wrapper. |
+
+Current sidebar links:
+
+- Dashboard
+- Projects
+- Tasks
+- Employees
+- AI Recommendations
+- Profile
+
+## Design System
+
+The active design implementation is token-driven.
+
+| File | Purpose |
+| --- | --- |
+| `07-logo-final-locked.md` | Locked logo guidance. |
+| `08-color-system.md` | Locked color system. |
+| `src/styles/tokens.css` | CSS custom properties and Tailwind `@theme` tokens. |
+| `src/index.css` | Tailwind import and global base styles. |
+
+Implemented UI primitives:
+
+| Component | Purpose |
+| --- | --- |
+| `Button` | Typed button with `primary`, `secondary`, and `ghost` variants. |
+| `Card` | Reusable bordered surface. |
+| `SupervisorLogo` | Inline Supervisor brand mark and wordmark. |
+| `LoadingState` | Shared loading presentation. |
+| `ErrorState` | Shared error presentation. |
+| `EmptyState` | Shared empty state presentation. |
+| `PlaceholderScreen` | Temporary surface for routes without built product UI. |
+
+## State Management
+
+Current state management is intentionally minimal:
+
+- React local state for forms and UI state.
+- React context for authentication.
+- Browser local storage only through `tokenStorage.ts` for development session persistence.
+- No external client state library is installed.
+
+## Build Process
+
+The Vite build is type-checked first:
 
 ```bash
 npm run build
+```
+
+This runs:
+
+```bash
+tsc -b && npm exec vite build
+```
+
+## Environment Variables
+
+Only variable names are documented. Do not commit real values.
+
+| Variable | Required | Default | Purpose |
+| --- | --- | --- | --- |
+| `VITE_API_BASE_URL` | No | `/api/v1` | Base URL for the Axios API client. |
+
+The Vite dev server currently proxies `/api` to `http://localhost:4000`. Align this with the backend `PORT` during local development.
+
+## Development Workflow
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the development server:
+
+```bash
+npm run dev
+```
+
+Run lint:
+
+```bash
 npm run lint
 ```
+
+Build:
+
+```bash
+npm run build
+```
+
+Preview a production build:
+
+```bash
+npm run preview
+```
+
+## Frontend Roadmap
+
+| Status | Item |
+| --- | --- |
+| Done | Vite, React, TypeScript, and Tailwind foundation. |
+| Done | Locked brand tokens and Supervisor logo component. |
+| Done | Responsive app shell and navigation. |
+| Done | Login and signup pages. |
+| Done | Backend-integrated auth provider and session restore. |
+| Done | Protected routes and forbidden route placeholder. |
+| Planned | Data-connected dashboard. |
+| Planned | Project, task, employee, profile, and recommendation feature screens. |
+| Planned | Frontend services and hooks for project/task/employee APIs. |
+| Planned | Role-specific frontend experiences. |
+| Planned | Automated frontend tests. |
+| Planned | Production deployment configuration. |
