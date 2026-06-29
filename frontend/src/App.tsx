@@ -1,61 +1,73 @@
+import { Container } from './components/layout/Container'
+import { PageShell } from './components/layout/PageShell'
+import type { NavigationItem } from './components/layout/Sidebar'
 import { EmptyState } from './components/shared/EmptyState'
 import { ErrorState } from './components/shared/ErrorState'
 import { LoadingState } from './components/shared/LoadingState'
 import { Button } from './components/ui/Button'
 import { Card } from './components/ui/Card'
 
+const navigationItems: NavigationItem[] = [
+  { href: '#dashboard', label: 'Dashboard' },
+  { href: '#projects', label: 'Projects' },
+  { href: '#tasks', label: 'Tasks' },
+  { href: '#employees', label: 'Employees' },
+  { href: '#ai-recommendations', label: 'AI Recommendations' },
+  { href: '#profile', label: 'Profile' },
+]
+
 function App() {
   return (
-    <main className="min-h-screen bg-surface-page px-5 py-8 text-ink-900 sm:px-8">
-      <div className="mx-auto flex max-w-5xl flex-col gap-6">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div
-              className="grid h-11 w-11 place-items-center rounded-lg bg-brand-600 text-sm font-black text-white"
-              aria-hidden="true"
-            >
-              SA
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-brand-700">Supervisor AI</p>
-              <h1 className="text-3xl font-bold tracking-normal text-ink-900">
-                Frontend foundation
-              </h1>
-            </div>
-          </div>
+    <PageShell
+      actions={
+        <>
+          <Button variant="secondary">Preview shell</Button>
           <Button>Foundation ready</Button>
-        </header>
+        </>
+      }
+      activeHref="#dashboard"
+      eyebrow="Phase 2"
+      navigationItems={navigationItems}
+      title="Frontend foundation"
+    >
+      <main id="dashboard" tabIndex={-1}>
+        <Container className="py-6 sm:py-8">
+          <div className="flex flex-col gap-6">
+            <Card aria-labelledby="foundation-heading">
+              <div className="grid gap-5 md:grid-cols-[1.2fr_0.8fr] md:items-center">
+                <div>
+                  <p className="text-sm font-semibold text-brand-700">Brand system</p>
+                  <h2
+                    id="foundation-heading"
+                    className="mt-2 text-2xl font-bold tracking-normal text-ink-900"
+                  >
+                    Locked colors, logo, and responsive app shell are wired.
+                  </h2>
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-600">
+                    This temporary screen verifies the shared shell and tokens before
+                    feature pages, auth, dashboards, or API data are introduced.
+                  </p>
+                </div>
+                <div className="grid gap-3 rounded-lg border border-border-subtle bg-surface-muted p-4">
+                  <Button variant="primary">Primary action</Button>
+                  <Button variant="secondary">Secondary action</Button>
+                  <Button variant="ghost">Ghost action</Button>
+                </div>
+              </div>
+            </Card>
 
-        <Card aria-labelledby="foundation-heading">
-          <div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr] md:items-center">
-            <div>
-              <p className="text-sm font-semibold text-brand-700">Phase 1</p>
-              <h2 id="foundation-heading" className="mt-2 text-2xl font-bold text-ink-900">
-                Shared UI, API client, strict TypeScript, and Tailwind tokens are wired.
-              </h2>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-600">
-                This temporary screen exists only to verify the foundation styling before
-                feature pages are built.
-              </p>
-            </div>
-            <div className="grid gap-3 rounded-lg bg-surface-muted p-4">
-              <Button variant="primary">Primary action</Button>
-              <Button variant="secondary">Secondary action</Button>
-              <Button variant="ghost">Ghost action</Button>
-            </div>
+            <section className="grid gap-4 md:grid-cols-3" aria-label="Shared states">
+              <LoadingState label="Loading shared data" />
+              <ErrorState message="The API client will normalize backend errors here." />
+              <EmptyState
+                description="Feature-specific empty states can reuse this component."
+                title="Empty state"
+              />
+            </section>
           </div>
-        </Card>
-
-        <section className="grid gap-4 md:grid-cols-3" aria-label="Shared states">
-          <LoadingState label="Loading shared data" />
-          <ErrorState message="The API client will normalize backend errors here." />
-          <EmptyState
-            description="Feature-specific empty states can reuse this component."
-            title="Empty state"
-          />
-        </section>
-      </div>
-    </main>
+        </Container>
+      </main>
+    </PageShell>
   )
 }
 

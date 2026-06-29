@@ -1,0 +1,6 @@
+<svg viewBox="0 0 100 90" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="logo-symbol-title">
+  <title id="logo-symbol-title">Supervisor logo symbol</title>
+  <rect x="0" y="0" width="100" height="28" rx="14" fill="#2D6FF7" />
+  <rect x="0" y="62" width="100" height="28" rx="14" fill="#2D6FF7" opacity="0.55" />
+  <circle cx="38" cy="45" r="13" fill="#2D6FF7" />
+</svg>
