@@ -1,121 +1,61 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { EmptyState } from './components/shared/EmptyState'
+import { ErrorState } from './components/shared/ErrorState'
+import { LoadingState } from './components/shared/LoadingState'
+import { Button } from './components/ui/Button'
+import { Card } from './components/ui/Card'
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <main className="min-h-screen bg-surface-page px-5 py-8 text-ink-900 sm:px-8">
+      <div className="mx-auto flex max-w-5xl flex-col gap-6">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className="grid h-11 w-11 place-items-center rounded-lg bg-brand-600 text-sm font-black text-white"
+              aria-hidden="true"
+            >
+              SA
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-brand-700">Supervisor AI</p>
+              <h1 className="text-3xl font-bold tracking-normal text-ink-900">
+                Frontend foundation
+              </h1>
+            </div>
+          </div>
+          <Button>Foundation ready</Button>
+        </header>
 
-      <div className="ticks"></div>
+        <Card aria-labelledby="foundation-heading">
+          <div className="grid gap-4 md:grid-cols-[1.2fr_0.8fr] md:items-center">
+            <div>
+              <p className="text-sm font-semibold text-brand-700">Phase 1</p>
+              <h2 id="foundation-heading" className="mt-2 text-2xl font-bold text-ink-900">
+                Shared UI, API client, strict TypeScript, and Tailwind tokens are wired.
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-ink-600">
+                This temporary screen exists only to verify the foundation styling before
+                feature pages are built.
+              </p>
+            </div>
+            <div className="grid gap-3 rounded-lg bg-surface-muted p-4">
+              <Button variant="primary">Primary action</Button>
+              <Button variant="secondary">Secondary action</Button>
+              <Button variant="ghost">Ghost action</Button>
+            </div>
+          </div>
+        </Card>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+        <section className="grid gap-4 md:grid-cols-3" aria-label="Shared states">
+          <LoadingState label="Loading shared data" />
+          <ErrorState message="The API client will normalize backend errors here." />
+          <EmptyState
+            description="Feature-specific empty states can reuse this component."
+            title="Empty state"
+          />
+        </section>
+      </div>
+    </main>
   )
 }
 
