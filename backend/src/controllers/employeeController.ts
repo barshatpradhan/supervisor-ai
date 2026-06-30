@@ -9,6 +9,7 @@ import { AppError } from "../utils/appError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 import {
   optionalEnum,
+  optionalNullableString,
   optionalNumber,
   optionalString,
   optionalStringArray,
@@ -94,7 +95,7 @@ export async function updateMyEmployeeProfile(
     const body = requireBody(req.body);
     const employee = await updateEmployeeProfile(req.user.id, {
       full_name: optionalString(body, "full_name"),
-      bio: optionalString(body, "bio"),
+      bio: optionalNullableString(body, "bio"),
       skills: optionalStringArray(body, "skills"),
     });
 
