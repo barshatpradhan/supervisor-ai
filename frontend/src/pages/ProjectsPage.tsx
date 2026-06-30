@@ -1,10 +1,5 @@
-import { PlaceholderScreen } from '../components/shared/PlaceholderScreen'
+import { ProjectsManagementPage } from '../features/projects/pages/ProjectsManagementPage'
 
 export function ProjectsPage() {
-  return (
-    <PlaceholderScreen
-      description="Project lists and project detail workflows will be added in a later phase."
-      title="Projects placeholder"
-    />
-  )
+  return <ProjectsManagementPage />
 }
