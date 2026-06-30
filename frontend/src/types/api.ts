@@ -1,13 +1,13 @@
-export interface ApiSuccessResponse<TData> {
+export interface ApiSuccessResponse<TData = void> {
   success: true
-  data: TData
-  message?: string
+  data?: TData
+  message: string
 }
 
 export interface ApiErrorResponse {
   success: false
   error: string
-  message?: string
+  message: string
 }
 
 export type ApiResponse<TData> = ApiSuccessResponse<TData> | ApiErrorResponse
