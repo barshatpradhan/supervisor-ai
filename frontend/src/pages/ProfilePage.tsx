@@ -1,10 +1,5 @@
-import { PlaceholderScreen } from '../components/shared/PlaceholderScreen'
+import { EmployeeProfileRoute } from '../features/employees/components/EmployeeProfileRoute'
 
 export function ProfilePage() {
-  return (
-    <PlaceholderScreen
-      description="Profile settings and session details will be added in a later phase."
-      title="Profile placeholder"
-    />
-  )
+  return <EmployeeProfileRoute />
 }
