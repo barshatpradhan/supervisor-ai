@@ -43,6 +43,27 @@ export function optionalString(body: Record<string, unknown>, field: string) {
   return value.trim();
 }
 
+export function optionalNullableString(
+  body: Record<string, unknown>,
+  field: string
+) {
+  const value = body[field];
+
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    throw new AppError(`${field} must be a string or null.`, 400);
+  }
+
+  return value.trim();
+}
+
 export function optionalStringArray(
   body: Record<string, unknown>,
   field: string

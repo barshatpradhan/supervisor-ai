@@ -7,7 +7,7 @@ type EmploymentType = "full_time" | "part_time";
 
 interface EmployeeProfileInput {
   full_name?: string;
-  bio?: string;
+  bio?: string | null;
   skills?: string[];
 }
 
