@@ -169,3 +169,67 @@ export function optionalEnum<T extends string>(
 
   return value as T;
 }
+
+export function optionalStringValue(value: unknown, label: string) {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  if (Array.isArray(value) || typeof value !== "string") {
+    throw new AppError(`${label} must be a string.`, 400);
+  }
+
+  return value.trim();
+}
+
+export function optionalNumberValue(
+  value: unknown,
+  label: string,
+  options: { min?: number; max?: number } = {}
+) {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  if (Array.isArray(value)) {
+    throw new AppError(`${label} must be a number.`, 400);
+  }
+
+  const parsedValue =
+    typeof value === "number" ? value : typeof value === "string" ? Number(value) : NaN;
+
+  if (!Number.isFinite(parsedValue)) {
+    throw new AppError(`${label} must be a number.`, 400);
+  }
+
+  if (options.min !== undefined && parsedValue < options.min) {
+    throw new AppError(`${label} must be at least ${options.min}.`, 400);
+  }
+
+  if (options.max !== undefined && parsedValue > options.max) {
+    throw new AppError(`${label} must be at most ${options.max}.`, 400);
+  }
+
+  return parsedValue;
+}
+
+export function optionalEnumValue<T extends string>(
+  value: unknown,
+  label: string,
+  allowedValues: readonly T[]
+) {
+  const parsedValue = optionalStringValue(value, label);
+
+  if (parsedValue === undefined) {
+    return undefined;
+  }
+
+  if (!allowedValues.includes(parsedValue as T)) {
+    throw new AppError(
+      `${label} must be one of: ${allowedValues.join(", ")}.`,
+      400
+    );
+  }
+
+  return parsedValue as T;
+}

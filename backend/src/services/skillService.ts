@@ -22,6 +22,10 @@ interface ExistingEmployeeSkillRow extends EmployeeSkillRow {
   employee_id: string;
 }
 
+interface EmployeeSkillLinkRow extends EmployeeSkillRow {
+  employee_id: string;
+}
+
 export interface EmployeeSkillResponse {
   id: string;
   name: string;
@@ -177,6 +181,68 @@ export async function getEmployeeSkills(employeeId: string) {
       },
     ];
   });
+}
+
+export async function getSkillsByEmployeeIds(employeeIds: string[]) {
+  const skillMap = new Map<string, EmployeeSkillResponse[]>();
+
+  for (const employeeId of employeeIds) {
+    skillMap.set(employeeId, []);
+  }
+
+  if (employeeIds.length === 0) {
+    return skillMap;
+  }
+
+  const { data: employeeSkills, error: employeeSkillsError } = await supabase
+    .from("employee_skills")
+    .select("employee_id, skill_id, proficiency_level, years_of_experience")
+    .in("employee_id", employeeIds)
+    .returns<EmployeeSkillLinkRow[]>();
+
+  if (employeeSkillsError) {
+    throw new AppError("Unable to fetch employee skills.", 500);
+  }
+
+  const skillIds = [...new Set((employeeSkills ?? []).map((skill) => skill.skill_id))];
+
+  if (skillIds.length === 0) {
+    return skillMap;
+  }
+
+  const { data: skills, error: skillsError } = await supabase
+    .from("skills")
+    .select("id, name, normalized_name, is_approved, created_by, category, created_at")
+    .in("id", skillIds)
+    .returns<SkillRow[]>();
+
+  if (skillsError) {
+    throw new AppError("Unable to fetch employee skill names.", 500);
+  }
+
+  const skillById = new Map((skills ?? []).map((skill) => [skill.id, skill]));
+
+  for (const employeeSkill of employeeSkills ?? []) {
+    const skill = skillById.get(employeeSkill.skill_id);
+
+    if (!skill) {
+      continue;
+    }
+
+    const currentSkills = skillMap.get(employeeSkill.employee_id) ?? [];
+    currentSkills.push({
+      id: skill.id,
+      name: skill.name,
+      normalizedName: skill.normalized_name,
+      isApproved: skill.is_approved,
+      proficiencyLevel: employeeSkill.proficiency_level ?? 3,
+      yearsOfExperience: employeeSkill.years_of_experience,
+      category: skill.category,
+    });
+    skillMap.set(employeeSkill.employee_id, currentSkills);
+  }
+
+  return skillMap;
 }
 
 export async function syncEmployeeSkills(
