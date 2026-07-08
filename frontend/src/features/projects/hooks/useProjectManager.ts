@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import type { ApiError } from '../../../lib/api'
 import { useNotifications } from '../../../hooks/useNotifications'
-import { useProject } from '../../../hooks/useProject'
-import { useProjects } from '../../../hooks/useProjects'
-import { createProject, updateProject } from '../../../services/projects/projectService'
+import { createProject, updateProject } from '../services/projectService'
+import { useProject } from './useProject'
+import { useProjects } from './useProjects'
 import type { Project, ProjectFormErrors, ProjectFormValues, ProjectPanelMode } from '../types/project'
 import {
   buildProjectFormValues,
@@ -35,7 +34,7 @@ export function useProjectManager() {
     isRefreshing: isListRefreshing,
     refetch: refetchProjects,
   } = useProjects()
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null)
+  const [selectedProjectIdState, setSelectedProjectId] = useState<string | null>(null)
   const [panelMode, setPanelMode] = useState<ProjectPanelMode>('view')
   const [mutationState, setMutationState] = useState<ProjectMutationState>(
     createInitialMutationState(),
@@ -46,12 +45,14 @@ export function useProjectManager() {
     isLoading: isProjectLoading,
     isRefreshing: isProjectRefreshing,
     refetch: refetchProject,
-  } = useProject(selectedProjectId ?? undefined)
+  } = useProject(selectedProjectIdState ?? (panelMode === 'view' ? projects?.[0]?.id : undefined))
 
   const projectList = projects ?? []
   const hasProjects = projectList.length > 0
   const isCreateMode = panelMode === 'create'
   const isEditMode = panelMode === 'edit'
+  const selectedProjectId =
+    selectedProjectIdState ?? (panelMode === 'view' ? projectList[0]?.id ?? null : null)
   const isDetailLoading = Boolean(selectedProjectId) && isProjectLoading && !selectedProject
 
   function clearMutationState() {
@@ -226,7 +227,7 @@ export function useProjectManager() {
     listError,
     mutationState,
     panelMode,
-    projectError: projectError as ApiError | null,
+    projectError,
     projectList,
     retryList,
     retrySelectedProject,

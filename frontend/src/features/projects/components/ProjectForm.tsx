@@ -63,6 +63,7 @@ export function ProjectForm({
           <label className="grid gap-2 text-sm font-semibold text-ink-800">
             Title
             <input
+              aria-invalid={validationErrors.title ? 'true' : 'false'}
               className={inputClassName}
               maxLength={160}
               onChange={(event) =>
@@ -83,6 +84,7 @@ export function ProjectForm({
           <label className="grid gap-2 text-sm font-semibold text-ink-800">
             Description
             <textarea
+              aria-invalid={validationErrors.description ? 'true' : 'false'}
               className={textAreaClassName}
               maxLength={1200}
               onChange={(event) =>
