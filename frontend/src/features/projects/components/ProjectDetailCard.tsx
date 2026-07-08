@@ -60,6 +60,22 @@ export function ProjectDetailCard({ onEdit, project }: ProjectDetailCardProps) {
           <dl className="grid gap-3">
             <div className="rounded-lg border border-border-subtle bg-surface-card-alt p-4">
               <dt className="text-xs font-semibold uppercase tracking-normal text-ink-500">
+                Status
+              </dt>
+              <dd className="mt-2">
+                <ProjectStatusBadge kind="status" value={project.status} />
+              </dd>
+            </div>
+            <div className="rounded-lg border border-border-subtle bg-surface-card-alt p-4">
+              <dt className="text-xs font-semibold uppercase tracking-normal text-ink-500">
+                Priority
+              </dt>
+              <dd className="mt-2">
+                <ProjectStatusBadge kind="priority" value={project.priority} />
+              </dd>
+            </div>
+            <div className="rounded-lg border border-border-subtle bg-surface-card-alt p-4">
+              <dt className="text-xs font-semibold uppercase tracking-normal text-ink-500">
                 Created
               </dt>
               <dd className="mt-2 text-sm font-medium text-ink-800">
