@@ -38,7 +38,7 @@ export function ProjectsModule() {
     <div className="grid gap-6">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-normal text-brand-700">
+          <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
             Supervisor workspace
           </p>
           <h1 className="text-3xl font-bold tracking-normal text-ink-900">

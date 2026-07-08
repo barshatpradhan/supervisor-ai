@@ -12,7 +12,7 @@ interface EmployeeProfileFormProps {
 }
 
 const inputClassName =
-  'min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-brand-600 focus:ring-3 focus:ring-brand-200'
+  'min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-primary-600 focus:ring-3 focus:ring-primary-200'
 
 const textAreaClassName = `${inputClassName} min-h-32 py-3`
 
@@ -55,7 +55,7 @@ export function EmployeeProfileForm({
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-normal text-brand-700">
+            <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
               Editable details
             </p>
             <h2 className="mt-2 text-xl font-bold text-ink-900">Update your profile</h2>

@@ -212,13 +212,13 @@ Current sidebar links:
 
 ## Design System
 
-The active design implementation is token-driven.
+The active design implementation is token-driven and follows a monday/Vibe-inspired purpose-first color model.
 
 | File | Purpose |
 | --- | --- |
 | `07-logo-final-locked.md` | Locked logo guidance. |
-| `08-color-system.md` | Locked color system. |
-| `src/styles/tokens.css` | CSS custom properties and Tailwind `@theme` tokens. |
+| `08-color-system.md` | Current color token model, palette, and usage rules. |
+| `src/styles/tokens.css` | CSS custom properties, purpose aliases, light-theme surfaces, and Tailwind `@theme` exports. |
 | `src/index.css` | Tailwind import and global base styles. |
 
 Implemented UI primitives:

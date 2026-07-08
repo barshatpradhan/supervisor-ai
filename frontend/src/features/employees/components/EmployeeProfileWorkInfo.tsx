@@ -15,7 +15,7 @@ interface WorkInfoMetricProps {
 
 const metricToneClasses: Record<NonNullable<WorkInfoMetricProps['tone']>, string> = {
   default: 'border-border-subtle bg-surface-card-alt',
-  info: 'border-border-brand bg-info-bg/60',
+  info: 'border-border-primary bg-info-bg/60',
   warning: 'border-warning-fg/40 bg-warning-bg/60',
 }
 
@@ -43,7 +43,7 @@ export function EmployeeProfileWorkInfo({
     <Card className="h-full">
       <div className="flex h-full flex-col gap-5">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-normal text-brand-700">
+          <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
             Organization-managed
           </p>
           <h2 className="mt-2 text-xl font-bold text-ink-900">Employment information</h2>

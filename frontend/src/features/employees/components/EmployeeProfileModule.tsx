@@ -39,7 +39,7 @@ export function EmployeeProfileModule() {
   return (
     <div className="grid gap-6">
       <section className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-normal text-brand-700">
+        <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
           Employee workspace
         </p>
         <h1 className="text-3xl font-bold tracking-normal text-ink-900">

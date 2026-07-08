@@ -9,7 +9,7 @@ export function LoadingState({ label = 'Loading' }: LoadingStateProps) {
       role="status"
     >
       <span
-        className="h-4 w-4 animate-spin rounded-full border-2 border-brand-200 border-t-brand-600"
+        className="h-4 w-4 animate-spin rounded-full border-2 border-primary-200 border-t-primary-600"
         aria-hidden="true"
       />
       <span>{label}</span>

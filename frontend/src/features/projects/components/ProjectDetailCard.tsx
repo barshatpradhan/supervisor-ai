@@ -15,7 +15,7 @@ export function ProjectDetailCard({ onEdit, project }: ProjectDetailCardProps) {
       <div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-normal text-brand-700">
+            <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
               Project details
             </p>
             <h2 className="text-2xl font-bold text-ink-900">{project.title}</h2>

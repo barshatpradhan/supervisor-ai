@@ -18,7 +18,7 @@ interface ProjectFormProps {
 }
 
 const inputClassName =
-  'min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-brand-600 focus:ring-3 focus:ring-brand-200'
+  'min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-primary-600 focus:ring-3 focus:ring-primary-200'
 
 const textAreaClassName = `${inputClassName} min-h-32 py-3`
 
@@ -43,7 +43,7 @@ export function ProjectForm({
     <Card>
       <div className="space-y-6">
         <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-normal text-brand-700">
+          <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
             {mode === 'create' ? 'New project' : 'Edit project'}
           </p>
           <h2 className="text-2xl font-bold text-ink-900">

@@ -16,7 +16,7 @@ export function Sidebar({ activeHref = '/dashboard', items }: SidebarProps) {
     <aside className="border-b border-border-subtle bg-surface-card lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">
       <div className="flex h-full flex-col gap-5 p-4 lg:p-5">
         <Link
-          className="rounded-md focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-brand-300"
+          className="rounded-md focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-primary-300"
           to="/dashboard"
         >
           <SupervisorLogo />
@@ -32,9 +32,9 @@ export function Sidebar({ activeHref = '/dashboard', items }: SidebarProps) {
                   <NavLink
                     aria-current={isActive ? 'page' : undefined}
                     className={[
-                      'flex min-h-10 items-center rounded-md px-3 text-sm font-semibold transition focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand-300',
+                      'flex min-h-10 items-center rounded-md px-3 text-sm font-semibold transition focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
                       isActive
-                        ? 'bg-glass-tinted text-brand-700 ring-1 ring-border-brand'
+                        ? 'bg-glass-tinted text-primary-700 ring-1 ring-border-primary'
                         : 'text-ink-700 hover:bg-surface-muted hover:text-ink-900',
                     ].join(' ')}
                     to={item.href}

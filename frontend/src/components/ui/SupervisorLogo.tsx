@@ -9,7 +9,7 @@ export function SupervisorLogo({
   compact = false,
   inverted = false,
 }: SupervisorLogoProps) {
-  const symbolColor = inverted ? '#5B8DF9' : '#2D6FF7'
+  const symbolColor = inverted ? '#8E89FF' : '#6161FF'
   const textColor = inverted ? 'text-white' : 'text-ink-900'
 
   return (
@@ -34,7 +34,7 @@ export function SupervisorLogo({
       </svg>
       {!compact ? (
         <span className={`text-xl font-bold leading-none tracking-normal ${textColor}`}>
-          Supervisor<span className="text-brand-500">.</span>
+          Supervisor<span className="text-primary-500">.</span>
         </span>
       ) : null}
     </div>
