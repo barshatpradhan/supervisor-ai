@@ -119,6 +119,30 @@ export interface BackendCreateSupervisorProfileRequest {
   bio?: string
 }
 
+export interface BackendAssignableEmployeeSkill {
+  name: string
+  proficiency_level: number
+  years_of_experience: number | null
+}
+
+export interface BackendAssignableEmployee {
+  id: string
+  full_name: string
+  employment_type: 'full_time' | 'part_time'
+  availability_percentage: number
+  workload_percentage: number
+  weekly_capacity_hours: number
+  performance_score: number | null
+  skills: BackendAssignableEmployeeSkill[]
+}
+
+export interface BackendSupervisorEmployeeDirectoryQuery {
+  search?: string
+  skill?: string
+  availability_min?: number
+  employment_type?: 'full_time' | 'part_time'
+}
+
 export interface BackendProject {
   id: string
   title: string

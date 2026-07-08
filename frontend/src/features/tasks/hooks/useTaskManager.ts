@@ -12,7 +12,8 @@ import {
   validateTaskForm,
   validateTaskProgressForm,
 } from '../utils/taskPresentation'
-import { createTask, createTaskProgress } from '../services/taskService'
+import { assignTask, createTask, createTaskProgress } from '../services/taskService'
+import { useAssignableEmployees } from './useAssignableEmployees'
 import { useTasks } from './useTasks'
 import type {
   TaskDisplay,
@@ -34,6 +35,16 @@ interface TaskProgressMutationState {
   isSubmitting: boolean
 }
 
+interface TaskAssignmentMutationState {
+  formError: string | null
+  isSubmitting: boolean
+}
+
+interface TaskAssignmentSelectionState {
+  employeeId: string
+  taskId: string | null
+}
+
 function createInitialTaskMutationState(): TaskMutationState {
   return {
     errors: {},
@@ -45,6 +56,13 @@ function createInitialTaskMutationState(): TaskMutationState {
 function createInitialTaskProgressMutationState(): TaskProgressMutationState {
   return {
     errors: {},
+    formError: null,
+    isSubmitting: false,
+  }
+}
+
+function createInitialTaskAssignmentMutationState(): TaskAssignmentMutationState {
+  return {
     formError: null,
     isSubmitting: false,
   }
@@ -65,6 +83,13 @@ export function useTaskManager() {
   )
   const [taskProgressMutationState, setTaskProgressMutationState] =
     useState<TaskProgressMutationState>(createInitialTaskProgressMutationState())
+  const [assignmentMutationState, setAssignmentMutationState] =
+    useState<TaskAssignmentMutationState>(createInitialTaskAssignmentMutationState())
+  const [assignmentSelectionState, setAssignmentSelectionState] =
+    useState<TaskAssignmentSelectionState>({
+      employeeId: '',
+      taskId: null,
+    })
 
   const projectList = useMemo(
     () => (projectsQuery.data ?? []) as BackendProject[],
@@ -82,6 +107,7 @@ export function useTaskManager() {
   const hasTasks = taskList.length > 0
   const selectedTaskId =
     selectedTaskIdState ?? (panelMode === 'view' ? taskList[0]?.id ?? null : null)
+  const assignableEmployeesQuery = useAssignableEmployees(canManageTasks && selectedTaskId !== null)
   const selectedTask = useMemo<TaskDisplay | null>(
     () => taskList.find((task) => task.id === selectedTaskId) ?? null,
     [selectedTaskId, taskList],
@@ -101,15 +127,44 @@ export function useTaskManager() {
     setTaskProgressMutationState(createInitialTaskProgressMutationState())
   }
 
+  function clearTaskAssignmentMutationState() {
+    setAssignmentMutationState(createInitialTaskAssignmentMutationState())
+  }
+
+  const assignmentSelection =
+    selectedTask && assignmentSelectionState.taskId === selectedTask.id
+      ? assignmentSelectionState.employeeId
+      : (selectedTask?.assigned_employee_id ?? '')
+
+  function updateAssignmentSelection(employeeId: string) {
+    setAssignmentSelectionState({
+      employeeId,
+      taskId: selectedTask?.id ?? null,
+    })
+
+    if (assignmentMutationState.formError) {
+      clearTaskAssignmentMutationState()
+    }
+  }
+
   function selectTask(taskId: string) {
     setSelectedTaskId(taskId)
     setPanelMode('view')
+    setAssignmentSelectionState({
+      employeeId: '',
+      taskId: null,
+    })
     clearTaskMutationState()
     clearTaskProgressMutationState()
+    clearTaskAssignmentMutationState()
   }
 
   function startCreateTask() {
     setPanelMode('create')
+    setAssignmentSelectionState({
+      employeeId: '',
+      taskId: null,
+    })
     clearTaskMutationState()
   }
 
@@ -124,8 +179,13 @@ export function useTaskManager() {
 
   function cancelPanel() {
     setPanelMode('view')
+    setAssignmentSelectionState({
+      employeeId: '',
+      taskId: null,
+    })
     clearTaskMutationState()
     clearTaskProgressMutationState()
+    clearTaskAssignmentMutationState()
   }
 
   function retryPage() {
@@ -231,7 +291,59 @@ export function useTaskManager() {
     }
   }
 
+  const canSubmitAssignment =
+    Boolean(selectedTask) &&
+    Boolean(assignmentSelection) &&
+    assignmentSelection !== (selectedTask?.assigned_employee_id ?? '') &&
+    !assignmentMutationState.isSubmitting
+
+  async function submitTaskAssignment() {
+    if (!selectedTask || !assignmentSelection) {
+      return
+    }
+
+    setAssignmentMutationState({
+      formError: null,
+      isSubmitting: true,
+    })
+
+    try {
+      await assignTask(selectedTask.id, {
+        employeeId: assignmentSelection,
+      })
+      await Promise.all([tasksQuery.refetch(), assignableEmployeesQuery.refetch()])
+      setAssignmentSelectionState({
+        employeeId: '',
+        taskId: null,
+      })
+      notifications.success({
+        message:
+          selectedTask.assigned_employee_id === null
+            ? 'The task has been assigned successfully.'
+            : 'The task assignment has been updated successfully.',
+        title: selectedTask.assigned_employee_id === null ? 'Task assigned' : 'Task reassigned',
+      })
+      clearTaskAssignmentMutationState()
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error ? caughtError.message : 'Unable to update the task assignment.'
+
+      setAssignmentMutationState({
+        formError: message,
+        isSubmitting: false,
+      })
+      notifications.error({
+        message,
+        title: 'Assignment update failed',
+      })
+    }
+  }
+
   return {
+    assignableEmployeesQuery,
+    assignmentMutationState,
+    assignmentSelection,
+    canSubmitAssignment,
     canManageTasks,
     canUpdateProgress,
     cancelPanel,
@@ -247,8 +359,10 @@ export function useTaskManager() {
     selectTask,
     selectedTask,
     selectedTaskId,
+    setAssignmentSelection: updateAssignmentSelection,
     startCreateTask,
     startProgressUpdate,
+    submitTaskAssignment,
     submitCreateTask,
     submitTaskProgress,
     taskList,
