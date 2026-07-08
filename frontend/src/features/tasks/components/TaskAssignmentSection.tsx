@@ -90,7 +90,7 @@ export function TaskAssignmentSection({
         <ErrorState message={assignmentError} title="Unable to update assignment" />
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-1">
         <label className="grid gap-2 text-sm font-semibold text-ink-800">
           Search employee
           <input
@@ -226,7 +226,7 @@ export function TaskAssignmentSection({
                       </div>
                     </div>
 
-                    <dl className="grid gap-3 text-sm text-ink-700 sm:grid-cols-2 xl:grid-cols-4">
+                    <dl className="grid gap-3 text-sm text-ink-700 sm:grid-cols-2 2xl:grid-cols-4">
                       <div>
                         <dt className="text-xs font-semibold uppercase tracking-normal text-ink-500">
                           Workload
