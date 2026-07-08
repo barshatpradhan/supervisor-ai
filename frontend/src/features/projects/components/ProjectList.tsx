@@ -31,7 +31,7 @@ export function ProjectList({
             <li key={project.id}>
               <button
                 className={[
-                  'flex w-full flex-col gap-4 px-5 py-4 text-left transition focus-visible:outline-3 focus-visible:outline-offset-[-3px] focus-visible:outline-brand-300 sm:flex-row sm:items-start sm:justify-between',
+                  'flex w-full flex-col gap-4 px-5 py-4 text-left transition focus-visible:outline-3 focus-visible:outline-offset-[-3px] focus-visible:outline-primary-300 sm:flex-row sm:items-start sm:justify-between',
                   isSelected ? 'bg-glass-tinted' : 'hover:bg-surface-muted/80',
                 ].join(' ')}
                 onClick={() => onSelect(project.id)}

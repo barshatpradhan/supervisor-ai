@@ -33,7 +33,7 @@ export function AuthPageFrame({
         <p className="mt-5 text-center text-sm text-ink-600">
           {footerLabel}{' '}
           <Link
-            className="font-semibold text-brand-600 underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand-300"
+            className="font-semibold text-primary-600 underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary-300"
             to={footerTo}
           >
             {footerLinkLabel}

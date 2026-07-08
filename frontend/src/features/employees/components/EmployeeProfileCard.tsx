@@ -24,7 +24,7 @@ export function EmployeeProfileCard({
     <Card className="h-full">
       <div className="flex h-full flex-col gap-6">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-normal text-brand-700">
+          <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
             Employee profile
           </p>
           <h2 className="mt-2 text-2xl font-bold text-ink-900">{profile.full_name}</h2>

@@ -38,7 +38,7 @@ export function SignupForm() {
         Email
         <input
           autoComplete="email"
-          className="min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-brand-600 focus:ring-3 focus:ring-brand-200"
+          className="min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-primary-600 focus:ring-3 focus:ring-primary-200"
           onChange={(event) => setEmail(event.target.value)}
           placeholder="you@example.com"
           required
@@ -51,7 +51,7 @@ export function SignupForm() {
         Password
         <input
           autoComplete="new-password"
-          className="min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-brand-600 focus:ring-3 focus:ring-brand-200"
+          className="min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-primary-600 focus:ring-3 focus:ring-primary-200"
           minLength={8}
           onChange={(event) => setPassword(event.target.value)}
           placeholder="Create a password"

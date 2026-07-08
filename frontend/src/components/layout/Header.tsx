@@ -12,7 +12,7 @@ export function Header({ actions, eyebrow, title }: HeaderProps) {
       <div className="flex flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
         <div>
           {eyebrow ? (
-            <p className="text-xs font-bold uppercase tracking-normal text-brand-700">
+            <p className="text-xs font-bold uppercase tracking-normal text-primary-700">
               {eyebrow}
             </p>
           ) : null}
