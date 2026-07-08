@@ -49,19 +49,18 @@ export function TasksModule() {
 
   return (
     <div className="grid gap-6">
-      <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-            {manager.canManageTasks ? 'Supervisor workspace' : 'Employee workspace'}
+      <section className="flex flex-col gap-3 rounded-lg border border-border-subtle bg-surface-card p-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-ink-900">
+            {manager.canManageTasks ? 'Assignment and delivery overview' : 'Assigned work overview'}
           </p>
-          <h1 className="text-3xl font-bold tracking-normal text-ink-900">Tasks</h1>
           <p className="max-w-3xl text-sm leading-6 text-ink-600">
             {manager.canManageTasks
               ? 'Review task status, delivery effort, and assignment state across active work.'
               : 'Track your assigned work, update progress, and keep delivery status current.'}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 sm:justify-end">
           {manager.isRefreshing ? (
             <span className="text-sm text-ink-500">Refreshing list...</span>
           ) : null}
@@ -71,7 +70,7 @@ export function TasksModule() {
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.05fr)_minmax(440px,0.95fr)]">
         <div className="space-y-4">
           {manager.pageError && manager.hasTasks ? (
             <ErrorState
