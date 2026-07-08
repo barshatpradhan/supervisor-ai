@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { useApiResource } from './useApiResource'
 import { getEmployeeProfile } from '../services/employees/employeeService'
 
-export function useEmployeeProfile() {
+export function useEmployeeProfile(enabled = true) {
   const fetchProfile = useCallback(() => getEmployeeProfile(), [])
-  return useApiResource(fetchProfile)
+  return useApiResource(fetchProfile, { enabled })
 }

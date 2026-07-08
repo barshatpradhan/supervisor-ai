@@ -1,10 +1,5 @@
-import { PlaceholderScreen } from '../components/shared/PlaceholderScreen'
+import { TasksManagementPage } from '../features/tasks/pages/TasksManagementPage'
 
 export function TasksPage() {
-  return (
-    <PlaceholderScreen
-      description="Task assignment and progress screens will be added in a later phase."
-      title="Tasks placeholder"
-    />
-  )
+  return <TasksManagementPage />
 }
