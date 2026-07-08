@@ -1,6 +1,8 @@
 import type {
+  BackendAssignableEmployee,
   BackendCreateSupervisorProfileRequest,
   BackendEmployeeProfile,
+  BackendSupervisorEmployeeDirectoryQuery,
   BackendSupervisorProfile,
   BackendUpdateEmployeeWorkSettingsRequest,
 } from '../../types/backend'
@@ -8,6 +10,12 @@ import { getJson, patchJson, postJson } from '../../lib/api'
 
 export function getSupervisorProfile() {
   return getJson<BackendSupervisorProfile>('/supervisors/me')
+}
+
+export function listAssignableEmployees(query?: BackendSupervisorEmployeeDirectoryQuery) {
+  return getJson<BackendAssignableEmployee[]>('/supervisors/employees', {
+    params: query,
+  })
 }
 
 export function createSupervisorProfile(request: BackendCreateSupervisorProfileRequest) {

@@ -2,19 +2,35 @@ import { Card } from '../../../components/ui/Card'
 import { Button } from '../../../components/ui/Button'
 import type { TaskDisplay } from '../types/task'
 import { formatEstimatedHours, formatTaskDate } from '../utils/taskPresentation'
+import { TaskAssignmentSection } from './TaskAssignmentSection'
 import { TaskStatusBadge } from './TaskStatusBadge'
+import type { useAssignableEmployees } from '../hooks/useAssignableEmployees'
 
 interface TaskDetailCardProps {
+  assignmentError: string | null
+  assignmentSelection: string
   canManageTasks: boolean
+  canSubmitAssignment: boolean
   canUpdateProgress: boolean
+  employeeDirectory: ReturnType<typeof useAssignableEmployees>
+  isAssigningTask: boolean
+  onAssignTask: () => Promise<void>
+  onAssignmentSelectionChange: (employeeId: string) => void
   onCreateTask: () => void
   onUpdateProgress: () => void
   task: TaskDisplay
 }
 
 export function TaskDetailCard({
+  assignmentError,
+  assignmentSelection,
   canManageTasks,
+  canSubmitAssignment,
   canUpdateProgress,
+  employeeDirectory,
+  isAssigningTask,
+  onAssignTask,
+  onAssignmentSelectionChange,
   onCreateTask,
   onUpdateProgress,
   task,
@@ -91,16 +107,20 @@ export function TaskDetailCard({
               {formatTaskDate(task.completed_at)}
             </dd>
           </div>
-          <div className="rounded-lg border border-border-subtle bg-surface-card-alt p-4">
-            <dt className="text-xs font-semibold uppercase tracking-normal text-ink-500">
-              Assignment support
-            </dt>
-            <dd className="mt-2 text-sm leading-6 text-ink-700">
-              Reassignment is supported by the backend, but the current API does not expose
-              a supervisor-safe employee directory with assignable employee IDs.
-            </dd>
-          </div>
         </dl>
+
+        {canManageTasks ? (
+          <TaskAssignmentSection
+            assignmentError={assignmentError}
+            canSubmitAssignment={canSubmitAssignment}
+            directory={employeeDirectory}
+            isSubmitting={isAssigningTask}
+            onAssign={onAssignTask}
+            onSelectionChange={onAssignmentSelectionChange}
+            selectedEmployeeId={assignmentSelection}
+            task={task}
+          />
+        ) : null}
       </div>
     </Card>
   )

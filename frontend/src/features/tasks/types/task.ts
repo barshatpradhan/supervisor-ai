@@ -1,4 +1,5 @@
 import type {
+  BackendAssignableEmployee,
   BackendCreateTaskProgressRequest,
   BackendCreateTaskRequest,
   BackendPriorityLevel,
@@ -13,6 +14,14 @@ export type TaskPriority = BackendPriorityLevel
 export type CreateTaskRequest = BackendCreateTaskRequest
 export type CreateTaskProgressRequest = BackendCreateTaskProgressRequest
 export type TaskProgress = BackendTaskProgress
+export type AssignableEmployee = BackendAssignableEmployee
+
+export interface TaskAssignmentFilterValues {
+  availabilityMin: string
+  employmentType: '' | 'full_time' | 'part_time'
+  search: string
+  skill: string
+}
 
 export interface TaskFormValues {
   description: string

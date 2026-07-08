@@ -47,8 +47,8 @@ export function TaskForm({
           </p>
           <h2 className="text-2xl font-bold text-ink-900">Create task</h2>
           <p className="max-w-2xl text-sm leading-6 text-ink-600">
-            Capture the task scope, project association, and expected effort. Assignment
-            remains unavailable until the backend exposes assignable employee records.
+            Capture the task scope, project association, and expected effort. You can
+            assign or reassign the task after creation from the detail panel.
           </p>
         </div>
 
