@@ -4,6 +4,7 @@ import type {
   SupervisorEmployeeDirectoryQuery,
 } from "../types/employee.js";
 import { AppError } from "../utils/appError.js";
+import { enrichEmployeesWithCapacityMetrics } from "./employeeMetricsService.js";
 import { getSkillsByEmployeeIds } from "./skillService.js";
 import { assertRole, getAppUserByAuthId } from "./userService.js";
 
@@ -123,7 +124,7 @@ export async function listAssignableEmployees(
     throw new AppError("Unable to fetch assignable employees.", 500);
   }
 
-  const employees = data ?? [];
+  const employees = await enrichEmployeesWithCapacityMetrics(data ?? []);
   const skillsByEmployeeId = await getSkillsByEmployeeIds(
     employees.map((employee) => employee.id)
   );

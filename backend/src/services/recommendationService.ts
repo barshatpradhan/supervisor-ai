@@ -5,6 +5,7 @@ import type {
   EmployeeRecommendationScoreBreakdown,
 } from "../types/ai.js";
 import { AppError } from "../utils/appError.js";
+import { enrichEmployeesWithCapacityMetrics } from "./employeeMetricsService.js";
 import { assertRole, getAppUserByAuthId } from "./userService.js";
 
 interface ProjectRow {
@@ -225,7 +226,7 @@ async function getEmployees() {
     throw new AppError("Unable to fetch employees.", 500);
   }
 
-  return data ?? [];
+  return enrichEmployeesWithCapacityMetrics(data ?? []);
 }
 
 async function getEmployeeSkills() {
