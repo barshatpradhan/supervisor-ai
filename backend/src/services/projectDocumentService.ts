@@ -7,6 +7,9 @@ import {
   SUPPORTED_PROJECT_DOCUMENT_MIME_TYPES,
 } from "../middleware/uploadMiddleware.js";
 import type {
+  ProjectDocumentAnalysisSummary,
+  ProjectDocumentSummary,
+  ProjectDocumentWithAnalysis,
   ProjectDocumentUploadResult,
   UploadedProjectDocumentFile,
 } from "../types/document.js";
@@ -18,20 +21,18 @@ import { assertRole, getAppUserByAuthId } from "./userService.js";
 const DOCUMENT_SELECT = `
   id,
   project_id,
-  storage_bucket,
-  storage_path,
   original_filename,
   mime_type,
   size_bytes,
   extraction_status,
+  extraction_error,
+  extracted_text,
   created_at,
   updated_at
 `;
 
 const ANALYSIS_SELECT = `
   id,
-  document_id,
-  project_id,
   required_skills,
   preferred_skills,
   complexity,
@@ -43,6 +44,16 @@ const ANALYSIS_SELECT = `
   model,
   created_at
 `;
+
+interface ProjectExistsRow {
+  id: string;
+}
+
+interface ProjectDocumentRow extends ProjectDocumentSummary {}
+
+interface ProjectDocumentAnalysisRow extends ProjectDocumentAnalysisSummary {
+  document_id: string;
+}
 
 function assertSupportedFile(file: UploadedProjectDocumentFile) {
   if (file.size <= 0) {
@@ -84,11 +95,99 @@ async function ensureProjectExists(projectId: string) {
     .select("id")
     .eq("id", projectId)
     .is("deleted_at", null)
-    .single<{ id: string }>();
+    .single<ProjectExistsRow>();
 
   if (error || !data) {
     throw new AppError("Project not found.", 404);
   }
+}
+
+async function getDocumentAnalysesByDocumentIds(documentIds: string[]) {
+  if (documentIds.length === 0) {
+    return new Map<string, ProjectDocumentAnalysisSummary>();
+  }
+
+  const { data, error } = await supabase
+    .from("project_document_analyses")
+    .select(`document_id, ${ANALYSIS_SELECT}`)
+    .in("document_id", documentIds)
+    .returns<ProjectDocumentAnalysisRow[]>();
+
+  if (error) {
+    throw new AppError("Unable to fetch project document analyses.", 500);
+  }
+
+  return new Map(
+    (data ?? []).map((analysis) => {
+      const { document_id, ...analysisSummary } = analysis;
+      return [document_id, analysisSummary];
+    })
+  );
+}
+
+function attachAnalysesToDocuments(
+  documents: ProjectDocumentRow[],
+  analysisByDocumentId: Map<string, ProjectDocumentAnalysisSummary>
+) {
+  return documents.map<ProjectDocumentWithAnalysis>((document) => ({
+    document,
+    analysis: analysisByDocumentId.get(document.id) ?? null,
+  }));
+}
+
+export async function listProjectDocuments(
+  authUserId: string,
+  projectId: string
+): Promise<ProjectDocumentWithAnalysis[]> {
+  const appUser = await getAppUserByAuthId(authUserId);
+  assertRole(appUser, ["admin", "supervisor"]);
+  await ensureProjectExists(projectId);
+
+  const { data, error } = await supabase
+    .from("project_documents")
+    .select(DOCUMENT_SELECT)
+    .eq("project_id", projectId)
+    .order("created_at", { ascending: false })
+    .returns<ProjectDocumentRow[]>();
+
+  if (error) {
+    throw new AppError("Unable to fetch project documents.", 500);
+  }
+
+  const documents = data ?? [];
+  const analysisByDocumentId = await getDocumentAnalysesByDocumentIds(
+    documents.map((document) => document.id)
+  );
+
+  return attachAnalysesToDocuments(documents, analysisByDocumentId);
+}
+
+export async function getProjectDocumentById(
+  authUserId: string,
+  projectId: string,
+  documentId: string
+): Promise<ProjectDocumentWithAnalysis> {
+  const appUser = await getAppUserByAuthId(authUserId);
+  assertRole(appUser, ["admin", "supervisor"]);
+  await ensureProjectExists(projectId);
+
+  const { data, error } = await supabase
+    .from("project_documents")
+    .select(DOCUMENT_SELECT)
+    .eq("id", documentId)
+    .eq("project_id", projectId)
+    .single<ProjectDocumentRow>();
+
+  if (error || !data) {
+    throw new AppError("Project document not found.", 404);
+  }
+
+  const analysisByDocumentId = await getDocumentAnalysesByDocumentIds([data.id]);
+
+  return {
+    document: data,
+    analysis: analysisByDocumentId.get(data.id) ?? null,
+  };
 }
 
 export async function uploadProjectDocument(
