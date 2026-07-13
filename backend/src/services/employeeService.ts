@@ -1,5 +1,6 @@
 import { supabase } from "../config/supabase.js";
 import { AppError } from "../utils/appError.js";
+import { enrichEmployeesWithCapacityMetrics } from "./employeeMetricsService.js";
 import { getAppUserByAuthId } from "./userService.js";
 import { getEmployeeSkills, syncEmployeeSkills } from "./skillService.js";
 
@@ -35,6 +36,25 @@ const ACTIVE_TASK_STATUSES = ["todo", "in_progress", "blocked", "review"];
 
 function availabilityFromWorkload(workloadPercentage: number) {
   return Math.max(0, Math.min(100, 100 - workloadPercentage));
+}
+
+function calculateWorkloadPercentage(
+  assignedHours: number,
+  weeklyCapacityHours: number
+) {
+  const normalizedAssignedHours = Number.isFinite(assignedHours)
+    ? Math.max(0, assignedHours)
+    : 0;
+  const normalizedCapacityHours = Number(weeklyCapacityHours);
+
+  if (!Number.isFinite(normalizedCapacityHours) || normalizedCapacityHours <= 0) {
+    return normalizedAssignedHours > 0 ? 100 : 0;
+  }
+
+  return Math.min(
+    100,
+    Math.round((normalizedAssignedHours / normalizedCapacityHours) * 100)
+  );
 }
 
 async function withSkills<T extends { id: string }>(employee: T) {
@@ -74,9 +94,9 @@ async function recalculateEmployeeCapacity(employeeId: string) {
     (total, task) => total + Number(task.estimated_hours),
     0
   );
-  const workloadPercentage = Math.min(
-    100,
-    Math.round((assignedHours / Number(employee.weekly_capacity_hours)) * 100)
+  const workloadPercentage = calculateWorkloadPercentage(
+    assignedHours,
+    Number(employee.weekly_capacity_hours)
   );
 
   const { data: updatedEmployee, error: updateError } = await supabase
@@ -122,7 +142,8 @@ export async function getEmployeeProfileByAuthId(authUserId: string) {
     throw new AppError("Employee profile not found.", 404);
   }
 
-  return withSkills(data);
+  const [employee] = await enrichEmployeesWithCapacityMetrics([data]);
+  return withSkills(employee);
 }
 
 export async function createEmployeeProfile(
@@ -157,7 +178,8 @@ export async function createEmployeeProfile(
     await syncEmployeeSkills(data.id, appUser.id, profileData.skills);
   }
 
-  return withSkills(data);
+  const [employee] = await enrichEmployeesWithCapacityMetrics([data]);
+  return withSkills(employee);
 }
 
 export async function updateEmployeeProfile(
@@ -204,7 +226,8 @@ export async function updateEmployeeProfile(
       await syncEmployeeSkills(data.id, appUser.id, profileData.skills ?? []);
     }
 
-    return withSkills(data);
+    const [employee] = await enrichEmployeesWithCapacityMetrics([data]);
+    return withSkills(employee);
   }
 
   await syncEmployeeSkills(currentEmployee.id, appUser.id, profileData.skills ?? []);
@@ -247,5 +270,6 @@ export async function updateEmployeeWorkSettings(
     return withSkills(recalculatedEmployee);
   }
 
-  return withSkills(data);
+  const [employee] = await enrichEmployeesWithCapacityMetrics([data]);
+  return withSkills(employee);
 }

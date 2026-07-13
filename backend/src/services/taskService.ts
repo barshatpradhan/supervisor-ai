@@ -43,6 +43,36 @@ interface TaskProgressPerformanceRow {
   created_at: string;
 }
 
+function calculateWorkloadPercentage(
+  assignedHours: number,
+  weeklyCapacityHours: number
+) {
+  const normalizedAssignedHours = Number.isFinite(assignedHours)
+    ? Math.max(0, assignedHours)
+    : 0;
+  const normalizedCapacityHours = Number(weeklyCapacityHours);
+
+  if (!Number.isFinite(normalizedCapacityHours) || normalizedCapacityHours <= 0) {
+    return normalizedAssignedHours > 0 ? 100 : 0;
+  }
+
+  return Math.min(
+    100,
+    Math.round((normalizedAssignedHours / normalizedCapacityHours) * 100)
+  );
+}
+
+async function runNonBlockingTaskFollowUp(
+  label: string,
+  operation: () => Promise<void>
+) {
+  try {
+    await operation();
+  } catch (error) {
+    console.warn(`[taskService] ${label} failed`, error);
+  }
+}
+
 async function getEmployeeForAuthUser(authUserId: string) {
   const { data, error } = await supabase
     .from("employees")
@@ -108,9 +138,9 @@ async function recalculateEmployeeCapacity(employeeId: string) {
     (total, task) => total + Number(task.estimated_hours),
     0
   );
-  const workloadPercentage = Math.min(
-    100,
-    Math.round((assignedHours / Number(employee.weekly_capacity_hours)) * 100)
+  const workloadPercentage = calculateWorkloadPercentage(
+    assignedHours,
+    Number(employee.weekly_capacity_hours)
   );
   const availabilityPercentage = Math.max(0, 100 - workloadPercentage);
 
@@ -295,7 +325,10 @@ export async function createTask(authUserId: string, input: CreateTaskInput) {
   }
 
   if (input.assignedEmployeeId) {
-    await recalculateEmployeeCapacity(input.assignedEmployeeId);
+    await runNonBlockingTaskFollowUp(
+      `recalculate capacity for employee ${input.assignedEmployeeId}`,
+      () => recalculateEmployeeCapacity(input.assignedEmployeeId as string)
+    );
   }
 
   return data;
@@ -340,11 +373,17 @@ export async function assignTask(
   }
 
   if (existingTask.assigned_employee_id) {
-    await recalculateEmployeeCapacity(existingTask.assigned_employee_id);
+    await runNonBlockingTaskFollowUp(
+      `recalculate capacity for employee ${existingTask.assigned_employee_id}`,
+      () => recalculateEmployeeCapacity(existingTask.assigned_employee_id as string)
+    );
   }
 
   if (employeeId && employeeId !== existingTask.assigned_employee_id) {
-    await recalculateEmployeeCapacity(employeeId);
+    await runNonBlockingTaskFollowUp(
+      `recalculate capacity for employee ${employeeId}`,
+      () => recalculateEmployeeCapacity(employeeId)
+    );
   }
 
   return data;
@@ -404,8 +443,14 @@ export async function createTaskProgress(
     throw new AppError("Progress was saved, but task status was not updated.", 500);
   }
 
-  await recalculateEmployeeCapacity(employee.id);
-  await recalculateEmployeePerformance(employee.id);
+  await runNonBlockingTaskFollowUp(
+    `recalculate capacity for employee ${employee.id}`,
+    () => recalculateEmployeeCapacity(employee.id)
+  );
+  await runNonBlockingTaskFollowUp(
+    `recalculate performance for employee ${employee.id}`,
+    () => recalculateEmployeePerformance(employee.id)
+  );
 
   return progress;
 }
