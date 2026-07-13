@@ -5,7 +5,11 @@ import {
   getProjects,
   updateProjectHandler,
 } from "../controllers/projectController.js";
-import { uploadProjectDocumentHandler } from "../controllers/projectDocumentController.js";
+import {
+  getProjectDocumentHandler,
+  listProjectDocumentsHandler,
+  uploadProjectDocumentHandler,
+} from "../controllers/projectDocumentController.js";
 import {
   generateProjectRecommendationsHandler,
   getLatestProjectRecommendationsHandler,
@@ -20,6 +24,8 @@ router.use(authenticateUser, requireRole("admin", "supervisor"));
 
 router.get("/", getProjects);
 router.post("/", createProjectHandler);
+router.get("/:projectId/documents", listProjectDocumentsHandler);
+router.get("/:projectId/documents/:documentId", getProjectDocumentHandler);
 router.post("/:projectId/documents", uploadProjectDocumentFile, uploadProjectDocumentHandler);
 router.post("/:projectId/recommendations", generateProjectRecommendationsHandler);
 router.get("/:projectId/recommendations", getLatestProjectRecommendationsHandler);
