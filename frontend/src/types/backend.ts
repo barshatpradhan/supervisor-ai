@@ -285,3 +285,123 @@ export interface BackendDocumentAnalysisRequest {
   fileName: string
   mimeType: string
 }
+
+export interface BackendDashboardProjectSummaryItem {
+  id: string
+  title: string
+  status: BackendProjectStatus
+  priority: BackendPriorityLevel
+  updated_at: string
+}
+
+export interface BackendDashboardTaskSummaryItem {
+  id: string
+  project_id: string
+  project_title: string
+  title: string
+  status: BackendTaskStatus
+  priority: BackendPriorityLevel
+  assigned_employee_id: string | null
+  updated_at: string
+}
+
+export interface BackendDashboardEmployeeWorkloadRecord {
+  id: string
+  full_name: string
+  employment_type: 'full_time' | 'part_time'
+  weekly_capacity_hours: number
+  workload_percentage: number
+  availability_percentage: number
+  performance_score: number | null
+}
+
+export interface BackendDashboardAnalyzedProject {
+  project_id: string
+  title: string
+  status: BackendProjectStatus
+  priority: BackendPriorityLevel
+  document_id: string
+  analysis_id: string
+  analyzed_at: string
+}
+
+export interface BackendDashboardRecommendationTopCandidate {
+  employee_id: string
+  employee_name: string
+  rank: number
+  match_score: number
+  confidence_score: number
+  summary: string
+}
+
+export interface BackendDashboardRecommendationRunSummary {
+  project_id: string
+  project_title: string
+  analysis_id: string | null
+  recommendation_run_id: string
+  created_at: string
+  top_candidate: BackendDashboardRecommendationTopCandidate | null
+}
+
+export interface BackendDashboardProjectProgressSummary {
+  project_id: string
+  title: string
+  status: BackendProjectStatus
+  priority: BackendPriorityLevel
+  total_task_count: number
+  completed_task_count: number
+  progress_percentage: number
+  updated_at: string
+}
+
+export interface BackendSupervisorDashboardProjectsSummary {
+  total_projects: number
+  active_projects: number
+  completed_projects: number
+  by_status: Record<BackendProjectStatus, number>
+  by_priority: Record<BackendPriorityLevel, number>
+  recently_updated_projects: BackendDashboardProjectSummaryItem[]
+}
+
+export interface BackendSupervisorDashboardTasksSummary {
+  total_tasks: number
+  unassigned_tasks: number
+  assigned_tasks: number
+  in_progress_tasks: number
+  blocked_tasks: number
+  completed_tasks: number
+  by_status: Record<BackendTaskStatus, number>
+  recent_tasks: BackendDashboardTaskSummaryItem[]
+}
+
+export interface BackendSupervisorDashboardEmployeesSummary {
+  total_employees: number
+  available_employees: number
+  high_workload_employees: number
+  average_workload: number
+  average_availability: number
+  top_workloads: BackendDashboardEmployeeWorkloadRecord[]
+}
+
+export interface BackendSupervisorDashboardDocumentsSummary {
+  total_uploaded_documents: number
+  by_extraction_status: Record<BackendDocumentExtractionStatus, number>
+  projects_with_completed_analysis: number
+  recent_analyzed_projects: BackendDashboardAnalyzedProject[]
+}
+
+export interface BackendSupervisorDashboardRecommendationsSummary {
+  projects_with_recommendation_runs: number
+  latest_recommendation_run: BackendDashboardRecommendationRunSummary | null
+  latest_top_ranked_candidate: BackendDashboardRecommendationTopCandidate | null
+  recent_recommendation_runs: BackendDashboardRecommendationRunSummary[]
+}
+
+export interface BackendSupervisorDashboardResponse {
+  projects: BackendSupervisorDashboardProjectsSummary
+  tasks: BackendSupervisorDashboardTasksSummary
+  employees: BackendSupervisorDashboardEmployeesSummary
+  documents: BackendSupervisorDashboardDocumentsSummary
+  recommendations: BackendSupervisorDashboardRecommendationsSummary
+  projectProgress: BackendDashboardProjectProgressSummary[]
+}

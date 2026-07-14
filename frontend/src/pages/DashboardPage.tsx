@@ -1,10 +1,5 @@
-import { PlaceholderScreen } from '../components/shared/PlaceholderScreen'
+import { SupervisorDashboardPage } from '../features/dashboard/pages/SupervisorDashboardPage'
 
 export function DashboardPage() {
-  return (
-    <PlaceholderScreen
-      description="Dashboard metrics and review queues will be added in a later phase."
-      title="Dashboard placeholder"
-    />
-  )
+  return <SupervisorDashboardPage />
 }

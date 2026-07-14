@@ -1,0 +1,30 @@
+import type {
+  BackendDashboardAnalyzedProject,
+  BackendDashboardEmployeeWorkloadRecord,
+  BackendDashboardProjectProgressSummary,
+  BackendDashboardProjectSummaryItem,
+  BackendDashboardRecommendationRunSummary,
+  BackendDashboardRecommendationTopCandidate,
+  BackendDashboardTaskSummaryItem,
+  BackendSupervisorDashboardDocumentsSummary,
+  BackendSupervisorDashboardEmployeesSummary,
+  BackendSupervisorDashboardProjectsSummary,
+  BackendSupervisorDashboardRecommendationsSummary,
+  BackendSupervisorDashboardResponse,
+  BackendSupervisorDashboardTasksSummary,
+} from '../../../types/backend'
+
+export type SupervisorDashboard = BackendSupervisorDashboardResponse
+export type SupervisorDashboardProjectsSummary = BackendSupervisorDashboardProjectsSummary
+export type SupervisorDashboardTasksSummary = BackendSupervisorDashboardTasksSummary
+export type SupervisorDashboardEmployeesSummary = BackendSupervisorDashboardEmployeesSummary
+export type SupervisorDashboardDocumentsSummary = BackendSupervisorDashboardDocumentsSummary
+export type SupervisorDashboardRecommendationsSummary =
+  BackendSupervisorDashboardRecommendationsSummary
+export type DashboardProjectSummaryItem = BackendDashboardProjectSummaryItem
+export type DashboardTaskSummaryItem = BackendDashboardTaskSummaryItem
+export type DashboardEmployeeWorkloadRecord = BackendDashboardEmployeeWorkloadRecord
+export type DashboardAnalyzedProject = BackendDashboardAnalyzedProject
+export type DashboardRecommendationTopCandidate = BackendDashboardRecommendationTopCandidate
+export type DashboardRecommendationRunSummary = BackendDashboardRecommendationRunSummary
+export type DashboardProjectProgressSummary = BackendDashboardProjectProgressSummary
