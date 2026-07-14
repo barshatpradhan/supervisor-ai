@@ -3,5 +3,10 @@ export {
   getProject,
   listProjects,
   updateProject,
-  uploadProjectDocument,
 } from '../../features/projects/services/projectService'
+
+export {
+  getProjectDocument,
+  listProjectDocuments,
+  uploadProjectDocument,
+} from '../../features/projects/services/projectDocumentService'

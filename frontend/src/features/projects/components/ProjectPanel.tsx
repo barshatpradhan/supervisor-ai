@@ -67,6 +67,7 @@ export function ProjectPanel({ manager }: ProjectPanelProps) {
 
   return (
     <ProjectDetailCard
+      documentManager={manager.documentManager}
       onEdit={manager.startEditProject}
       project={manager.selectedProject}
     />

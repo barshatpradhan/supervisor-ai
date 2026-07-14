@@ -220,20 +220,18 @@ export interface BackendCreateTaskProgressRequest {
 export interface BackendProjectDocument {
   id: string
   project_id: string
-  storage_bucket: string
-  storage_path: string
   original_filename: string
   mime_type: string
   size_bytes: number
   extraction_status: BackendDocumentExtractionStatus
+  extraction_error: string | null
+  extracted_text: string | null
   created_at: string
   updated_at: string
 }
 
 export interface BackendProjectDocumentAnalysis {
   id: string
-  document_id: string
-  project_id: string
   required_skills: string[]
   preferred_skills: string[]
   complexity: BackendDocumentAnalysisComplexity
@@ -246,9 +244,14 @@ export interface BackendProjectDocumentAnalysis {
   created_at: string
 }
 
+export interface BackendProjectDocumentWithAnalysis {
+  document: BackendProjectDocument
+  analysis: BackendProjectDocumentAnalysis | null
+}
+
 export interface BackendProjectDocumentUploadResponse {
   document: BackendProjectDocument
-  analysis: BackendProjectDocumentAnalysis
+  analysis: BackendProjectDocumentAnalysis | null
 }
 
 export interface BackendRecommendationScoreBreakdown {

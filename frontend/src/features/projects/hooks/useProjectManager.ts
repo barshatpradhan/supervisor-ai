@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNotifications } from '../../../hooks/useNotifications'
 import { createProject, updateProject } from '../services/projectService'
+import { useProjectDocumentManager } from './useProjectDocumentManager'
 import { useProject } from './useProject'
 import { useProjects } from './useProjects'
 import type { Project, ProjectFormErrors, ProjectFormValues, ProjectPanelMode } from '../types/project'
@@ -54,6 +55,7 @@ export function useProjectManager() {
   const selectedProjectId =
     selectedProjectIdState ?? (panelMode === 'view' ? projectList[0]?.id ?? null : null)
   const isDetailLoading = Boolean(selectedProjectId) && isProjectLoading && !selectedProject
+  const documentManager = useProjectDocumentManager(selectedProjectId ?? undefined)
 
   function clearMutationState() {
     setMutationState(createInitialMutationState())
@@ -229,6 +231,7 @@ export function useProjectManager() {
     panelMode,
     projectError,
     projectList,
+    documentManager,
     retryList,
     retrySelectedProject,
     selectProject,
