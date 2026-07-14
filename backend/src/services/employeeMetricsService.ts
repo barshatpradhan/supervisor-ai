@@ -1,7 +1,7 @@
 import { supabase } from "../config/supabase.js";
 import { AppError } from "../utils/appError.js";
 
-const ACTIVE_TASK_STATUSES = ["todo", "in_progress", "blocked", "review"];
+export const ACTIVE_TASK_STATUSES = ["todo", "in_progress", "blocked", "review"] as const;
 
 interface EmployeeWithCapacityFields {
   id: string;
@@ -15,11 +15,11 @@ interface AssignedTaskMetricRow {
   estimated_hours: number;
 }
 
-function availabilityFromWorkload(workloadPercentage: number) {
+export function availabilityFromWorkload(workloadPercentage: number) {
   return Math.max(0, Math.min(100, 100 - workloadPercentage));
 }
 
-function calculateWorkloadPercentage(
+export function calculateWorkloadPercentage(
   assignedHours: number,
   weeklyCapacityHours: number
 ) {

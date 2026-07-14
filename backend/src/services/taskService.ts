@@ -1,9 +1,11 @@
 import { supabase } from "../config/supabase.js";
 import type { CreateTaskInput, CreateTaskProgressInput } from "../types/task.js";
 import { AppError } from "../utils/appError.js";
+import {
+  ACTIVE_TASK_STATUSES,
+  calculateWorkloadPercentage,
+} from "./employeeMetricsService.js";
 import { assertRole, getAppUserByAuthId } from "./userService.js";
-
-const ACTIVE_TASK_STATUSES = ["todo", "in_progress", "blocked", "review"];
 
 const TASK_SELECT = `
   id,
@@ -41,25 +43,6 @@ interface TaskProgressPerformanceRow {
   progress_percentage: number;
   status: string | null;
   created_at: string;
-}
-
-function calculateWorkloadPercentage(
-  assignedHours: number,
-  weeklyCapacityHours: number
-) {
-  const normalizedAssignedHours = Number.isFinite(assignedHours)
-    ? Math.max(0, assignedHours)
-    : 0;
-  const normalizedCapacityHours = Number(weeklyCapacityHours);
-
-  if (!Number.isFinite(normalizedCapacityHours) || normalizedCapacityHours <= 0) {
-    return normalizedAssignedHours > 0 ? 100 : 0;
-  }
-
-  return Math.min(
-    100,
-    Math.round((normalizedAssignedHours / normalizedCapacityHours) * 100)
-  );
 }
 
 async function runNonBlockingTaskFollowUp(
