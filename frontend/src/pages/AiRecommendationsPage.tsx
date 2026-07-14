@@ -1,10 +1,5 @@
-import { PlaceholderScreen } from '../components/shared/PlaceholderScreen'
+import { AiRecommendationsManagementPage } from '../features/ai-recommendations/pages/AiRecommendationsManagementPage'
 
 export function AiRecommendationsPage() {
-  return (
-    <PlaceholderScreen
-      description="AI recommendation review workflows will be added in a later phase."
-      title="AI recommendations placeholder"
-    />
-  )
+  return <AiRecommendationsManagementPage />
 }
