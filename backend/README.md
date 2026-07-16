@@ -178,6 +178,16 @@ Implemented migrations define:
 
 The service layer also uses `skills` and `employee_skills` for employee skill matching. The visible migration set includes a uniqueness migration for `employee_skills`, but does not fully define both skill tables; ensure the target Supabase database has those tables before using profile skills or recommendations.
 
+As of the skills schema repair migration, the checked-in migration set explicitly recreates the live `skills` and `employee_skills` tables, including:
+
+- `skills.normalized_name` uniqueness
+- `employee_skills (employee_id, skill_id)` uniqueness
+- `employee_skills` proficiency and non-negative experience checks
+- `skills.created_by -> users(id) on delete set null`
+- backend-only access posture with RLS enabled and no new direct client policies
+
+The repair migration is intentionally ordered before the older `employee_skills` uniqueness migration so clean environments can replay the historical migration chain without editing already-applied files.
+
 ## API Reference
 
 All API routes are mounted under `/api/v1`.
@@ -367,7 +377,7 @@ Only variable names are documented. Do not commit real values.
 - Run with `npm start`.
 - Provide all required Supabase environment variables.
 - Keep `SUPABASE_SERVICE_ROLE_KEY` backend-only.
-- Ensure the Supabase schema, storage bucket, and skill tables exist before enabling profile skills or recommendations.
+- Ensure the Supabase schema, storage bucket, and skills repair migration are applied before enabling profile skills or recommendations.
 - Configure CORS explicitly for production; the current implementation uses default `cors()` behavior.
 
 ## Backend Roadmap
