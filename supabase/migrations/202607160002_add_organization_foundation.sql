@@ -147,6 +147,9 @@ alter table public.employees
   add column if not exists organization_id uuid references public.organizations(id) on delete cascade;
 
 alter table public.supervisors
+  add column if not exists updated_at timestamptz not null default now();
+
+alter table public.supervisors
   add column if not exists organization_id uuid references public.organizations(id) on delete cascade;
 
 alter table public.projects
