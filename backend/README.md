@@ -220,6 +220,41 @@ Warning:
 - do not edit an applied migration to "fix history"
 - add a new migration and document the reason instead
 
+## Multi-Tenant Organization Foundation
+
+Phase 14 adds the first organization-aware backend slice without claiming that every
+domain is tenant-isolated yet.
+
+Source of truth for organization tenancy:
+
+- `organizations`
+- `organization_members`
+- `organization_invitations`
+- forward-only migrations under `supabase/migrations/`
+
+Current foundation behavior:
+
+- organization membership role is the source of truth for organization-scoped authorization
+- `users.role` remains as a temporary legacy compatibility field
+- the selected organization is supplied by `X-Organization-Id`
+- the header only selects context; it never grants membership on its own
+- invitation acceptance provisions employee or supervisor profiles for the selected organization
+- employee directory and project list/create/get/update are scoped by verified `organization_id`
+
+Intentional limits in this phase:
+
+- tasks, documents, recommendations, dashboards, and legacy self-profile flows are not fully migrated yet
+- legacy platform-role middleware still exists for non-migrated routes
+- clean replay with Supabase CLI has not been executed in this repository environment because the CLI is unavailable here
+
+Rules for future multi-tenant work:
+
+- do not edit already-applied migrations
+- add new forward-only migrations for every tenant change
+- always scope migrated service queries by verified `organization_id`
+- use membership role middleware for tenant authorization instead of `users.role`
+- keep platform administration and organization administration separate
+
 ## API Reference
 
 All API routes are mounted under `/api/v1`.
