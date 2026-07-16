@@ -4,11 +4,13 @@ import {
   listAppUsers,
   updateAppUserRole,
 } from "../services/adminService.js";
+import { provisionManagedUser } from "../services/accountProvisioningService.js";
 import {
   approveSkill,
   listPendingSkills,
   rejectSkill,
 } from "../services/skillService.js";
+import type { AdminProvisionUserInput } from "../types/provisioning.js";
 import { AppError } from "../utils/appError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 import { requireBody, requireUuid } from "../utils/validation.js";
@@ -80,6 +82,52 @@ export async function updateUserRole(req: Request, res: Response, next: NextFunc
     const user = await updateAppUserRole(userId, role);
 
     return sendSuccess(res, 200, "User role updated successfully.", user);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function createUserHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const body = requireBody(req.body);
+    const input: AdminProvisionUserInput = {
+      email: String(body.email),
+      role: body.role as AdminProvisionUserInput["role"],
+      full_name: String(body.full_name),
+      bio: typeof body.bio === "string" ? body.bio : undefined,
+      department: typeof body.department === "string" ? body.department : undefined,
+      employment_type:
+        body.employment_type === "full_time" || body.employment_type === "part_time"
+          ? body.employment_type
+          : undefined,
+      weekly_capacity_hours:
+        typeof body.weekly_capacity_hours === "number"
+          ? body.weekly_capacity_hours
+          : undefined,
+      skills: Array.isArray(body.skills)
+        ? body.skills.map((skill) => ({
+            name: String((skill as Record<string, unknown>).name),
+            proficiency_level:
+              typeof (skill as Record<string, unknown>).proficiency_level === "number"
+                ? ((skill as Record<string, unknown>).proficiency_level as number)
+                : undefined,
+            years_of_experience:
+              typeof (skill as Record<string, unknown>).years_of_experience === "number"
+                ? ((skill as Record<string, unknown>).years_of_experience as number)
+                : (skill as Record<string, unknown>).years_of_experience === null
+                  ? null
+                  : undefined,
+          }))
+        : undefined,
+    };
+
+    const user = await provisionManagedUser(input);
+
+    return sendSuccess(res, 201, "User provisioned successfully.", user);
   } catch (error) {
     return next(error);
   }
