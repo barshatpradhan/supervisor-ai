@@ -17,9 +17,14 @@ export async function generateProjectRecommendationsHandler(
   }
 
   try {
+    if (!req.organization) {
+      throw new AppError("Organization context is required.", 500);
+    }
+
     const projectId = requireUuid(req.params.projectId, "Project id");
     const recommendations = await generateProjectRecommendations(
       req.user.id,
+      req.organization.id,
       projectId
     );
 
@@ -44,9 +49,14 @@ export async function getLatestProjectRecommendationsHandler(
   }
 
   try {
+    if (!req.organization) {
+      throw new AppError("Organization context is required.", 500);
+    }
+
     const projectId = requireUuid(req.params.projectId, "Project id");
     const recommendations = await getLatestProjectRecommendations(
       req.user.id,
+      req.organization.id,
       projectId
     );
 

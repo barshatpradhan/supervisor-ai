@@ -6,10 +6,12 @@ import type {
 } from "../types/ai.js";
 import { AppError } from "../utils/appError.js";
 import { enrichEmployeesWithCapacityMetrics } from "./employeeMetricsService.js";
-import { assertRole, getAppUserByAuthId } from "./userService.js";
+import { ensureProjectExistsInOrganization } from "./projectService.js";
+import { getAppUserByAuthId } from "./userService.js";
 
 interface ProjectRow {
   id: string;
+  organization_id: string;
   required_skills: string[] | null;
 }
 
@@ -181,21 +183,6 @@ function scoreEmployee(
   };
 }
 
-async function ensureProjectExists(projectId: string) {
-  const { data, error } = await supabase
-    .from("projects")
-    .select("id, required_skills")
-    .eq("id", projectId)
-    .is("deleted_at", null)
-    .single<ProjectRow>();
-
-  if (error || !data) {
-    throw new AppError("Project not found.", 404);
-  }
-
-  return data;
-}
-
 async function getLatestAnalysis(projectId: string) {
   const { data, error } = await supabase
     .from("project_document_analyses")
@@ -214,12 +201,13 @@ async function getLatestAnalysis(projectId: string) {
   return data;
 }
 
-async function getEmployees() {
+async function getEmployees(organizationId: string) {
   const { data, error } = await supabase
     .from("employees")
     .select(
       "id, full_name, availability_percentage, workload_percentage, performance_score, weekly_capacity_hours, employment_type"
     )
+    .eq("organization_id", organizationId)
     .returns<EmployeeRow[]>();
 
   if (error) {
@@ -229,10 +217,15 @@ async function getEmployees() {
   return enrichEmployeesWithCapacityMetrics(data ?? []);
 }
 
-async function getEmployeeSkills() {
+async function getEmployeeSkills(employeeIds: string[]) {
+  if (employeeIds.length === 0) {
+    return new Map<string, string[]>();
+  }
+
   const { data: employeeSkills, error: employeeSkillsError } = await supabase
     .from("employee_skills")
     .select("employee_id, skill_id, proficiency_level, years_of_experience")
+    .in("employee_id", employeeIds)
     .returns<EmployeeSkillRow[]>();
 
   if (employeeSkillsError) {
@@ -298,11 +291,11 @@ function mapRecommendationRows(
 
 export async function generateProjectRecommendations(
   authUserId: string,
+  organizationId: string,
   projectId: string
 ): Promise<RecommendationResponse> {
   const appUser = await getAppUserByAuthId(authUserId);
-  assertRole(appUser, ["admin", "supervisor"]);
-  const project = await ensureProjectExists(projectId);
+  const project = await ensureProjectExistsInOrganization(projectId, organizationId);
   const latestAnalysis = await getLatestAnalysis(projectId);
 
   if (!latestAnalysis) {
@@ -315,8 +308,8 @@ export async function generateProjectRecommendations(
       ? project.required_skills ?? []
       : []),
   ]);
-  const employees = await getEmployees();
-  const skillsByEmployeeId = await getEmployeeSkills();
+  const employees = await getEmployees(organizationId);
+  const skillsByEmployeeId = await getEmployeeSkills(employees.map((employee) => employee.id));
   const recommendationRunId = crypto.randomUUID();
   const recommendations = employees
     .map((employee) =>
@@ -367,11 +360,11 @@ export async function generateProjectRecommendations(
 
 export async function getLatestProjectRecommendations(
   authUserId: string,
+  organizationId: string,
   projectId: string
 ): Promise<RecommendationResponse> {
-  const appUser = await getAppUserByAuthId(authUserId);
-  assertRole(appUser, ["admin", "supervisor"]);
-  await ensureProjectExists(projectId);
+  await getAppUserByAuthId(authUserId);
+  await ensureProjectExistsInOrganization(projectId, organizationId);
 
   const { data: latestRow, error: latestRowError } = await supabase
     .from("ai_recommendations")
@@ -413,6 +406,7 @@ export async function getLatestProjectRecommendations(
   const { data: employees, error: employeeError } = await supabase
     .from("employees")
     .select("id, full_name")
+    .eq("organization_id", organizationId)
     .in("id", employeeIds)
     .returns<Array<{ id: string; full_name: string }>>();
 

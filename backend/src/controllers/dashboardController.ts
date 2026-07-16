@@ -16,7 +16,11 @@ export async function getSupervisorDashboardHandler(
   }
 
   try {
-    const dashboard = await getSupervisorDashboard(req.user.id);
+    if (!req.organization) {
+      throw new AppError("Organization context is required.", 500);
+    }
+
+    const dashboard = await getSupervisorDashboard(req.user.id, req.organization.id);
 
     return sendSuccess(
       res,
@@ -39,7 +43,11 @@ export async function getEmployeeDashboardHandler(
   }
 
   try {
-    const dashboard = await getEmployeeDashboard(req.user.id);
+    if (!req.organization) {
+      throw new AppError("Organization context is required.", 500);
+    }
+
+    const dashboard = await getEmployeeDashboard(req.user.id, req.organization.id);
 
     return sendSuccess(
       res,

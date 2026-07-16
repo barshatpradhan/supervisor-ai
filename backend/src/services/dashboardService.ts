@@ -22,7 +22,7 @@ import type { DocumentExtractionStatus } from "../types/document.js";
 import type { PriorityLevel, ProjectStatus } from "../types/project.js";
 import type { TaskStatus } from "../types/task.js";
 import { AppError } from "../utils/appError.js";
-import { assertRole, getAppUserByAuthId } from "./userService.js";
+import { getAppUserByAuthId } from "./userService.js";
 
 const RECENT_ITEM_LIMIT = 5;
 const HIGH_WORKLOAD_THRESHOLD = 80;
@@ -171,10 +171,11 @@ function createDocumentStatusCounts(): Record<DocumentExtractionStatus, number> 
   };
 }
 
-async function listProjectsForDashboard() {
+async function listProjectsForDashboard(organizationId: string) {
   const { data, error } = await supabase
     .from("projects")
     .select("id, title, status, priority, updated_at")
+    .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .returns<DashboardProjectRow[]>();
 
@@ -185,12 +186,17 @@ async function listProjectsForDashboard() {
   return data ?? [];
 }
 
-async function listTasksForDashboard() {
+async function listTasksForDashboard(projectIds: string[]) {
+  if (projectIds.length === 0) {
+    return [];
+  }
+
   const { data, error } = await supabase
     .from("tasks")
     .select(
       "id, project_id, title, status, priority, assigned_employee_id, estimated_hours, updated_at"
     )
+    .in("project_id", projectIds)
     .is("deleted_at", null)
     .returns<DashboardTaskRow[]>();
 
@@ -201,12 +207,13 @@ async function listTasksForDashboard() {
   return data ?? [];
 }
 
-async function listEmployeesForDashboard() {
+async function listEmployeesForDashboard(organizationId: string) {
   const { data, error } = await supabase
     .from("employees")
     .select(
       "id, full_name, employment_type, weekly_capacity_hours, performance_score"
     )
+    .eq("organization_id", organizationId)
     .returns<DashboardEmployeeRow[]>();
 
   if (error) {
@@ -216,10 +223,15 @@ async function listEmployeesForDashboard() {
   return data ?? [];
 }
 
-async function listProjectDocumentsForDashboard() {
+async function listProjectDocumentsForDashboard(projectIds: string[]) {
+  if (projectIds.length === 0) {
+    return [];
+  }
+
   const { data, error } = await supabase
     .from("project_documents")
     .select("id, project_id, extraction_status")
+    .in("project_id", projectIds)
     .returns<DashboardDocumentRow[]>();
 
   if (error) {
@@ -229,10 +241,15 @@ async function listProjectDocumentsForDashboard() {
   return data ?? [];
 }
 
-async function listProjectAnalysesForDashboard() {
+async function listProjectAnalysesForDashboard(projectIds: string[]) {
+  if (projectIds.length === 0) {
+    return [];
+  }
+
   const { data, error } = await supabase
     .from("project_document_analyses")
     .select("id, document_id, project_id, created_at")
+    .in("project_id", projectIds)
     .order("created_at", { ascending: false })
     .returns<DashboardAnalysisRow[]>();
 
@@ -243,12 +260,17 @@ async function listProjectAnalysesForDashboard() {
   return data ?? [];
 }
 
-async function listTopRecommendationRowsForDashboard() {
+async function listTopRecommendationRowsForDashboard(projectIds: string[]) {
+  if (projectIds.length === 0) {
+    return [];
+  }
+
   const { data, error } = await supabase
     .from("ai_recommendations")
     .select(
       "project_id, analysis_id, recommendation_run_id, employee_id, rank, match_score, confidence_score, summary, created_at"
     )
+    .in("project_id", projectIds)
     .eq("rank", 1)
     .order("created_at", { ascending: false })
     .returns<DashboardRecommendationTopRow[]>();
@@ -361,7 +383,7 @@ function buildEmployeeProfileSummary(
   };
 }
 
-async function getEmployeeProfileForDashboard(authUserId: string) {
+async function getEmployeeProfileForDashboard(authUserId: string, organizationId: string) {
   const { data, error } = await supabase
     .from("employees")
     .select(
@@ -377,6 +399,7 @@ async function getEmployeeProfileForDashboard(authUserId: string) {
         )
       `
     )
+    .eq("organization_id", organizationId)
     .eq("users.auth_user_id", authUserId)
     .single<EmployeeDashboardProfileRow>();
 
@@ -406,7 +429,7 @@ async function listEmployeeTasksForDashboard(employeeId: string) {
   return data ?? [];
 }
 
-async function listProjectsByIds(projectIds: string[]) {
+async function listProjectsByIds(projectIds: string[], organizationId: string) {
   if (projectIds.length === 0) {
     return [];
   }
@@ -415,6 +438,7 @@ async function listProjectsByIds(projectIds: string[]) {
     .from("projects")
     .select("id, title")
     .in("id", projectIds)
+    .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .returns<EmployeeDashboardProjectRow[]>();
 
@@ -602,25 +626,19 @@ function buildProjectProgress(
 }
 
 export async function getSupervisorDashboard(
-  authUserId: string
+  authUserId: string,
+  organizationId: string
 ): Promise<SupervisorDashboardResponse> {
-  const appUser = await getAppUserByAuthId(authUserId);
-  assertRole(appUser, ["admin", "supervisor"] satisfies readonly UserRole[]);
+  await getAppUserByAuthId(authUserId);
 
-  const [
-    projects,
-    tasks,
-    employees,
-    documents,
-    analyses,
-    recommendationTopRows,
-  ] = await Promise.all([
-    listProjectsForDashboard(),
-    listTasksForDashboard(),
-    listEmployeesForDashboard(),
-    listProjectDocumentsForDashboard(),
-    listProjectAnalysesForDashboard(),
-    listTopRecommendationRowsForDashboard(),
+  const projects = await listProjectsForDashboard(organizationId);
+  const projectIds = projects.map((project) => project.id);
+  const [tasks, employees, documents, analyses, recommendationTopRows] = await Promise.all([
+    listTasksForDashboard(projectIds),
+    listEmployeesForDashboard(organizationId),
+    listProjectDocumentsForDashboard(projectIds),
+    listProjectAnalysesForDashboard(projectIds),
+    listTopRecommendationRowsForDashboard(projectIds),
   ]);
 
   const projectById = buildProjectMap(projects);
@@ -766,12 +784,12 @@ export async function getSupervisorDashboard(
 }
 
 export async function getEmployeeDashboard(
-  authUserId: string
+  authUserId: string,
+  organizationId: string
 ): Promise<EmployeeDashboardResponse> {
-  const appUser = await getAppUserByAuthId(authUserId);
-  assertRole(appUser, ["employee"] satisfies readonly UserRole[]);
+  await getAppUserByAuthId(authUserId);
 
-  const profile = await getEmployeeProfileForDashboard(authUserId);
+  const profile = await getEmployeeProfileForDashboard(authUserId, organizationId);
   const [skills, tasks, recentProgressRows] = await Promise.all([
     getEmployeeSkills(profile.id),
     listEmployeeTasksForDashboard(profile.id),
@@ -796,7 +814,7 @@ export async function getEmployeeDashboard(
   const activeTaskIds = activeTasks.map((task) => task.id);
 
   const [projects, assignmentProgressRows] = await Promise.all([
-    listProjectsByIds(allProjectIds),
+    listProjectsByIds(allProjectIds, organizationId),
     listLatestProgressForTasks(activeTaskIds),
   ]);
 
