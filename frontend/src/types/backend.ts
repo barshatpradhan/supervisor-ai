@@ -41,7 +41,26 @@ export interface LoginRequest {
   password: string
 }
 
-export type SignupRequest = LoginRequest
+export interface BackendProvisioningSkillInput {
+  name: string
+  proficiency_level?: number
+  years_of_experience?: number | null
+}
+
+export interface SignupRequest extends LoginRequest {
+  full_name: string
+  bio?: string
+  employment_type?: 'full_time' | 'part_time'
+  weekly_capacity_hours?: number
+  skills?: BackendProvisioningSkillInput[]
+}
+
+export interface BackendPublicApprovedSkill {
+  id: string
+  name: string
+  normalizedName: string
+  category: string | null
+}
 
 export interface BackendAdminUser {
   id: string
@@ -69,6 +88,37 @@ export interface BackendApprovedSkill {
   createdBy: string | null
   category: string | null
   createdAt: string
+}
+
+export interface BackendCreateManagedUserRequest {
+  email: string
+  role: 'employee' | 'supervisor'
+  full_name: string
+  bio?: string
+  department?: string
+  employment_type?: 'full_time' | 'part_time'
+  weekly_capacity_hours?: number
+  skills?: BackendProvisioningSkillInput[]
+}
+
+export interface BackendProvisionedAdminUserResponse {
+  user: {
+    id: string
+    email: string
+    role: 'employee' | 'supervisor'
+  }
+  invitation_sent: boolean
+  employee_profile: {
+    id: string
+    full_name: string
+    employment_type: 'full_time' | 'part_time'
+    weekly_capacity_hours: number
+  } | null
+  supervisor_profile: {
+    id: string
+    full_name: string
+    department: string | null
+  } | null
 }
 
 export interface BackendEmployeeProfile {
