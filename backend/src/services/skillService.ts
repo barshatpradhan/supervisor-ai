@@ -12,6 +12,18 @@ interface SkillRow {
   created_at: string;
 }
 
+export interface PublicApprovedSkillsQuery {
+  search?: string;
+  category?: string;
+}
+
+export interface PublicSkillResponse {
+  id: string;
+  name: string;
+  normalizedName: string;
+  category: string | null;
+}
+
 interface EmployeeSkillRow {
   skill_id: string;
   proficiency_level: number | null;
@@ -154,6 +166,15 @@ function mapSkill(row: SkillRow) {
   };
 }
 
+function mapPublicSkill(row: SkillRow): PublicSkillResponse {
+  return {
+    id: row.id,
+    name: row.name,
+    normalizedName: row.normalized_name,
+    category: row.category,
+  };
+}
+
 async function resolveEmployeeSkills(
   appUserId: string,
   skills: NormalizedEmployeeSkillInput[]
@@ -254,6 +275,35 @@ export async function listApprovedSkills() {
   }
 
   return (data ?? []).map(mapSkill);
+}
+
+export async function listPublicApprovedSkills(
+  query: PublicApprovedSkillsQuery = {}
+) {
+  let request = supabase
+    .from("skills")
+    .select("id, name, normalized_name, is_approved, created_by, category, created_at")
+    .eq("is_approved", true)
+    .order("category", { ascending: true, nullsFirst: false })
+    .order("name", { ascending: true });
+
+  if (query.search) {
+    request = request.or(
+      `name.ilike.%${query.search}%,normalized_name.ilike.%${query.search}%`
+    );
+  }
+
+  if (query.category) {
+    request = request.eq("category", query.category);
+  }
+
+  const { data, error } = await request.returns<SkillRow[]>();
+
+  if (error) {
+    throw new AppError("Unable to fetch approved skills.", 500);
+  }
+
+  return (data ?? []).map(mapPublicSkill);
 }
 
 export async function listPendingSkills() {

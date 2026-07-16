@@ -9,6 +9,7 @@ import supervisorRoutes from "./routes/supervisorRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
 import taskRoutes from "./routes/taskRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
+import publicRoutes from "./routes/publicRoutes.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { sendSuccess } from "./utils/apiResponse.js";
 
@@ -34,6 +35,7 @@ app.use("/api/v1/supervisors", supervisorRoutes);
 app.use("/api/v1/projects", projectRoutes);
 app.use("/api/v1/tasks", taskRoutes);
 app.use("/api/v1/dashboard", dashboardRoutes);
+app.use("/api/v1/public", publicRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
