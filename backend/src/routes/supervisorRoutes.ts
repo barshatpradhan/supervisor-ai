@@ -6,6 +6,10 @@ import {
   getMySupervisorProfile,
   updateEmployeeWorkSettingsHandler,
 } from "../controllers/supervisorController.js";
+import {
+  requireOrganizationRole,
+  resolveOrganizationContext,
+} from "../middleware/organizationMiddleware.js";
 import { requireRole } from "../middleware/roleMiddleware.js";
 
 const router = Router();
@@ -14,14 +18,16 @@ router.get("/me", authenticateUser, getMySupervisorProfile);
 router.get(
   "/employees",
   authenticateUser,
-  requireRole("supervisor", "admin"),
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
   getAssignableEmployeesHandler
 );
 router.post("/profile", authenticateUser, createMySupervisorProfile);
 router.patch(
   "/employees/:employeeId/work-settings",
   authenticateUser,
-  requireRole("supervisor", "admin"),
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
   updateEmployeeWorkSettingsHandler
 );
 

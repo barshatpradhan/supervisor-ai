@@ -26,6 +26,7 @@ export interface CreateEmployeeProfileRecordInput {
   full_name: string;
   bio?: string | null;
   employment_type?: EmploymentType;
+  organization_id?: string;
   weekly_capacity_hours?: number;
 }
 
@@ -73,24 +74,25 @@ async function withSkills<T extends { id: string }>(employee: T) {
   return { ...employee, skills };
 }
 
-export async function createEmployeeProfileRecordForUser(
-  appUser: { id: string; role: "employee" | "supervisor" | "admin" },
-  profileData: CreateEmployeeProfileRecordInput
-) {
-  if (appUser.role !== "employee") {
-    throw new AppError("Only employee users can create employee profiles.", 403);
-  }
-
+async function insertEmployeeProfileRecord(input: {
+  userId: string;
+  full_name: string;
+  bio?: string | null;
+  employment_type?: EmploymentType;
+  organization_id?: string;
+  weekly_capacity_hours?: number;
+}) {
   const { data, error } = await supabase
     .from("employees")
     .insert({
-      user_id: appUser.id,
-      full_name: profileData.full_name,
-      bio: profileData.bio ?? null,
-      employment_type: profileData.employment_type ?? "full_time",
-      weekly_capacity_hours: profileData.weekly_capacity_hours ?? 40,
+      user_id: input.userId,
+      full_name: input.full_name,
+      bio: input.bio ?? null,
+      employment_type: input.employment_type ?? "full_time",
+      weekly_capacity_hours: input.weekly_capacity_hours ?? 40,
       workload_percentage: 0,
       availability_percentage: availabilityFromWorkload(0),
+      organization_id: input.organization_id ?? null,
     })
     .select()
     .single();
@@ -102,12 +104,46 @@ export async function createEmployeeProfileRecordForUser(
   return data;
 }
 
-async function ensureEmployeeExists(employeeId: string) {
-  const { data, error } = await supabase
+export async function createEmployeeProfileRecordForUser(
+  appUser: { id: string; role: "employee" | "supervisor" | "admin" },
+  profileData: CreateEmployeeProfileRecordInput
+) {
+  if (appUser.role !== "employee") {
+    throw new AppError("Only employee users can create employee profiles.", 403);
+  }
+
+  return insertEmployeeProfileRecord({
+    userId: appUser.id,
+    full_name: profileData.full_name,
+    bio: profileData.bio,
+    employment_type: profileData.employment_type,
+    organization_id: profileData.organization_id,
+    weekly_capacity_hours: profileData.weekly_capacity_hours,
+  });
+}
+
+export async function createEmployeeProfileRecordForOrganization(input: {
+  userId: string;
+  full_name: string;
+  bio?: string | null;
+  employment_type?: EmploymentType;
+  organization_id: string;
+  weekly_capacity_hours?: number;
+}) {
+  return insertEmployeeProfileRecord(input);
+}
+
+async function ensureEmployeeExists(employeeId: string, organizationId?: string) {
+  let request = supabase
     .from("employees")
     .select("id, weekly_capacity_hours")
-    .eq("id", employeeId)
-    .single<EmployeeCapacityRow>();
+    .eq("id", employeeId);
+
+  if (organizationId) {
+    request = request.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await request.single<EmployeeCapacityRow>();
 
   if (error || !data) {
     throw new AppError("Employee not found.", 404);
@@ -116,8 +152,8 @@ async function ensureEmployeeExists(employeeId: string) {
   return data;
 }
 
-async function recalculateEmployeeCapacity(employeeId: string) {
-  const employee = await ensureEmployeeExists(employeeId);
+async function recalculateEmployeeCapacity(employeeId: string, organizationId?: string) {
+  const employee = await ensureEmployeeExists(employeeId, organizationId);
   const { data, error } = await supabase
     .from("tasks")
     .select("estimated_hours")
@@ -156,11 +192,15 @@ async function recalculateEmployeeCapacity(employeeId: string) {
   return updatedEmployee;
 }
 
-export async function getEmployeeProfileByAuthId(authUserId: string) {
-  const { data, error } = await supabase
+export async function getEmployeeProfileByAuthId(
+  authUserId: string,
+  organizationId?: string
+) {
+  let request = supabase
     .from("employees")
     .select(`
       id,
+      organization_id,
       full_name,
       employment_type,
       weekly_capacity_hours,
@@ -175,10 +215,22 @@ export async function getEmployeeProfileByAuthId(authUserId: string) {
         role
       )
     `)
-    .eq("users.auth_user_id", authUserId)
-    .single();
+    .eq("users.auth_user_id", authUserId);
+
+  if (organizationId) {
+    request = request.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await request
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
+    throw new AppError("Employee profile not found.", 404);
+  }
+
+  if (!data) {
     throw new AppError("Employee profile not found.", 404);
   }
 
@@ -255,11 +307,12 @@ export async function updateEmployeeProfile(
 
 export async function updateEmployeeWorkSettings(
   employeeId: string,
+  organizationId: string,
   input: EmployeeWorkSettingsInput
 ) {
   const updates: Record<string, unknown> = {};
 
-  await ensureEmployeeExists(employeeId);
+  await ensureEmployeeExists(employeeId, organizationId);
 
   if (input.employment_type !== undefined) {
     updates.employment_type = input.employment_type;
@@ -276,6 +329,7 @@ export async function updateEmployeeWorkSettings(
   const { data, error } = await supabase
     .from("employees")
     .update(updates)
+    .eq("organization_id", organizationId)
     .eq("id", employeeId)
     .select()
     .single();
@@ -285,7 +339,10 @@ export async function updateEmployeeWorkSettings(
   }
 
   if (input.weekly_capacity_hours !== undefined) {
-    const recalculatedEmployee = await recalculateEmployeeCapacity(data.id);
+    const recalculatedEmployee = await recalculateEmployeeCapacity(
+      data.id,
+      organizationId
+    );
     return withSkills(recalculatedEmployee);
   }
 

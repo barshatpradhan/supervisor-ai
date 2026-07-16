@@ -20,13 +20,14 @@ function mapRequiredSkills(requiredSkills?: string[]) {
   return requiredSkills?.map((skill) => skill.trim()).filter(Boolean);
 }
 
-export async function listProjects(authUserId: string) {
+export async function listProjects(authUserId: string, organizationId: string) {
   const appUser = await getAppUserByAuthId(authUserId);
   assertRole(appUser, ["admin", "supervisor"]);
 
   const { data, error } = await supabase
     .from("projects")
     .select(PROJECT_SELECT)
+    .eq("organization_id", organizationId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
@@ -37,13 +38,18 @@ export async function listProjects(authUserId: string) {
   return data;
 }
 
-export async function getProjectById(authUserId: string, projectId: string) {
+export async function getProjectById(
+  authUserId: string,
+  organizationId: string,
+  projectId: string
+) {
   const appUser = await getAppUserByAuthId(authUserId);
   assertRole(appUser, ["admin", "supervisor"]);
 
   const { data, error } = await supabase
     .from("projects")
     .select(PROJECT_SELECT)
+    .eq("organization_id", organizationId)
     .eq("id", projectId)
     .is("deleted_at", null)
     .single();
@@ -55,7 +61,11 @@ export async function getProjectById(authUserId: string, projectId: string) {
   return data;
 }
 
-export async function createProject(authUserId: string, input: CreateProjectInput) {
+export async function createProject(
+  authUserId: string,
+  organizationId: string,
+  input: CreateProjectInput
+) {
   const appUser = await getAppUserByAuthId(authUserId);
   assertRole(appUser, ["admin", "supervisor"]);
 
@@ -67,6 +77,7 @@ export async function createProject(authUserId: string, input: CreateProjectInpu
       status: input.status ?? "draft",
       priority: input.priority ?? "medium",
       required_skills: mapRequiredSkills(input.requiredSkills) ?? [],
+      organization_id: organizationId,
       created_by_user_id: appUser.id,
     })
     .select(PROJECT_SELECT)
@@ -81,6 +92,7 @@ export async function createProject(authUserId: string, input: CreateProjectInpu
 
 export async function updateProject(
   authUserId: string,
+  organizationId: string,
   projectId: string,
   input: UpdateProjectInput
 ) {
@@ -116,6 +128,7 @@ export async function updateProject(
   const { data, error } = await supabase
     .from("projects")
     .update(updates)
+    .eq("organization_id", organizationId)
     .eq("id", projectId)
     .is("deleted_at", null)
     .select(PROJECT_SELECT)

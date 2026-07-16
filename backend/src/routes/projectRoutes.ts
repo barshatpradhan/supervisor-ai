@@ -15,21 +15,73 @@ import {
   getLatestProjectRecommendationsHandler,
 } from "../controllers/recommendationController.js";
 import { authenticateUser } from "../middleware/authMiddleware.js";
+import {
+  requireOrganizationRole,
+  resolveOrganizationContext,
+} from "../middleware/organizationMiddleware.js";
 import { requireRole } from "../middleware/roleMiddleware.js";
 import { uploadProjectDocumentFile } from "../middleware/uploadMiddleware.js";
 
 const router = Router();
 
-router.use(authenticateUser, requireRole("admin", "supervisor"));
-
-router.get("/", getProjects);
-router.post("/", createProjectHandler);
-router.get("/:projectId/documents", listProjectDocumentsHandler);
-router.get("/:projectId/documents/:documentId", getProjectDocumentHandler);
-router.post("/:projectId/documents", uploadProjectDocumentFile, uploadProjectDocumentHandler);
-router.post("/:projectId/recommendations", generateProjectRecommendationsHandler);
-router.get("/:projectId/recommendations", getLatestProjectRecommendationsHandler);
-router.get("/:projectId", getProject);
-router.patch("/:projectId", updateProjectHandler);
+router.get(
+  "/",
+  authenticateUser,
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
+  getProjects
+);
+router.post(
+  "/",
+  authenticateUser,
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
+  createProjectHandler
+);
+router.get(
+  "/:projectId/documents",
+  authenticateUser,
+  requireRole("admin", "supervisor"),
+  listProjectDocumentsHandler
+);
+router.get(
+  "/:projectId/documents/:documentId",
+  authenticateUser,
+  requireRole("admin", "supervisor"),
+  getProjectDocumentHandler
+);
+router.post(
+  "/:projectId/documents",
+  authenticateUser,
+  requireRole("admin", "supervisor"),
+  uploadProjectDocumentFile,
+  uploadProjectDocumentHandler
+);
+router.post(
+  "/:projectId/recommendations",
+  authenticateUser,
+  requireRole("admin", "supervisor"),
+  generateProjectRecommendationsHandler
+);
+router.get(
+  "/:projectId/recommendations",
+  authenticateUser,
+  requireRole("admin", "supervisor"),
+  getLatestProjectRecommendationsHandler
+);
+router.get(
+  "/:projectId",
+  authenticateUser,
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
+  getProject
+);
+router.patch(
+  "/:projectId",
+  authenticateUser,
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
+  updateProjectHandler
+);
 
 export default router;

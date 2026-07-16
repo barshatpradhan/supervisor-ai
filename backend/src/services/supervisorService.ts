@@ -22,6 +22,7 @@ export interface CreateSupervisorProfileRecordInput {
   full_name: string;
   department?: string;
   bio?: string;
+  organization_id?: string;
 }
 
 function normalizeSkillFilter(skill: string) {
@@ -33,6 +34,7 @@ export async function getSupervisorProfileByAuthId(authUserId: string) {
     .from("supervisors")
     .select(`
       id,
+      organization_id,
       full_name,
       department,
       bio,
@@ -44,9 +46,11 @@ export async function getSupervisorProfileByAuthId(authUserId: string) {
       )
     `)
     .eq("users.auth_user_id", authUserId)
-    .single();
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  if (error) {
+  if (error || !data) {
     throw new AppError("Supervisor profile not found.", 404);
   }
 
@@ -89,6 +93,7 @@ export async function createSupervisorProfileRecordForUser(
       full_name: profileData.full_name,
       department: profileData.department ?? null,
       bio: profileData.bio ?? null,
+      organization_id: profileData.organization_id ?? null,
     })
     .select()
     .single();
@@ -100,8 +105,35 @@ export async function createSupervisorProfileRecordForUser(
   return data;
 }
 
+export async function createSupervisorProfileRecordForOrganization(input: {
+  userId: string;
+  full_name: string;
+  department?: string;
+  bio?: string;
+  organization_id: string;
+}) {
+  const { data, error } = await supabase
+    .from("supervisors")
+    .insert({
+      user_id: input.userId,
+      full_name: input.full_name,
+      department: input.department ?? null,
+      bio: input.bio ?? null,
+      organization_id: input.organization_id,
+    })
+    .select()
+    .single();
+
+  if (error || !data) {
+    throw new AppError("Unable to create supervisor profile.", 400);
+  }
+
+  return data;
+}
+
 export async function listAssignableEmployees(
   authUserId: string,
+  organizationId: string,
   query: SupervisorEmployeeDirectoryQuery
 ) {
   const appUser = await getAppUserByAuthId(authUserId);
@@ -112,6 +144,7 @@ export async function listAssignableEmployees(
     .select(
       "id, full_name, employment_type, availability_percentage, workload_percentage, weekly_capacity_hours, performance_score"
     )
+    .eq("organization_id", organizationId)
     .order("availability_percentage", { ascending: false })
     .order("performance_score", { ascending: false })
     .order("full_name", { ascending: true });
