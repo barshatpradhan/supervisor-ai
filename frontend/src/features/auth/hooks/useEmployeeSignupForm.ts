@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useNotifications } from '../../../hooks/useNotifications'
 import { useApprovedSkillCatalog } from '../../account-creation/hooks/useApprovedSkillCatalog'
@@ -43,28 +43,17 @@ export function useEmployeeSignupForm() {
 
   const approvedSkillCatalog = useApprovedSkillCatalog(values.selectedSkills)
 
-  const approvedSkillsById = useMemo(
-    () =>
-      new Map(
-        approvedSkillCatalog.filteredSkills.map((skill) => [skill.id, skill] as const),
-      ),
-    [approvedSkillCatalog.filteredSkills],
+  const approvedSkillsById = new Map(
+    approvedSkillCatalog.filteredSkills.map((skill) => [skill.id, skill] as const),
   )
 
-  const allApprovedSkillsByNormalizedName = useMemo(
-    () =>
-      new Map(
-        approvedSkillCatalog.skills.map((skill) => [skill.normalizedName, skill] as const),
-      ),
-    [approvedSkillCatalog.skills],
+  const allApprovedSkillsByNormalizedName = new Map(
+    approvedSkillCatalog.skills.map((skill) => [skill.normalizedName, skill] as const),
   )
 
-  const steps = useMemo(
-    () => buildEmployeeSignupSteps(currentStepIndex),
-    [currentStepIndex],
-  )
+  const steps = buildEmployeeSignupSteps(currentStepIndex)
 
-  const reviewData = useMemo(() => buildEmployeeSignupReviewData(values), [values])
+  const reviewData = buildEmployeeSignupReviewData(values)
 
   function updateValue<Key extends keyof EmployeeAccountFormValues>(
     key: Key,
