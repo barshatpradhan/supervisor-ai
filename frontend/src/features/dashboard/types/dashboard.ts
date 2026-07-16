@@ -6,6 +6,12 @@ import type {
   BackendDashboardRecommendationRunSummary,
   BackendDashboardRecommendationTopCandidate,
   BackendDashboardTaskSummaryItem,
+  BackendEmployeeDashboardAssignment,
+  BackendEmployeeDashboardAttentionSummary,
+  BackendEmployeeDashboardProfileSummary,
+  BackendEmployeeDashboardRecentProgressItem,
+  BackendEmployeeDashboardResponse,
+  BackendEmployeeDashboardWorkSummary,
   BackendSupervisorDashboardDocumentsSummary,
   BackendSupervisorDashboardEmployeesSummary,
   BackendSupervisorDashboardProjectsSummary,
@@ -28,3 +34,9 @@ export type DashboardAnalyzedProject = BackendDashboardAnalyzedProject
 export type DashboardRecommendationTopCandidate = BackendDashboardRecommendationTopCandidate
 export type DashboardRecommendationRunSummary = BackendDashboardRecommendationRunSummary
 export type DashboardProjectProgressSummary = BackendDashboardProjectProgressSummary
+export type EmployeeDashboard = BackendEmployeeDashboardResponse
+export type EmployeeDashboardWorkSummary = BackendEmployeeDashboardWorkSummary
+export type EmployeeDashboardAssignment = BackendEmployeeDashboardAssignment
+export type EmployeeDashboardRecentProgressItem = BackendEmployeeDashboardRecentProgressItem
+export type EmployeeDashboardProfileSummary = BackendEmployeeDashboardProfileSummary
+export type EmployeeDashboardAttentionSummary = BackendEmployeeDashboardAttentionSummary

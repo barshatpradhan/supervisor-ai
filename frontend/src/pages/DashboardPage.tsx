@@ -1,5 +1,5 @@
-import { SupervisorDashboardPage } from '../features/dashboard/pages/SupervisorDashboardPage'
+import { DashboardRoute } from '../features/dashboard/components/DashboardRoute'
 
 export function DashboardPage() {
-  return <SupervisorDashboardPage />
+  return <DashboardRoute />
 }

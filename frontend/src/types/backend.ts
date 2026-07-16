@@ -405,3 +405,68 @@ export interface BackendSupervisorDashboardResponse {
   recommendations: BackendSupervisorDashboardRecommendationsSummary
   projectProgress: BackendDashboardProjectProgressSummary[]
 }
+
+export interface BackendEmployeeDashboardWorkSummary {
+  assigned_tasks: number
+  in_progress_tasks: number
+  blocked_tasks: number
+  completed_tasks: number
+  workload_percentage: number
+  availability_percentage: number
+  weekly_capacity_hours: number
+}
+
+export interface BackendEmployeeDashboardAssignment {
+  task_id: string
+  title: string
+  description: string | null
+  project_id: string
+  project_title: string
+  priority: BackendPriorityLevel
+  status: BackendTaskStatus
+  estimated_hours: number
+  assigned_at: string | null
+  current_progress_percentage: number
+  latest_progress_status: BackendTaskStatus | null
+  latest_progress_notes: string | null
+  last_progress_at: string | null
+}
+
+export interface BackendEmployeeDashboardRecentProgressItem {
+  progress_id: string
+  task_id: string
+  task_title: string
+  project_id: string
+  project_title: string
+  progress_percentage: number
+  status: BackendTaskStatus | null
+  notes: string | null
+  created_at: string
+}
+
+export interface BackendEmployeeDashboardProfileSummary {
+  employee_id: string
+  full_name: string
+  bio: string | null
+  employment_type: 'full_time' | 'part_time'
+  weekly_capacity_hours: number
+  workload_percentage: number
+  availability_percentage: number
+  performance_score: number | null
+  approved_skills: string[]
+  pending_skills: string[]
+}
+
+export interface BackendEmployeeDashboardAttentionSummary {
+  blocked_tasks: BackendEmployeeDashboardAssignment[]
+  unstarted_assigned_tasks: BackendEmployeeDashboardAssignment[]
+  tasks_requiring_progress_update: BackendEmployeeDashboardAssignment[]
+}
+
+export interface BackendEmployeeDashboardResponse {
+  workSummary: BackendEmployeeDashboardWorkSummary
+  currentAssignments: BackendEmployeeDashboardAssignment[]
+  recentProgress: BackendEmployeeDashboardRecentProgressItem[]
+  profile: BackendEmployeeDashboardProfileSummary
+  attention: BackendEmployeeDashboardAttentionSummary
+}

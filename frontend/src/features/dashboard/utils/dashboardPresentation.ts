@@ -2,6 +2,7 @@ import type {
   DashboardEmployeeWorkloadRecord,
   DashboardRecommendationRunSummary,
   DashboardRecommendationTopCandidate,
+  EmployeeDashboardAssignment,
 } from '../types/dashboard'
 
 export function formatDashboardDate(value: string) {
@@ -56,7 +57,7 @@ export function formatRecommendationRunLabel(run: DashboardRecommendationRunSumm
     return 'No recommendation runs yet'
   }
 
-  return `${run.project_title} · ${formatDashboardDate(run.created_at)}`
+  return `${run.project_title} - ${formatDashboardDate(run.created_at)}`
 }
 
 export function formatTopCandidateLabel(
@@ -66,5 +67,42 @@ export function formatTopCandidateLabel(
     return 'No top-ranked candidate yet'
   }
 
-  return `${candidate.employee_name} · ${formatDashboardScore(candidate.match_score)}`
+  return `${candidate.employee_name} - ${formatDashboardScore(candidate.match_score)}`
+}
+
+export function formatDashboardHours(value: number) {
+  return `${Number(value)} hr${Number(value) === 1 ? '' : 's'}`
+}
+
+export function formatDashboardDateOrFallback(value: string | null, fallback: string) {
+  if (!value) {
+    return fallback
+  }
+
+  return formatDashboardDate(value)
+}
+
+export function formatLatestProgressStatus(
+  status: EmployeeDashboardAssignment['latest_progress_status'],
+) {
+  if (!status) {
+    return 'No progress status yet'
+  }
+
+  switch (status) {
+    case 'todo':
+      return 'To do'
+    case 'in_progress':
+      return 'In progress'
+    case 'blocked':
+      return 'Blocked'
+    case 'review':
+      return 'In review'
+    case 'completed':
+      return 'Completed'
+    case 'cancelled':
+      return 'Cancelled'
+    default:
+      return 'No progress status yet'
+  }
 }
