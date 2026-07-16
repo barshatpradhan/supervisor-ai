@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNotifications } from '../../../hooks/useNotifications'
 import { createManagedUser } from '../../../services/admin/adminUserService'
 import { useApprovedSkillCatalog } from '../../account-creation/hooks/useApprovedSkillCatalog'
@@ -37,28 +37,17 @@ export function useAdminUserCreationForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const approvedSkillCatalog = useApprovedSkillCatalog(values.selectedSkills)
 
-  const steps = useMemo(
-    () => buildAdminUserCreationSteps(currentStepIndex, values.role),
-    [currentStepIndex, values.role],
+  const steps = buildAdminUserCreationSteps(currentStepIndex, values.role)
+
+  const approvedSkillsById = new Map(
+    approvedSkillCatalog.filteredSkills.map((skill) => [skill.id, skill] as const),
   )
 
-  const approvedSkillsById = useMemo(
-    () =>
-      new Map(
-        approvedSkillCatalog.filteredSkills.map((skill) => [skill.id, skill] as const),
-      ),
-    [approvedSkillCatalog.filteredSkills],
+  const allApprovedSkillsByNormalizedName = new Map(
+    approvedSkillCatalog.skills.map((skill) => [skill.normalizedName, skill] as const),
   )
 
-  const allApprovedSkillsByNormalizedName = useMemo(
-    () =>
-      new Map(
-        approvedSkillCatalog.skills.map((skill) => [skill.normalizedName, skill] as const),
-      ),
-    [approvedSkillCatalog.skills],
-  )
-
-  const reviewData = useMemo(() => buildAdminUserCreationReviewData(values), [values])
+  const reviewData = buildAdminUserCreationReviewData(values)
 
   function updateValue<Key extends keyof AdminUserCreationValues>(
     key: Key,
