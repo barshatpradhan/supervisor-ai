@@ -4,6 +4,7 @@ import {
   createOrganizationHandler,
   createOrganizationInvitationHandler,
   getOrganizationHandler,
+  listCurrentUserOrganizationsHandler,
   listOrganizationInvitationsHandler,
   listOrganizationMembersHandler,
 } from "../controllers/organizationController.js";
@@ -15,6 +16,7 @@ import {
 
 const router = Router();
 
+router.get("/", authenticateUser, listCurrentUserOrganizationsHandler);
 router.post("/", authenticateUser, createOrganizationHandler);
 router.post(
   "/invitations/accept",

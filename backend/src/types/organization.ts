@@ -103,3 +103,29 @@ export interface OrganizationInvitationSummary {
   revoked_at: string | null;
   membership_status: OrganizationMembershipStatus;
 }
+
+export interface CurrentUserOrganizationMembershipSummary {
+  id: string;
+  role: OrganizationMembershipRole;
+  status: OrganizationMembershipStatus;
+  invited_at: string | null;
+  joined_at: string | null;
+  created_at: string;
+}
+
+export interface CurrentUserOrganizationSummary {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface CurrentUserOrganizationInvitationSummary {
+  id: string;
+  expires_at: string;
+}
+
+export interface CurrentUserOrganizationListItem {
+  membership: CurrentUserOrganizationMembershipSummary;
+  organization: CurrentUserOrganizationSummary;
+  invitation: CurrentUserOrganizationInvitationSummary | null;
+}
