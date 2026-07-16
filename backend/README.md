@@ -188,6 +188,38 @@ As of the skills schema repair migration, the checked-in migration set explicitl
 
 The repair migration is intentionally ordered before the older `employee_skills` uniqueness migration so clean environments can replay the historical migration chain without editing already-applied files.
 
+## Schema Reconciliation
+
+Source of truth:
+
+- applied SQL migrations under `supabase/migrations/`
+- the live Supabase schema after all forward migrations
+- backend services and request/response contracts that depend on those tables
+
+Rules for future schema changes:
+
+- never edit or reorder an already-applied migration in place
+- add a new forward-only migration for every schema change
+- prefer guarded `if not exists` / catalog-checked changes when repairing drift
+- verify that service code still matches column names, nullability, and value shapes
+
+Replay expectations:
+
+- the repository migration chain should create all tables before any later migration alters them
+- the skills repair migration `202606180001_repair_skills_schema_drift.sql` exists specifically so clean replay creates `skills` and `employee_skills` before the older uniqueness migration runs
+- the follow-up reconciliation migration `202607160001_reconcile_live_schema.sql` applies only low-risk adjustments needed for better live alignment
+
+Known intentional differences from live:
+
+- base-table drift outside the skills tables is documented but not normalized automatically when doing so would change current production behavior
+- examples include `users.role` and `employees.employment_type` being `text` in live while older repository migrations model them more strictly
+- nullable and timestamp-shape differences on legacy tables are also documented drift unless the application requires a safe forward migration
+
+Warning:
+
+- do not edit an applied migration to "fix history"
+- add a new migration and document the reason instead
+
 ## API Reference
 
 All API routes are mounted under `/api/v1`.
@@ -379,6 +411,7 @@ Only variable names are documented. Do not commit real values.
 - Keep `SUPABASE_SERVICE_ROLE_KEY` backend-only.
 - Ensure the Supabase schema, storage bucket, and skills repair migration are applied before enabling profile skills or recommendations.
 - Configure CORS explicitly for production; the current implementation uses default `cors()` behavior.
+- If the Supabase CLI is available, validate replay later with `supabase db reset`.
 
 ## Backend Roadmap
 
