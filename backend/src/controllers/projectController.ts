@@ -48,7 +48,11 @@ export async function getProjects(req: Request, res: Response, next: NextFunctio
   }
 
   try {
-    const projects = await listProjects(req.user.id);
+    if (!req.organization) {
+      throw new AppError("Organization context is required.", 500);
+    }
+
+    const projects = await listProjects(req.user.id, req.organization.id);
     return sendSuccess(res, 200, "Projects fetched successfully.", projects);
   } catch (error) {
     return next(error);
@@ -61,8 +65,12 @@ export async function getProject(req: Request, res: Response, next: NextFunction
   }
 
   try {
+    if (!req.organization) {
+      throw new AppError("Organization context is required.", 500);
+    }
+
     const projectId = requireUuid(req.params.projectId, "Project id");
-    const project = await getProjectById(req.user.id, projectId);
+    const project = await getProjectById(req.user.id, req.organization.id, projectId);
     return sendSuccess(res, 200, "Project fetched successfully.", project);
   } catch (error) {
     return next(error);
@@ -79,8 +87,12 @@ export async function createProjectHandler(
   }
 
   try {
+    if (!req.organization) {
+      throw new AppError("Organization context is required.", 500);
+    }
+
     const body = requireBody(req.body);
-    const project = await createProject(req.user.id, {
+    const project = await createProject(req.user.id, req.organization.id, {
       title: requireString(body, "title", "Title"),
       description: optionalString(body, "description"),
       status: optionalEnum(body, "status", PROJECT_STATUSES),
@@ -104,9 +116,13 @@ export async function updateProjectHandler(
   }
 
   try {
+    if (!req.organization) {
+      throw new AppError("Organization context is required.", 500);
+    }
+
     const projectId = requireUuid(req.params.projectId, "Project id");
     const body = requireBody(req.body);
-    const project = await updateProject(req.user.id, projectId, {
+    const project = await updateProject(req.user.id, req.organization.id, projectId, {
       title: optionalString(body, "title"),
       description: optionalString(body, "description"),
       status: optionalEnum(body, "status", PROJECT_STATUSES),

@@ -72,9 +72,13 @@ export async function updateEmployeeWorkSettingsHandler(
   }
 
   try {
+    if (!req.organization) {
+      throw new AppError("Organization context is required.", 500);
+    }
+
     const employeeId = requireUuid(req.params.employeeId, "Employee id");
     const body = requireBody(req.body);
-    const employee = await updateEmployeeWorkSettings(employeeId, {
+    const employee = await updateEmployeeWorkSettings(employeeId, req.organization.id, {
       employment_type: optionalEnum(body, "employment_type", EMPLOYMENT_TYPES),
       weekly_capacity_hours: optionalNumber(body, "weekly_capacity_hours", {
         min: 1,
@@ -103,8 +107,13 @@ export async function getAssignableEmployeesHandler(
   }
 
   try {
+    if (!req.organization) {
+      throw new AppError("Organization context is required.", 500);
+    }
+
     const employees = await listAssignableEmployees(
       req.user.id,
+      req.organization.id,
       getSupervisorEmployeeDirectoryQuery(req.query)
     );
 

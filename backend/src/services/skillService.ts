@@ -6,6 +6,7 @@ interface SkillRow {
   id: string;
   name: string;
   normalized_name: string;
+  organization_id: string | null;
   is_approved: boolean;
   created_by: string | null;
   category: string | null;
@@ -229,7 +230,8 @@ function mapPublicSkill(row: SkillRow): PublicSkillResponse {
 
 async function resolveEmployeeSkills(
   appUserId: string,
-  skills: NormalizedEmployeeSkillInput[]
+  skills: NormalizedEmployeeSkillInput[],
+  organizationId?: string
 ): Promise<ResolvedEmployeeSkillsResult> {
   if (skills.length === 0) {
     return {
@@ -239,21 +241,74 @@ async function resolveEmployeeSkills(
   }
 
   const normalizedNames = skills.map((skill) => skill.normalizedName);
-  const { data: existingSkills, error: existingSkillsError } = await supabase
-    .from("skills")
-    .select("id, name, normalized_name, is_approved, created_by, category, created_at")
-    .in("normalized_name", normalizedNames)
-    .returns<SkillRow[]>();
+  let existingSkills: SkillRow[] = [];
 
-  if (existingSkillsError) {
-    throw createSkillProvisioningError(
-      "Unable to fetch existing skills.",
-      "fetch_existing_skills",
-      existingSkillsError,
-      {
-        normalizedSkillCount: normalizedNames.length,
-      }
-    );
+  if (organizationId) {
+    const { data: globalSkills, error: globalSkillsError } = await supabase
+      .from("skills")
+      .select(
+        "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
+      )
+      .in("normalized_name", normalizedNames)
+      .is("organization_id", null)
+      .eq("is_approved", true)
+      .returns<SkillRow[]>();
+
+    if (globalSkillsError) {
+      throw createSkillProvisioningError(
+        "Unable to fetch existing skills.",
+        "fetch_global_skills",
+        globalSkillsError,
+        {
+          normalizedSkillCount: normalizedNames.length,
+          organizationId,
+        }
+      );
+    }
+
+    const { data: organizationSkills, error: organizationSkillsError } = await supabase
+      .from("skills")
+      .select(
+        "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
+      )
+      .in("normalized_name", normalizedNames)
+      .eq("organization_id", organizationId)
+      .returns<SkillRow[]>();
+
+    if (organizationSkillsError) {
+      throw createSkillProvisioningError(
+        "Unable to fetch existing skills.",
+        "fetch_organization_skills",
+        organizationSkillsError,
+        {
+          normalizedSkillCount: normalizedNames.length,
+          organizationId,
+        }
+      );
+    }
+
+    existingSkills = [...(globalSkills ?? []), ...(organizationSkills ?? [])];
+  } else {
+    const { data, error } = await supabase
+      .from("skills")
+      .select(
+        "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
+      )
+      .in("normalized_name", normalizedNames)
+      .returns<SkillRow[]>();
+
+    if (error) {
+      throw createSkillProvisioningError(
+        "Unable to fetch existing skills.",
+        "fetch_existing_skills",
+        error,
+        {
+          normalizedSkillCount: normalizedNames.length,
+        }
+      );
+    }
+
+    existingSkills = data ?? [];
   }
 
   const existingNormalizedNames = new Set(
@@ -273,12 +328,15 @@ async function resolveEmployeeSkills(
           id: crypto.randomUUID(),
           name: skill.name,
           normalized_name: skill.normalizedName,
+          organization_id: organizationId ?? null,
           is_approved: false,
           created_by: appUserId,
           created_at: createdAt,
         }))
       )
-      .select("id, name, normalized_name, is_approved, created_by, category, created_at")
+      .select(
+        "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
+      )
       .returns<SkillRow[]>();
 
     if (error || !data) {
@@ -291,6 +349,7 @@ async function resolveEmployeeSkills(
         {
           createdByUserId: appUserId,
           missingSkillCount: missingSkills.length,
+          organizationId: organizationId ?? null,
         }
       );
     }
@@ -412,8 +471,11 @@ async function replaceEmployeeSkillLinks(
 export async function listApprovedSkills() {
   const { data, error } = await supabase
     .from("skills")
-    .select("id, name, normalized_name, is_approved, created_by, category, created_at")
+    .select(
+      "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
+    )
     .eq("is_approved", true)
+    .is("organization_id", null)
     .order("name", { ascending: true })
     .returns<SkillRow[]>();
 
@@ -429,8 +491,11 @@ export async function listPublicApprovedSkills(
 ) {
   let request = supabase
     .from("skills")
-    .select("id, name, normalized_name, is_approved, created_by, category, created_at")
+    .select(
+      "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
+    )
     .eq("is_approved", true)
+    .is("organization_id", null)
     .order("category", { ascending: true, nullsFirst: false })
     .order("name", { ascending: true });
 
@@ -456,7 +521,9 @@ export async function listPublicApprovedSkills(
 export async function listPendingSkills() {
   const { data, error } = await supabase
     .from("skills")
-    .select("id, name, normalized_name, is_approved, created_by, category, created_at")
+    .select(
+      "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
+    )
     .eq("is_approved", false)
     .order("created_at", { ascending: false })
     .returns<SkillRow[]>();
@@ -473,7 +540,9 @@ export async function approveSkill(skillId: string) {
     .from("skills")
     .update({ is_approved: true })
     .eq("id", skillId)
-    .select("id, name, normalized_name, is_approved, created_by, category, created_at")
+    .select(
+      "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
+    )
     .single<SkillRow>();
 
   if (error || !data) {
@@ -519,7 +588,9 @@ export async function getEmployeeSkills(employeeId: string) {
 
   const { data: skills, error: skillsError } = await supabase
     .from("skills")
-    .select("id, name, normalized_name, is_approved, created_by, category, created_at")
+    .select(
+      "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
+    )
     .in("id", skillIds)
     .returns<SkillRow[]>();
 
@@ -579,7 +650,9 @@ export async function getSkillsByEmployeeIds(employeeIds: string[]) {
 
   const { data: skills, error: skillsError } = await supabase
     .from("skills")
-    .select("id, name, normalized_name, is_approved, created_by, category, created_at")
+    .select(
+      "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
+    )
     .in("id", skillIds)
     .returns<SkillRow[]>();
 
@@ -615,7 +688,8 @@ export async function getSkillsByEmployeeIds(employeeIds: string[]) {
 export async function syncEmployeeSkills(
   employeeId: string,
   appUserId: string,
-  skills: string[]
+  skills: string[],
+  organizationId?: string
 ) {
   const uniqueSkillNames = uniqueSkills(skills);
   const { data: currentEmployeeSkills, error: currentEmployeeSkillsError } =
@@ -660,7 +734,8 @@ export async function syncEmployeeSkills(
       normalizedName: skill.normalizedName,
       proficiencyLevel: DEFAULT_PROFICIENCY_LEVEL,
       yearsOfExperience: null,
-    }))
+    })),
+    organizationId
   );
 
   if (resolvedSkills.skillsToLink.length === 0) {
@@ -687,7 +762,8 @@ export async function syncEmployeeSkills(
 export async function replaceEmployeeSkillsWithDetails(
   employeeId: string,
   appUserId: string,
-  skills: EmployeeSkillInput[]
+  skills: EmployeeSkillInput[],
+  organizationId?: string
 ): Promise<ReplaceEmployeeSkillsResult> {
   const uniqueSkillInputs = uniqueDetailedSkills(skills);
 
@@ -699,7 +775,11 @@ export async function replaceEmployeeSkillsWithDetails(
     };
   }
 
-  const resolvedSkills = await resolveEmployeeSkills(appUserId, uniqueSkillInputs);
+  const resolvedSkills = await resolveEmployeeSkills(
+    appUserId,
+    uniqueSkillInputs,
+    organizationId
+  );
 
   if (resolvedSkills.skillsToLink.length === 0) {
     return {
