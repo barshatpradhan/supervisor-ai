@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useAuth } from '../../auth/hooks/useAuth'
 import { useNotifications } from '../../../hooks/useNotifications'
+import { useOrganization } from '../../organizations/hooks/useOrganization'
 import { uploadProjectDocument } from '../services/projectDocumentService'
 import type { ProjectDocumentUploadState } from '../types/projectDocument'
 import { validateProjectDocumentFile } from '../utils/projectDocumentPresentation'
@@ -26,7 +26,7 @@ interface ProjectScopedDocumentSelectionState {
 }
 
 export function useProjectDocumentManager(projectId: string | undefined) {
-  const { role } = useAuth()
+  const { activeRole } = useOrganization()
   const notifications = useNotifications()
   const listQuery = useProjectDocuments(projectId)
   const [selectionState, setSelectionState] = useState<ProjectScopedDocumentSelectionState>({
@@ -38,7 +38,8 @@ export function useProjectDocumentManager(projectId: string | undefined) {
     projectId,
     successMessage: null,
   })
-  const canUploadDocuments = role === 'admin' || role === 'supervisor'
+  const canUploadDocuments =
+    activeRole === 'organization_admin' || activeRole === 'supervisor'
   const documents = listQuery.data ?? []
   const selectedDocumentId =
     selectionState.projectId === projectId &&

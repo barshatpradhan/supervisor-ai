@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useApiResource } from '../../../hooks/useApiResource'
 import { useNotifications } from '../../../hooks/useNotifications'
-import { useAuth } from '../../auth/hooks/useAuth'
+import { useOrganization } from '../../organizations/hooks/useOrganization'
 import { useRecommendationProjects } from './useRecommendationProjects'
 import {
   generateRecommendationsForProject,
@@ -28,9 +28,10 @@ function createInitialGenerationState(): RecommendationGenerationState {
 }
 
 export function useAiRecommendationManager() {
-  const { role } = useAuth()
+  const { activeRole } = useOrganization()
   const notifications = useNotifications()
-  const canManageRecommendations = role === 'admin' || role === 'supervisor'
+  const canManageRecommendations =
+    activeRole === 'organization_admin' || activeRole === 'supervisor'
   const projectsQuery = useRecommendationProjects(canManageRecommendations)
   const [selectedProjectIdState, setSelectedProjectIdState] = useState<string | null>(null)
   const [generationState, setGenerationState] = useState<RecommendationGenerationState>(
