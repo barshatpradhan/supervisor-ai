@@ -1,11 +1,11 @@
 import { Navigate } from 'react-router-dom'
-import { useAuth } from '../../../auth/hooks/useAuth'
+import { useOrganization } from '../../../organizations/hooks/useOrganization'
 import { EmployeeDashboardModule } from './EmployeeDashboardModule'
 
 export function EmployeeDashboardRoute() {
-  const { role } = useAuth()
+  const { activeRole } = useOrganization()
 
-  if (role !== 'employee') {
+  if (activeRole !== 'employee') {
     return <Navigate replace to="/forbidden" />
   }
 

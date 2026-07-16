@@ -1,14 +1,14 @@
 import { EmptyState } from '../../../components/shared/EmptyState'
-import { useAuth } from '../../auth/hooks/useAuth'
+import { useOrganization } from '../../organizations/hooks/useOrganization'
 import { ProjectsModule } from './ProjectsModule'
 
 export function ProjectsRoute() {
-  const { role } = useAuth()
+  const { activeRole } = useOrganization()
 
-  if (role !== 'admin' && role !== 'supervisor') {
+  if (activeRole !== 'organization_admin' && activeRole !== 'supervisor') {
     return (
       <EmptyState
-        description="Project management is currently available only for supervisor and admin accounts."
+        description="Project management is currently available only for supervisor and organization admin memberships."
         title="Projects are not available for this role"
       />
     )

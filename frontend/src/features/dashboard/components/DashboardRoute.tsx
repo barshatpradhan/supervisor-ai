@@ -1,16 +1,16 @@
 import { Navigate } from 'react-router-dom'
-import { useAuth } from '../../auth/hooks/useAuth'
+import { useOrganization } from '../../organizations/hooks/useOrganization'
 import { EmployeeDashboardRoute } from './employee/EmployeeDashboardRoute'
 import { SupervisorDashboardRoute } from './SupervisorDashboardRoute'
 
 export function DashboardRoute() {
-  const { role } = useAuth()
+  const { activeRole } = useOrganization()
 
-  if (role === 'admin' || role === 'supervisor') {
+  if (activeRole === 'organization_admin' || activeRole === 'supervisor') {
     return <SupervisorDashboardRoute />
   }
 
-  if (role === 'employee') {
+  if (activeRole === 'employee') {
     return <EmployeeDashboardRoute />
   }
 

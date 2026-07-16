@@ -9,6 +9,7 @@ interface PageShellProps {
   children: ReactNode
   eyebrow?: string
   navigationItems: NavigationItem[]
+  sidebarContent?: ReactNode
   title: string
 }
 
@@ -18,11 +19,14 @@ export function PageShell({
   children,
   eyebrow,
   navigationItems,
+  sidebarContent,
   title,
 }: PageShellProps) {
   return (
     <div className="min-h-screen bg-surface-page text-ink-900 lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
-      <Sidebar activeHref={activeHref} items={navigationItems} />
+      <Sidebar activeHref={activeHref} items={navigationItems}>
+        {sidebarContent}
+      </Sidebar>
       <div className="min-w-0">
         <Header actions={actions} eyebrow={eyebrow} title={title} />
         {children}
