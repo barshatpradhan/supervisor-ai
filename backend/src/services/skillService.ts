@@ -69,9 +69,61 @@ interface ResolvedEmployeeSkillsResult {
   }>;
 }
 
+export interface ReplaceEmployeeSkillsResult {
+  createdSkillIds: string[];
+  linkedSkillIds: string[];
+}
+
 const DEFAULT_PROFICIENCY_LEVEL = 3;
 const MAX_PROFICIENCY_LEVEL = 5;
 const MAX_YEARS_OF_EXPERIENCE = 80;
+
+function logSkillProvisioningEvent(
+  event: string,
+  details: Record<string, unknown>
+) {
+  console.error(
+    JSON.stringify({
+      scope: "skill_provisioning",
+      event,
+      ...details,
+    })
+  );
+}
+
+function formatSupabaseError(error: {
+  code?: string | null;
+  message?: string | null;
+  details?: string | null;
+  hint?: string | null;
+}) {
+  return {
+    code: error.code ?? null,
+    details: error.details ?? null,
+    hint: error.hint ?? null,
+    message: error.message ?? null,
+  };
+}
+
+function createSkillProvisioningError(
+  message: string,
+  operation: string,
+  error: {
+    code?: string | null;
+    message?: string | null;
+    details?: string | null;
+    hint?: string | null;
+  },
+  context: Record<string, unknown> = {}
+) {
+  logSkillProvisioningEvent("supabase_error", {
+    operation,
+    ...formatSupabaseError(error),
+    ...context,
+  });
+
+  return new AppError(message, 500, true, { cause: error });
+}
 
 function normalizeSkill(skill: string) {
   return skill.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -194,7 +246,14 @@ async function resolveEmployeeSkills(
     .returns<SkillRow[]>();
 
   if (existingSkillsError) {
-    throw new AppError("Unable to fetch existing skills.", 500);
+    throw createSkillProvisioningError(
+      "Unable to fetch existing skills.",
+      "fetch_existing_skills",
+      existingSkillsError,
+      {
+        normalizedSkillCount: normalizedNames.length,
+      }
+    );
   }
 
   const existingNormalizedNames = new Set(
@@ -223,7 +282,17 @@ async function resolveEmployeeSkills(
       .returns<SkillRow[]>();
 
     if (error || !data) {
-      throw new AppError("Unable to create employee skills.", 500);
+      throw createSkillProvisioningError(
+        "Unable to create employee skills.",
+        "create_missing_skills",
+        error ?? {
+          message: "Missing created skill rows in Supabase response.",
+        },
+        {
+          createdByUserId: appUserId,
+          missingSkillCount: missingSkills.length,
+        }
+      );
     }
 
     createdSkills = data;
@@ -260,6 +329,84 @@ async function resolveEmployeeSkills(
         } => Boolean(value)
       ),
   };
+}
+
+function buildEmployeeSkillLinkRows(
+  employeeId: string,
+  skillsToLink: ResolvedEmployeeSkillsResult["skillsToLink"]
+) {
+  const rowsBySkillId = new Map<
+    string,
+    {
+      id: string;
+      employee_id: string;
+      skill_id: string;
+      proficiency_level: number;
+      years_of_experience: number | null;
+      created_at: string;
+    }
+  >();
+  const createdAt = new Date().toISOString();
+
+  for (const { input, skill } of skillsToLink) {
+    if (!skill.id) {
+      throw new AppError("Resolved skill is missing a valid id.", 500, true, {
+        cause: skill,
+      });
+    }
+
+    rowsBySkillId.set(skill.id, {
+      id: crypto.randomUUID(),
+      employee_id: employeeId,
+      skill_id: skill.id,
+      proficiency_level: input.proficiencyLevel,
+      years_of_experience: input.yearsOfExperience,
+      created_at: createdAt,
+    });
+  }
+
+  return [...rowsBySkillId.values()];
+}
+
+async function replaceEmployeeSkillLinks(
+  employeeId: string,
+  linkRows: ReturnType<typeof buildEmployeeSkillLinkRows>
+) {
+  const { error: deleteError } = await supabase
+    .from("employee_skills")
+    .delete()
+    .eq("employee_id", employeeId);
+
+  if (deleteError) {
+    throw createSkillProvisioningError(
+      "Unable to update employee skills.",
+      "delete_existing_employee_skills",
+      deleteError,
+      {
+        employeeId,
+      }
+    );
+  }
+
+  if (linkRows.length === 0) {
+    return;
+  }
+
+  const { error: insertError } = await supabase
+    .from("employee_skills")
+    .upsert(linkRows, { onConflict: "employee_id,skill_id", ignoreDuplicates: true });
+
+  if (insertError) {
+    throw createSkillProvisioningError(
+      "Unable to assign employee skills.",
+      "upsert_employee_skills",
+      insertError,
+      {
+        employeeId,
+        linkRowCount: linkRows.length,
+      }
+    );
+  }
 }
 
 export async function listApprovedSkills() {
@@ -486,16 +633,23 @@ export async function syncEmployeeSkills(
     (currentEmployeeSkills ?? []).map((skill) => [skill.skill_id, skill])
   );
 
-  const { error: deleteError } = await supabase
-    .from("employee_skills")
-    .delete()
-    .eq("employee_id", employeeId);
-
-  if (deleteError) {
-    throw new AppError("Unable to update employee skills.", 500);
-  }
-
   if (uniqueSkillNames.length === 0) {
+    const { error: deleteError } = await supabase
+      .from("employee_skills")
+      .delete()
+      .eq("employee_id", employeeId);
+
+    if (deleteError) {
+      throw createSkillProvisioningError(
+        "Unable to update employee skills.",
+        "delete_existing_employee_skills",
+        deleteError,
+        {
+          employeeId,
+        }
+      );
+    }
+
     return;
   }
 
@@ -513,45 +667,35 @@ export async function syncEmployeeSkills(
     return;
   }
 
-  const createdAt = new Date().toISOString();
-  const { error: insertError } = await supabase.from("employee_skills").upsert(
-    resolvedSkills.skillsToLink.map(({ skill }) => ({
-      id: crypto.randomUUID(),
-      employee_id: employeeId,
-      skill_id: skill.id,
-      proficiency_level:
-        currentSkillById.get(skill.id)?.proficiency_level ?? DEFAULT_PROFICIENCY_LEVEL,
-      years_of_experience:
-        currentSkillById.get(skill.id)?.years_of_experience ?? null,
-      created_at: createdAt,
-    })),
-    { onConflict: "employee_id,skill_id", ignoreDuplicates: true }
+  const linkRows = buildEmployeeSkillLinkRows(
+    employeeId,
+    resolvedSkills.skillsToLink.map(({ input, skill }) => ({
+      input: {
+        ...input,
+        proficiencyLevel:
+          currentSkillById.get(skill.id)?.proficiency_level ?? DEFAULT_PROFICIENCY_LEVEL,
+        yearsOfExperience:
+          currentSkillById.get(skill.id)?.years_of_experience ?? null,
+      },
+      skill,
+    }))
   );
 
-  if (insertError) {
-    throw new AppError("Unable to assign employee skills.", 500);
-  }
+  await replaceEmployeeSkillLinks(employeeId, linkRows);
 }
 
 export async function replaceEmployeeSkillsWithDetails(
   employeeId: string,
   appUserId: string,
   skills: EmployeeSkillInput[]
-) {
+): Promise<ReplaceEmployeeSkillsResult> {
   const uniqueSkillInputs = uniqueDetailedSkills(skills);
 
-  const { error: deleteError } = await supabase
-    .from("employee_skills")
-    .delete()
-    .eq("employee_id", employeeId);
-
-  if (deleteError) {
-    throw new AppError("Unable to update employee skills.", 500);
-  }
-
   if (uniqueSkillInputs.length === 0) {
+    await replaceEmployeeSkillLinks(employeeId, []);
     return {
       createdSkillIds: [],
+      linkedSkillIds: [],
     };
   }
 
@@ -560,27 +704,19 @@ export async function replaceEmployeeSkillsWithDetails(
   if (resolvedSkills.skillsToLink.length === 0) {
     return {
       createdSkillIds: resolvedSkills.createdSkillIds,
+      linkedSkillIds: [],
     };
   }
 
-  const createdAt = new Date().toISOString();
-  const { error: insertError } = await supabase.from("employee_skills").upsert(
-    resolvedSkills.skillsToLink.map(({ input, skill }) => ({
-      id: crypto.randomUUID(),
-      employee_id: employeeId,
-      skill_id: skill.id,
-      proficiency_level: input.proficiencyLevel,
-      years_of_experience: input.yearsOfExperience,
-      created_at: createdAt,
-    })),
-    { onConflict: "employee_id,skill_id", ignoreDuplicates: true }
+  const linkRows = buildEmployeeSkillLinkRows(
+    employeeId,
+    resolvedSkills.skillsToLink
   );
 
-  if (insertError) {
-    throw new AppError("Unable to assign employee skills.", 500);
-  }
+  await replaceEmployeeSkillLinks(employeeId, linkRows);
 
   return {
     createdSkillIds: resolvedSkills.createdSkillIds,
+    linkedSkillIds: linkRows.map((row) => row.skill_id),
   };
 }

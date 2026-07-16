@@ -39,6 +39,54 @@ interface AppUserInsertRow {
 
 const DEFAULT_EMPLOYEE_AVAILABILITY_PERCENTAGE = 100;
 
+function logProvisioningEvent(
+  event: string,
+  details: Record<string, unknown>
+) {
+  console.log(
+    JSON.stringify({
+      scope: "account_provisioning",
+      event,
+      ...details,
+    })
+  );
+}
+
+function formatSupabaseError(error: {
+  code?: string | null;
+  message?: string | null;
+  details?: string | null;
+  hint?: string | null;
+}) {
+  return {
+    code: error.code ?? null,
+    details: error.details ?? null,
+    hint: error.hint ?? null,
+    message: error.message ?? null,
+  };
+}
+
+function wrapProvisioningError(
+  message: string,
+  operation: string,
+  error: {
+    code?: string | null;
+    message?: string | null;
+    details?: string | null;
+    hint?: string | null;
+  },
+  statusCode: number,
+  context: Record<string, unknown> = {}
+) {
+  logProvisioningEvent("supabase_error", {
+    operation,
+    ...formatSupabaseError(error),
+    ...context,
+  });
+
+  return new AppError(message, statusCode, true, { cause: error });
+}
+
 function createCleanupState(): ProvisioningCleanupState {
   return {
     appUserId: null,
@@ -66,16 +114,43 @@ function buildSessionResponse(
 }
 
 async function cleanupProvisioning(state: ProvisioningCleanupState) {
-  if (state.appUserId) {
-    await supabase.from("users").delete().eq("id", state.appUserId);
+  if (state.createdSkillIds.length > 0) {
+    const { error } = await supabase
+      .from("skills")
+      .delete()
+      .in("id", state.createdSkillIds);
+
+    if (error) {
+      logProvisioningEvent("cleanup_failed", {
+        operation: "delete_created_skills",
+        skillCount: state.createdSkillIds.length,
+        ...formatSupabaseError(error),
+      });
+    }
   }
 
-  if (state.createdSkillIds.length > 0) {
-    await supabase.from("skills").delete().in("id", state.createdSkillIds);
+  if (state.appUserId) {
+    const { error } = await supabase.from("users").delete().eq("id", state.appUserId);
+
+    if (error) {
+      logProvisioningEvent("cleanup_failed", {
+        operation: "delete_app_user",
+        appUserId: state.appUserId,
+        ...formatSupabaseError(error),
+      });
+    }
   }
 
   if (state.authUserId) {
-    await supabase.auth.admin.deleteUser(state.authUserId);
+    const { error } = await supabase.auth.admin.deleteUser(state.authUserId);
+
+    if (error) {
+      logProvisioningEvent("cleanup_failed", {
+        operation: "delete_auth_user",
+        authUserId: state.authUserId,
+        ...formatSupabaseError(error),
+      });
+    }
   }
 }
 
@@ -95,7 +170,17 @@ async function createAppUserRecord(input: {
     .single<AppUserInsertRow>();
 
   if (error || !data) {
-    throw new AppError("Unable to create application user profile.", 500);
+    throw wrapProvisioningError(
+      "Unable to create application user profile.",
+      "insert_app_user",
+      error ?? {
+        message: "Missing application user row in Supabase response.",
+      },
+      500,
+      {
+        role: input.role,
+      }
+    );
   }
 
   return data;
@@ -116,12 +201,21 @@ async function provisionEmployeeProfile(
   );
 
   if (skills && skills.length > 0) {
+    logProvisioningEvent("link_employee_skills_started", {
+      createdSkillCandidateCount: skills.length,
+      employeeId: employee.id,
+    });
     const skillResult = await replaceEmployeeSkillsWithDetails(
       employee.id,
       appUser.id,
       skills
     );
     cleanupState.createdSkillIds.push(...skillResult.createdSkillIds);
+    logProvisioningEvent("link_employee_skills_completed", {
+      createdSkillCount: skillResult.createdSkillIds.length,
+      employeeId: employee.id,
+      linkedSkillCount: skillResult.linkedSkillIds.length,
+    });
   }
 
   return {
@@ -155,6 +249,11 @@ export async function signupEmployeeWithProvisioning(
   input: PublicEmployeeSignupInput
 ) {
   const cleanupState = createCleanupState();
+  logProvisioningEvent("signup_started", {
+    hasBio: Boolean(input.bio),
+    hasSkills: Boolean(input.skills?.length),
+    requestedSkillCount: input.skills?.length ?? 0,
+  });
 
   try {
     const { data: createdUser, error: createUserError } =
@@ -165,7 +264,14 @@ export async function signupEmployeeWithProvisioning(
       });
 
     if (createUserError || !createdUser.user) {
-      throw new AppError("Unable to create account.", 400);
+      throw wrapProvisioningError(
+        "Unable to create account.",
+        "create_auth_user",
+        createUserError ?? {
+          message: "Missing auth user in Supabase response.",
+        },
+        400
+      );
     }
 
     cleanupState.authUserId = createdUser.user.id;
@@ -201,6 +307,11 @@ export async function signupEmployeeWithProvisioning(
 
     const provisionedUser = await getAppUserByAuthId(createdUser.user.id);
 
+    logProvisioningEvent("signup_completed", {
+      appUserId: appUser.id,
+      authUserId: createdUser.user.id,
+    });
+
     return buildSessionResponse(
       provisionedUser,
       sessionData.session.access_token,
@@ -220,13 +331,27 @@ export async function provisionManagedUser(
   input: AdminProvisionUserInput
 ): Promise<ProvisionedAdminUserResponse> {
   const cleanupState = createCleanupState();
+  logProvisioningEvent("managed_user_provisioning_started", {
+    requestedRole: input.role,
+    requestedSkillCount: input.skills?.length ?? 0,
+  });
 
   try {
     const { data: invitedUser, error: inviteError } =
       await supabase.auth.admin.inviteUserByEmail(input.email);
 
     if (inviteError || !invitedUser.user) {
-      throw new AppError("Unable to create managed account.", 400);
+      throw wrapProvisioningError(
+        "Unable to create managed account.",
+        "invite_auth_user",
+        inviteError ?? {
+          message: "Missing invited auth user in Supabase response.",
+        },
+        400,
+        {
+          requestedRole: input.role,
+        }
+      );
     }
 
     cleanupState.authUserId = invitedUser.user.id;
@@ -261,6 +386,12 @@ export async function provisionManagedUser(
             bio: input.bio,
           })
         : null;
+
+    logProvisioningEvent("managed_user_provisioning_completed", {
+      appUserId: appUser.id,
+      authUserId: invitedUser.user.id,
+      requestedRole: input.role,
+    });
 
     return {
       user: {
