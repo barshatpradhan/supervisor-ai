@@ -5,9 +5,11 @@ import { NotificationProvider } from './components/shared/notifications/Notifica
 import { NotificationViewport } from './components/shared/notifications/NotificationViewport'
 import { AppLayout } from './layouts/AppLayout'
 import { AiRecommendationsPage } from './pages/AiRecommendationsPage'
+import { AdminUserCreatePage } from './pages/AdminUserCreatePage'
 import { DashboardPage } from './pages/DashboardPage'
 import { EmployeesPage } from './pages/EmployeesPage'
 import { ForbiddenPage } from './pages/ForbiddenPage'
+import { RoleGuard } from './features/auth/components/RoleGuard'
 import { LoginPage } from './pages/LoginPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { ProjectsPage } from './pages/ProjectsPage'
@@ -41,6 +43,9 @@ function App() {
                   path="/ai-recommendations"
                 />
                 <Route element={<ProfilePage />} path="/profile" />
+                <Route element={<RoleGuard allowedRoles={['admin']} />}>
+                  <Route element={<AdminUserCreatePage />} path="/admin/users/new" />
+                </Route>
               </Route>
             </Route>
             <Route element={<Navigate replace to="/dashboard" />} path="*" />

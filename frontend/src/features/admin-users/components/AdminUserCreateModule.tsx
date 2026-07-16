@@ -1,19 +1,19 @@
 import type { FormEvent } from 'react'
 import { ErrorState } from '../../../components/shared/ErrorState'
 import { EmptyState } from '../../../components/shared/EmptyState'
-import { Card } from '../../../components/ui/Card'
 import { Button } from '../../../components/ui/Button'
+import { Card } from '../../../components/ui/Card'
 import { AccountCreationStepIndicator } from '../../account-creation/components/AccountCreationStepIndicator'
 import { ProvisioningSkillStep } from '../../account-creation/components/ProvisioningSkillStep'
-import { useEmployeeSignupForm } from '../hooks/useEmployeeSignupForm'
+import { useAdminUserCreationForm } from '../hooks/useAdminUserCreationForm'
 
 const inputClassName =
   'min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-primary-600 focus:ring-3 focus:ring-primary-200'
 
 const textAreaClassName = `${inputClassName} min-h-32 py-3`
 
-export function SignupForm() {
-  const form = useEmployeeSignupForm()
+export function AdminUserCreateModule() {
+  const form = useAdminUserCreationForm()
   const {
     addApprovedSkill,
     addCustomSkill,
@@ -50,13 +50,15 @@ export function SignupForm() {
   }
 
   return (
-    <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
+    <form className="grid gap-5" onSubmit={handleSubmit}>
       <AccountCreationStepIndicator
         currentStepLabel={steps[currentStepIndex]?.label ?? 'Account'}
         steps={steps}
       />
 
-      {submitError ? <ErrorState message={submitError} title="Signup failed" /> : null}
+      {submitError ? (
+        <ErrorState message={submitError} title="Unable to create the user" />
+      ) : null}
 
       {currentStepIndex === 0 ? (
         <Card className="grid gap-5">
@@ -64,76 +66,49 @@ export function SignupForm() {
             <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
               Step 1
             </p>
-            <h2 className="mt-2 text-xl font-bold text-ink-900">Create the account</h2>
+            <h2 className="mt-2 text-xl font-bold text-ink-900">Choose the account type</h2>
             <p className="mt-2 text-sm leading-6 text-ink-600">
-              Start with the credentials you will use to sign in.
+              Admin provisioning supports employees and supervisors only.
             </p>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <label className="grid gap-2 text-sm font-semibold text-ink-800">
-              Email
-              <input
-                aria-describedby={validationErrors.email ? 'signup-email-error' : undefined}
-                aria-invalid={Boolean(validationErrors.email)}
-                autoComplete="email"
+              User role
+              <select
+                aria-describedby={validationErrors.role ? 'admin-role-error' : undefined}
+                aria-invalid={Boolean(validationErrors.role)}
                 className={inputClassName}
-                onChange={(event) => setValue('email', event.target.value)}
-                placeholder="you@example.com"
-                required
-                type="email"
-                value={values.email}
-              />
-              {validationErrors.email ? (
-                <span className="text-sm font-medium text-danger-700" id="signup-email-error">
-                  {validationErrors.email}
+                onChange={(event) =>
+                  setValue('role', event.target.value as 'employee' | 'supervisor')
+                }
+                value={values.role}
+              >
+                <option value="employee">Employee</option>
+                <option value="supervisor">Supervisor</option>
+              </select>
+              {validationErrors.role ? (
+                <span className="text-sm font-medium text-danger-700" id="admin-role-error">
+                  {validationErrors.role}
                 </span>
               ) : null}
             </label>
 
             <label className="grid gap-2 text-sm font-semibold text-ink-800">
-              Password
+              Email
               <input
-                aria-describedby={validationErrors.password ? 'signup-password-error' : undefined}
-                aria-invalid={Boolean(validationErrors.password)}
-                autoComplete="new-password"
+                aria-describedby={validationErrors.email ? 'admin-email-error' : undefined}
+                aria-invalid={Boolean(validationErrors.email)}
                 className={inputClassName}
-                minLength={8}
-                onChange={(event) => setValue('password', event.target.value)}
-                placeholder="Create a password"
+                onChange={(event) => setValue('email', event.target.value)}
+                placeholder="new.user@example.com"
                 required
-                type="password"
-                value={values.password}
+                type="email"
+                value={values.email}
               />
-              {validationErrors.password ? (
-                <span className="text-sm font-medium text-danger-700" id="signup-password-error">
-                  {validationErrors.password}
-                </span>
-              ) : null}
-            </label>
-
-            <label className="grid gap-2 text-sm font-semibold text-ink-800 lg:col-span-2">
-              Confirm password
-              <input
-                aria-describedby={
-                  validationErrors.confirmPassword ? 'signup-confirm-password-error' : undefined
-                }
-                aria-invalid={Boolean(validationErrors.confirmPassword)}
-                autoComplete="new-password"
-                className={inputClassName}
-                minLength={8}
-                onChange={(event) => setValue('confirmPassword', event.target.value)}
-                placeholder="Repeat the password"
-                required
-                type="password"
-                value={values.confirmPassword}
-              />
-              {validationErrors.confirmPassword ? (
-                <span
-                  className="text-sm font-medium text-danger-700"
-                  id="signup-confirm-password-error"
-                >
-                  {validationErrors.confirmPassword}
+              {validationErrors.email ? (
+                <span className="text-sm font-medium text-danger-700" id="admin-email-error">
+                  {validationErrors.email}
                 </span>
               ) : null}
             </label>
@@ -147,9 +122,10 @@ export function SignupForm() {
             <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
               Step 2
             </p>
-            <h2 className="mt-2 text-xl font-bold text-ink-900">Add the profile details</h2>
+            <h2 className="mt-2 text-xl font-bold text-ink-900">Capture profile information</h2>
             <p className="mt-2 text-sm leading-6 text-ink-600">
-              These details become the starting employee profile after signup.
+              Only user-provided profile fields are collected here. System-managed
+              metrics stay protected.
             </p>
           </div>
 
@@ -157,94 +133,123 @@ export function SignupForm() {
             <label className="grid gap-2 text-sm font-semibold text-ink-800">
               Full name
               <input
-                aria-describedby={validationErrors.fullName ? 'signup-full-name-error' : undefined}
+                aria-describedby={validationErrors.fullName ? 'admin-full-name-error' : undefined}
                 aria-invalid={Boolean(validationErrors.fullName)}
                 className={inputClassName}
                 onChange={(event) => setValue('fullName', event.target.value)}
-                placeholder="Employee name"
+                placeholder={values.role === 'employee' ? 'Employee name' : 'Supervisor name'}
                 required
                 type="text"
                 value={values.fullName}
               />
               {validationErrors.fullName ? (
-                <span className="text-sm font-medium text-danger-700" id="signup-full-name-error">
+                <span className="text-sm font-medium text-danger-700" id="admin-full-name-error">
                   {validationErrors.fullName}
                 </span>
               ) : null}
             </label>
 
-            <label className="grid gap-2 text-sm font-semibold text-ink-800">
-              Employment type
-              <select
-                aria-describedby={
-                  validationErrors.employmentType ? 'signup-employment-type-error' : undefined
-                }
-                aria-invalid={Boolean(validationErrors.employmentType)}
-                className={inputClassName}
-                onChange={(event) =>
-                  setValue('employmentType', event.target.value as 'full_time' | 'part_time' | '')
-                }
-                value={values.employmentType}
-              >
-                <option value="">Select employment type</option>
-                <option value="full_time">Full-time</option>
-                <option value="part_time">Part-time</option>
-              </select>
-              {validationErrors.employmentType ? (
-                <span
-                  className="text-sm font-medium text-danger-700"
-                  id="signup-employment-type-error"
-                >
-                  {validationErrors.employmentType}
-                </span>
-              ) : null}
-            </label>
+            {values.role === 'employee' ? (
+              <>
+                <label className="grid gap-2 text-sm font-semibold text-ink-800">
+                  Employment type
+                  <select
+                    aria-describedby={
+                      validationErrors.employmentType ? 'admin-employment-type-error' : undefined
+                    }
+                    aria-invalid={Boolean(validationErrors.employmentType)}
+                    className={inputClassName}
+                    onChange={(event) =>
+                      setValue(
+                        'employmentType',
+                        event.target.value as 'full_time' | 'part_time' | '',
+                      )
+                    }
+                    value={values.employmentType}
+                  >
+                    <option value="">Select employment type</option>
+                    <option value="full_time">Full-time</option>
+                    <option value="part_time">Part-time</option>
+                  </select>
+                  {validationErrors.employmentType ? (
+                    <span
+                      className="text-sm font-medium text-danger-700"
+                      id="admin-employment-type-error"
+                    >
+                      {validationErrors.employmentType}
+                    </span>
+                  ) : null}
+                </label>
 
-            <label className="grid gap-2 text-sm font-semibold text-ink-800">
-              Weekly capacity hours
-              <input
-                aria-describedby={
-                  validationErrors.weeklyCapacityHours
-                    ? 'signup-weekly-capacity-hours-error'
-                    : undefined
-                }
-                aria-invalid={Boolean(validationErrors.weeklyCapacityHours)}
-                className={inputClassName}
-                inputMode="numeric"
-                max="168"
-                min="1"
-                onChange={(event) => setValue('weeklyCapacityHours', event.target.value)}
-                required
-                step="1"
-                type="number"
-                value={values.weeklyCapacityHours}
-              />
-              {validationErrors.weeklyCapacityHours ? (
-                <span
-                  className="text-sm font-medium text-danger-700"
-                  id="signup-weekly-capacity-hours-error"
-                >
-                  {validationErrors.weeklyCapacityHours}
-                </span>
-              ) : null}
-            </label>
+                <label className="grid gap-2 text-sm font-semibold text-ink-800">
+                  Weekly capacity hours
+                  <input
+                    aria-describedby={
+                      validationErrors.weeklyCapacityHours
+                        ? 'admin-weekly-capacity-hours-error'
+                        : undefined
+                    }
+                    aria-invalid={Boolean(validationErrors.weeklyCapacityHours)}
+                    className={inputClassName}
+                    inputMode="numeric"
+                    max="168"
+                    min="1"
+                    onChange={(event) => setValue('weeklyCapacityHours', event.target.value)}
+                    step="1"
+                    type="number"
+                    value={values.weeklyCapacityHours}
+                  />
+                  {validationErrors.weeklyCapacityHours ? (
+                    <span
+                      className="text-sm font-medium text-danger-700"
+                      id="admin-weekly-capacity-hours-error"
+                    >
+                      {validationErrors.weeklyCapacityHours}
+                    </span>
+                  ) : null}
+                </label>
+              </>
+            ) : (
+              <label className="grid gap-2 text-sm font-semibold text-ink-800">
+                Department
+                <input
+                  aria-describedby={validationErrors.department ? 'admin-department-error' : undefined}
+                  aria-invalid={Boolean(validationErrors.department)}
+                  className={inputClassName}
+                  onChange={(event) => setValue('department', event.target.value)}
+                  placeholder="Engineering"
+                  required
+                  type="text"
+                  value={values.department}
+                />
+                {validationErrors.department ? (
+                  <span className="text-sm font-medium text-danger-700" id="admin-department-error">
+                    {validationErrors.department}
+                  </span>
+                ) : null}
+              </label>
+            )}
 
             <label className="grid gap-2 text-sm font-semibold text-ink-800 lg:col-span-2">
               Bio
               <textarea
-                aria-describedby={validationErrors.bio ? 'signup-bio-error' : undefined}
+                aria-describedby={validationErrors.bio ? 'admin-bio-error' : undefined}
                 aria-invalid={Boolean(validationErrors.bio)}
                 className={textAreaClassName}
                 maxLength={800}
                 onChange={(event) => setValue('bio', event.target.value)}
-                placeholder="Share focus areas, strengths, or the kind of work you do best."
+                placeholder={
+                  values.role === 'employee'
+                    ? 'Optional employee bio'
+                    : 'Optional supervisor bio'
+                }
                 value={values.bio}
               />
               <span className="text-xs font-medium text-ink-500">
                 {values.bio.length}/800 characters
               </span>
               {validationErrors.bio ? (
-                <span className="text-sm font-medium text-danger-700" id="signup-bio-error">
+                <span className="text-sm font-medium text-danger-700" id="admin-bio-error">
                   {validationErrors.bio}
                 </span>
               ) : null}
@@ -253,7 +258,7 @@ export function SignupForm() {
         </Card>
       ) : null}
 
-      {currentStepIndex === 2 ? (
+      {currentStepIndex === 2 && values.role === 'employee' ? (
         <ProvisioningSkillStep
           addApprovedSkill={addApprovedSkill}
           addCustomSkill={addCustomSkill}
@@ -269,19 +274,19 @@ export function SignupForm() {
         />
       ) : null}
 
-      {currentStepIndex === 3 ? (
+      {currentStepIndex === steps.length - 1 ? (
         <Card className="grid gap-5">
           <div>
             <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-              Step 4
+              Final step
             </p>
-            <h2 className="mt-2 text-xl font-bold text-ink-900">Review before submission</h2>
+            <h2 className="mt-2 text-xl font-bold text-ink-900">Review the account request</h2>
             <p className="mt-2 text-sm leading-6 text-ink-600">
-              Confirm the account details before the profile is provisioned.
+              Check the role-specific details before creating the user.
             </p>
           </div>
 
-          <div className="grid gap-4 xl:grid-cols-3">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
             <Card className="bg-surface-card-alt p-4">
               <h3 className="text-sm font-semibold text-ink-900">Account</h3>
               <dl className="mt-3 grid gap-2 text-sm text-ink-700">
@@ -290,8 +295,8 @@ export function SignupForm() {
                   <dd>{reviewData.account.email}</dd>
                 </div>
                 <div>
-                  <dt className="font-medium text-ink-500">Password</dt>
-                  <dd>{reviewData.account.passwordLabel}</dd>
+                  <dt className="font-medium text-ink-500">Role</dt>
+                  <dd>{reviewData.account.roleLabel}</dd>
                 </div>
               </dl>
             </Card>
@@ -299,34 +304,26 @@ export function SignupForm() {
             <Card className="bg-surface-card-alt p-4">
               <h3 className="text-sm font-semibold text-ink-900">Profile</h3>
               <dl className="mt-3 grid gap-2 text-sm text-ink-700">
-                <div>
-                  <dt className="font-medium text-ink-500">Full name</dt>
-                  <dd>{reviewData.profile.fullName}</dd>
-                </div>
-                <div>
-                  <dt className="font-medium text-ink-500">Employment type</dt>
-                  <dd>{reviewData.profile.employmentTypeLabel}</dd>
-                </div>
-                <div>
-                  <dt className="font-medium text-ink-500">Weekly capacity</dt>
-                  <dd>{reviewData.profile.weeklyCapacityHours}</dd>
-                </div>
-                <div>
-                  <dt className="font-medium text-ink-500">Bio</dt>
-                  <dd>{reviewData.profile.bio}</dd>
-                </div>
+                {reviewData.profile.map((item) => (
+                  <div key={item.label}>
+                    <dt className="font-medium text-ink-500">{item.label}</dt>
+                    <dd>{item.value}</dd>
+                  </div>
+                ))}
               </dl>
             </Card>
+          </div>
 
-            <Card className="bg-surface-card-alt p-4">
-              <h3 className="text-sm font-semibold text-ink-900">Skills</h3>
-              {reviewData.skills.length === 0 ? (
-                <EmptyState
-                  description="No skills will be sent with this signup submission."
-                  title="No skills selected"
-                />
-              ) : (
-                <ul className="mt-3 grid gap-3">
+          {values.role === 'employee' ? (
+            reviewData.skills.length === 0 ? (
+              <EmptyState
+                description="This employee will be created without initial skills."
+                title="No skills selected"
+              />
+            ) : (
+              <Card className="bg-surface-card-alt p-4">
+                <h3 className="text-sm font-semibold text-ink-900">Skills</h3>
+                <ul className="mt-3 grid gap-3 md:grid-cols-2">
                   {reviewData.skills.map((skill) => (
                     <li className="rounded-lg border border-border-subtle bg-surface-card p-3" key={skill.clientId}>
                       <div className="flex flex-wrap items-center gap-2">
@@ -344,34 +341,29 @@ export function SignupForm() {
                       <p className="mt-2 text-sm text-ink-600">
                         Proficiency {skill.proficiencyLevel}/5
                         {skill.yearsOfExperience
-                          ? ` • ${skill.yearsOfExperience} years of experience`
+                          ? ` • ${skill.yearsOfExperience} years`
                           : ' • Experience not specified'}
                       </p>
                     </li>
                   ))}
                 </ul>
-              )}
-            </Card>
-          </div>
+              </Card>
+            )
+          ) : null}
 
           <label className="flex items-start gap-3 rounded-lg border border-border-subtle bg-surface-card-alt p-4 text-sm text-ink-700">
             <input
-              aria-describedby={
-                validationErrors.reviewConfirmed ? 'signup-review-confirmed-error' : undefined
-              }
+              aria-describedby={validationErrors.reviewConfirmed ? 'admin-review-confirmed-error' : undefined}
               aria-invalid={Boolean(validationErrors.reviewConfirmed)}
               checked={values.reviewConfirmed}
               className="mt-1 h-4 w-4 rounded border-border-subtle text-primary-600 focus:ring-primary-300"
               onChange={(event) => setReviewConfirmed(event.target.checked)}
               type="checkbox"
             />
-            <span>
-              I confirm that this information is accurate and should be submitted to create my
-              employee account.
-            </span>
+            <span>I confirm this user information is ready to submit for account creation.</span>
           </label>
           {validationErrors.reviewConfirmed ? (
-            <p className="text-sm font-medium text-danger-700" id="signup-review-confirmed-error">
+            <p className="text-sm font-medium text-danger-700" id="admin-review-confirmed-error">
               {validationErrors.reviewConfirmed}
             </p>
           ) : null}
@@ -394,8 +386,8 @@ export function SignupForm() {
           <Button disabled={isSubmitting} type="submit">
             {currentStepIndex === steps.length - 1
               ? isSubmitting
-                ? 'Creating account...'
-                : 'Create account'
+                ? 'Creating user...'
+                : 'Create user'
               : 'Continue'}
           </Button>
         </div>

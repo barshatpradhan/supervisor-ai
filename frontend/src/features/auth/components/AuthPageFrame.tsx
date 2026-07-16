@@ -8,6 +8,7 @@ interface AuthPageFrameProps {
   footerLabel: string
   footerLinkLabel: string
   footerTo: string
+  maxWidthClassName?: string
   title: string
 }
 
@@ -16,11 +17,12 @@ export function AuthPageFrame({
   footerLabel,
   footerLinkLabel,
   footerTo,
+  maxWidthClassName = 'max-w-md',
   title,
 }: AuthPageFrameProps) {
   return (
     <main className="min-h-screen bg-surface-page px-4 py-8 text-ink-900 sm:px-6">
-      <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md flex-col justify-center">
+      <div className={`mx-auto flex min-h-[calc(100vh-4rem)] w-full ${maxWidthClassName} flex-col justify-center`}>
         <div className="mb-8">
           <SupervisorLogo />
         </div>

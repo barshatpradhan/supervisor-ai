@@ -7,6 +7,7 @@ export function SignupPage() {
       footerLabel="Already have an account?"
       footerLinkLabel="Sign in"
       footerTo="/login"
+      maxWidthClassName="max-w-6xl"
       title="Create account"
     >
       <SignupForm />

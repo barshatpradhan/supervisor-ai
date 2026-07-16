@@ -5,7 +5,7 @@ import type { NavigationItem } from '../components/layout/Sidebar'
 import { Button } from '../components/ui/Button'
 import { useAuth } from '../features/auth/hooks/useAuth'
 
-const navigationItems: NavigationItem[] = [
+const defaultNavigationItems: NavigationItem[] = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/projects', label: 'Projects' },
   { href: '/tasks', label: 'Tasks' },
@@ -14,7 +14,13 @@ const navigationItems: NavigationItem[] = [
   { href: '/profile', label: 'Profile' },
 ]
 
+const adminNavigationItems: NavigationItem[] = [
+  ...defaultNavigationItems,
+  { href: '/admin/users/new', label: 'New user' },
+]
+
 const routeTitles: Record<string, string> = {
+  '/admin/users/new': 'Create user',
   '/ai-recommendations': 'AI Recommendations',
   '/dashboard': 'Dashboard',
   '/employees': 'Employees',
@@ -26,8 +32,9 @@ const routeTitles: Record<string, string> = {
 
 export function AppLayout() {
   const location = useLocation()
-  const { logout } = useAuth()
+  const { logout, role } = useAuth()
   const title = routeTitles[location.pathname] ?? 'Dashboard'
+  const navigationItems = role === 'admin' ? adminNavigationItems : defaultNavigationItems
 
   return (
     <PageShell
