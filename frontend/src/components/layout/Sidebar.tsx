@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Link, NavLink } from 'react-router-dom'
 import { SupervisorLogo } from '../ui/SupervisorLogo'
 
@@ -8,10 +9,11 @@ export interface NavigationItem {
 
 interface SidebarProps {
   activeHref?: string
+  children?: ReactNode
   items: NavigationItem[]
 }
 
-export function Sidebar({ activeHref = '/dashboard', items }: SidebarProps) {
+export function Sidebar({ activeHref = '/dashboard', children, items }: SidebarProps) {
   return (
     <aside className="border-b border-border-subtle bg-surface-card lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">
       <div className="flex h-full flex-col gap-5 p-4 lg:p-5">
@@ -21,6 +23,8 @@ export function Sidebar({ activeHref = '/dashboard', items }: SidebarProps) {
         >
           <SupervisorLogo />
         </Link>
+
+        {children}
 
         <nav aria-label="Primary navigation">
           <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1">

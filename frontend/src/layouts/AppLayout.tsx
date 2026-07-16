@@ -4,8 +4,10 @@ import { PageShell } from '../components/layout/PageShell'
 import type { NavigationItem } from '../components/layout/Sidebar'
 import { Button } from '../components/ui/Button'
 import { useAuth } from '../features/auth/hooks/useAuth'
+import { OrganizationSwitcher } from '../features/organizations/components/OrganizationSwitcher'
+import { useOrganization } from '../features/organizations/hooks/useOrganization'
 
-const defaultNavigationItems: NavigationItem[] = [
+const managerNavigationItems: NavigationItem[] = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/projects', label: 'Projects' },
   { href: '/tasks', label: 'Tasks' },
@@ -14,10 +16,16 @@ const defaultNavigationItems: NavigationItem[] = [
   { href: '/profile', label: 'Profile' },
 ]
 
-const adminNavigationItems: NavigationItem[] = [
-  ...defaultNavigationItems,
-  { href: '/admin/users/new', label: 'New user' },
+const employeeNavigationItems: NavigationItem[] = [
+  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/tasks', label: 'Tasks' },
+  { href: '/profile', label: 'Profile' },
 ]
+
+const platformAdminNavigationItem: NavigationItem = {
+  href: '/admin/users/new',
+  label: 'New user',
+}
 
 const routeTitles: Record<string, string> = {
   '/admin/users/new': 'Create user',
@@ -30,11 +38,48 @@ const routeTitles: Record<string, string> = {
   '/tasks': 'Tasks',
 }
 
+function getEyebrow(activeRole: ReturnType<typeof useOrganization>['activeRole']) {
+  if (activeRole === 'employee') {
+    return 'Employee workspace'
+  }
+
+  if (activeRole === 'organization_admin' || activeRole === 'supervisor') {
+    return 'Organization workspace'
+  }
+
+  return 'Supervisor workspace'
+}
+
+function getNavigationItems(input: {
+  activeRole: ReturnType<typeof useOrganization>['activeRole']
+  isPlatformAdmin: boolean
+}) {
+  const items =
+    input.activeRole === 'employee'
+      ? employeeNavigationItems
+      : input.activeRole === 'organization_admin' || input.activeRole === 'supervisor'
+        ? managerNavigationItems
+        : []
+
+  if (input.isPlatformAdmin) {
+    return [...items, platformAdminNavigationItem]
+  }
+
+  return items
+}
+
 export function AppLayout() {
   const location = useLocation()
-  const { logout, role } = useAuth()
+  const { logout, user } = useAuth()
+  const { activeOrganization, activeRole } = useOrganization()
   const title = routeTitles[location.pathname] ?? 'Dashboard'
-  const navigationItems = role === 'admin' ? adminNavigationItems : defaultNavigationItems
+  const navigationItems = getNavigationItems({
+    activeRole,
+    isPlatformAdmin: user?.role === 'admin',
+  })
+  const eyebrow = activeOrganization
+    ? `${getEyebrow(activeRole)} · ${activeOrganization.name}`
+    : getEyebrow(activeRole)
 
   return (
     <PageShell
@@ -44,8 +89,9 @@ export function AppLayout() {
         </Button>
       }
       activeHref={location.pathname}
-      eyebrow="Supervisor workspace"
+      eyebrow={eyebrow}
       navigationItems={navigationItems}
+      sidebarContent={<OrganizationSwitcher />}
       title={title}
     >
       <main>
