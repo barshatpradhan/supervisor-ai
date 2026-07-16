@@ -240,13 +240,32 @@ export async function getEmployeeProfileByAuthId(
 
 export async function createEmployeeProfile(
   authUserId: string,
+  organizationId: string | undefined,
   profileData: CreateEmployeeProfileInput
 ) {
   const appUser = await getAppUserByAuthId(authUserId);
-  const data = await createEmployeeProfileRecordForUser(appUser, profileData);
+  const effectiveOrganizationId = organizationId;
+
+  if (!effectiveOrganizationId) {
+    throw new AppError("Organization context is required.", 500);
+  }
+
+  const data = await createEmployeeProfileRecordForOrganization({
+    userId: appUser.id,
+    full_name: profileData.full_name,
+    bio: profileData.bio,
+    employment_type: profileData.employment_type,
+    organization_id: effectiveOrganizationId,
+    weekly_capacity_hours: profileData.weekly_capacity_hours,
+  });
 
   if (profileData.skills !== undefined) {
-    await syncEmployeeSkills(data.id, appUser.id, profileData.skills);
+    await syncEmployeeSkills(
+      data.id,
+      appUser.id,
+      profileData.skills,
+      effectiveOrganizationId
+    );
   }
 
   const [employee] = await enrichEmployeesWithCapacityMetrics([data]);
@@ -255,14 +274,11 @@ export async function createEmployeeProfile(
 
 export async function updateEmployeeProfile(
   authUserId: string,
+  organizationId: string | undefined,
   profileData: EmployeeProfileInput
 ) {
   const appUser = await getAppUserByAuthId(authUserId);
   const updates: Record<string, unknown> = {};
-
-  if (appUser.role !== "employee") {
-    throw new AppError("Only employee users can update employee profiles.", 403);
-  }
 
   if (profileData.full_name !== undefined) {
     updates.full_name = profileData.full_name;
@@ -279,7 +295,7 @@ export async function updateEmployeeProfile(
     throw new AppError("At least one profile field is required.", 400);
   }
 
-  const currentEmployee = await getEmployeeProfileByAuthId(authUserId);
+  const currentEmployee = await getEmployeeProfileByAuthId(authUserId, organizationId);
 
   if (hasProfileUpdates) {
     const { data, error } = await supabase
@@ -294,15 +310,25 @@ export async function updateEmployeeProfile(
     }
 
     if (hasSkillUpdates) {
-      await syncEmployeeSkills(data.id, appUser.id, profileData.skills ?? []);
+      await syncEmployeeSkills(
+        data.id,
+        appUser.id,
+        profileData.skills ?? [],
+        organizationId
+      );
     }
 
     const [employee] = await enrichEmployeesWithCapacityMetrics([data]);
     return withSkills(employee);
   }
 
-  await syncEmployeeSkills(currentEmployee.id, appUser.id, profileData.skills ?? []);
-  return getEmployeeProfileByAuthId(authUserId);
+  await syncEmployeeSkills(
+    currentEmployee.id,
+    appUser.id,
+    profileData.skills ?? [],
+    organizationId
+  );
+  return getEmployeeProfileByAuthId(authUserId, organizationId);
 }
 
 export async function updateEmployeeWorkSettings(

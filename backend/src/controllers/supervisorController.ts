@@ -3,6 +3,7 @@ import {
   createSupervisorProfile,
   getSupervisorProfileByAuthId,
   listAssignableEmployees,
+  updateSupervisorProfile,
 } from "../services/supervisorService.js";
 import type { SupervisorEmployeeDirectoryQuery } from "../types/employee.js";
 import { updateEmployeeWorkSettings } from "../services/employeeService.js";
@@ -15,6 +16,7 @@ import {
   optionalNumberValue,
   optionalStringValue,
   optionalString,
+  optionalNullableString,
   requireBody,
   requireString,
   requireUuid,
@@ -54,7 +56,14 @@ export async function getMySupervisorProfile(
   }
 
   try {
-    const supervisor = await getSupervisorProfileByAuthId(req.user.id);
+    if (!req.organization) {
+      throw new AppError("Organization context is required.", 500);
+    }
+
+    const supervisor = await getSupervisorProfileByAuthId(
+      req.user.id,
+      req.organization.id
+    );
 
     return sendSuccess(res, 200, "Supervisor profile fetched successfully.", supervisor);
   } catch (error) {
@@ -138,18 +147,54 @@ export async function createMySupervisorProfile(
   }
 
   try {
+    if (!req.organization) {
+      throw new AppError("Organization context is required.", 500);
+    }
+
     const body = requireBody(req.body);
     const fullName = requireString(body, "full_name", "Full name");
     const department = optionalString(body, "department");
     const bio = optionalString(body, "bio");
 
-    const supervisor = await createSupervisorProfile(req.user.id, {
+    const supervisor = await createSupervisorProfile(req.user.id, req.organization.id, {
       full_name: fullName,
       department,
       bio,
     });
 
     return sendSuccess(res, 201, "Supervisor profile created successfully.", supervisor);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updateMySupervisorProfile(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  if (!req.user) {
+    return next(new AppError("Unauthorized.", 401));
+  }
+
+  try {
+    if (!req.organization) {
+      throw new AppError("Organization context is required.", 500);
+    }
+
+    const body = requireBody(req.body);
+    const supervisor = await updateSupervisorProfile(req.user.id, req.organization.id, {
+      full_name: optionalString(body, "full_name"),
+      department: optionalNullableString(body, "department"),
+      bio: optionalNullableString(body, "bio"),
+    });
+
+    return sendSuccess(
+      res,
+      200,
+      "Supervisor profile updated successfully.",
+      supervisor
+    );
   } catch (error) {
     return next(error);
   }

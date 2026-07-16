@@ -486,6 +486,43 @@ export async function listApprovedSkills() {
   return (data ?? []).map(mapSkill);
 }
 
+export async function listApprovedSkillsForOrganization(organizationId: string) {
+  const [globalSkillsResult, organizationSkillsResult] = await Promise.all([
+    supabase
+      .from("skills")
+      .select(
+        "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
+      )
+      .eq("is_approved", true)
+      .is("organization_id", null)
+      .returns<SkillRow[]>(),
+    supabase
+      .from("skills")
+      .select(
+        "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
+      )
+      .eq("is_approved", true)
+      .eq("organization_id", organizationId)
+      .returns<SkillRow[]>(),
+  ]);
+
+  if (globalSkillsResult.error || organizationSkillsResult.error) {
+    throw new AppError("Unable to fetch approved skills.", 500);
+  }
+
+  return [...(globalSkillsResult.data ?? []), ...(organizationSkillsResult.data ?? [])]
+    .sort((left, right) => {
+      const categoryComparison = (left.category ?? "").localeCompare(right.category ?? "");
+
+      if (categoryComparison !== 0) {
+        return categoryComparison;
+      }
+
+      return left.name.localeCompare(right.name);
+    })
+    .map(mapSkill);
+}
+
 export async function listPublicApprovedSkills(
   query: PublicApprovedSkillsQuery = {}
 ) {

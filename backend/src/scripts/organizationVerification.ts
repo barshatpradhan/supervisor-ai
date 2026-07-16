@@ -75,4 +75,67 @@ export const organizationVerificationScenarios: OrganizationVerificationScenario
     expectedOutcome:
       "Projects are inserted with the selected organization_id and only returned when the caller is an active member of that organization.",
   },
+  {
+    id: "task-api-scope",
+    description:
+      "Task list, detail, create, update, assign, and progress flows stay inside the selected organization through the project-to-task chain.",
+    requestMechanism:
+      "Use GET /api/v1/tasks, GET /api/v1/tasks/:taskId, POST /api/v1/tasks, PATCH /api/v1/tasks/:taskId, PATCH /api/v1/tasks/:taskId/assign, and POST /api/v1/tasks/:taskId/progress with X-Organization-Id.",
+    expectedOutcome:
+      "Cross-organization task ids and employee ids are rejected, and employee task access only succeeds for tasks assigned inside the selected organization.",
+  },
+  {
+    id: "document-api-scope",
+    description:
+      "Project document list, detail, and upload flows are restricted to projects in the selected organization.",
+    requestMechanism:
+      "Use GET /api/v1/projects/:projectId/documents, GET /api/v1/projects/:projectId/documents/:documentId, and POST /api/v1/projects/:projectId/documents with X-Organization-Id.",
+    expectedOutcome:
+      "A caller cannot read or upload documents for another organization's project, and document lookups require both the verified organization and project.",
+  },
+  {
+    id: "analysis-scope",
+    description:
+      "Document analysis is only created for documents that belong to the verified organization through their parent project.",
+    requestMechanism:
+      "Upload a document through POST /api/v1/projects/:projectId/documents with X-Organization-Id.",
+    expectedOutcome:
+      "The stored project_document_analyses row points only to a document and project in the selected organization.",
+  },
+  {
+    id: "recommendation-scope",
+    description:
+      "Recommendation generation and retrieval operate only on the selected organization's project and employees.",
+    requestMechanism:
+      "Use POST /api/v1/projects/:projectId/recommendations and GET /api/v1/projects/:projectId/recommendations with X-Organization-Id.",
+    expectedOutcome:
+      "Employees outside the selected organization are never scored or returned in recommendation results.",
+  },
+  {
+    id: "dashboard-scope",
+    description:
+      "Supervisor and employee dashboards summarize only the selected organization.",
+    requestMechanism:
+      "Use GET /api/v1/dashboard/supervisor and GET /api/v1/dashboard/employee with X-Organization-Id.",
+    expectedOutcome:
+      "Project, task, employee, document, recommendation, and profile aggregates exclude other organizations entirely.",
+  },
+  {
+    id: "employee-profile-scope",
+    description:
+      "Employee profile reads and updates resolve only the employee profile in the selected organization.",
+    requestMechanism:
+      "Use GET /api/v1/employees/me and PATCH /api/v1/employees/me with X-Organization-Id.",
+    expectedOutcome:
+      "The API returns and mutates only the organization-specific employee profile for the authenticated member.",
+  },
+  {
+    id: "supervisor-profile-scope",
+    description:
+      "Supervisor profile reads and updates resolve only the supervisor profile in the selected organization.",
+    requestMechanism:
+      "Use GET /api/v1/supervisors/me and PATCH /api/v1/supervisors/me with X-Organization-Id.",
+    expectedOutcome:
+      "The API returns and mutates only the organization-specific supervisor profile for the authenticated member.",
+  },
 ];

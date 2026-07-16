@@ -4,6 +4,7 @@ import {
   createMySupervisorProfile,
   getAssignableEmployeesHandler,
   getMySupervisorProfile,
+  updateMySupervisorProfile,
   updateEmployeeWorkSettingsHandler,
 } from "../controllers/supervisorController.js";
 import {
@@ -14,7 +15,20 @@ import { requireRole } from "../middleware/roleMiddleware.js";
 
 const router = Router();
 
-router.get("/me", authenticateUser, getMySupervisorProfile);
+router.get(
+  "/me",
+  authenticateUser,
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
+  getMySupervisorProfile
+);
+router.patch(
+  "/me",
+  authenticateUser,
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
+  updateMySupervisorProfile
+);
 router.get(
   "/employees",
   authenticateUser,
@@ -22,7 +36,13 @@ router.get(
   requireOrganizationRole("organization_admin", "supervisor"),
   getAssignableEmployeesHandler
 );
-router.post("/profile", authenticateUser, createMySupervisorProfile);
+router.post(
+  "/profile",
+  authenticateUser,
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
+  createMySupervisorProfile
+);
 router.patch(
   "/employees/:employeeId/work-settings",
   authenticateUser,

@@ -6,7 +6,7 @@ import type {
 import { AppError } from "../utils/appError.js";
 import { enrichEmployeesWithCapacityMetrics } from "./employeeMetricsService.js";
 import { getSkillsByEmployeeIds } from "./skillService.js";
-import { assertRole, getAppUserByAuthId } from "./userService.js";
+import { getAppUserByAuthId } from "./userService.js";
 
 interface EmployeeDirectoryRow {
   id: string;
@@ -29,8 +29,11 @@ function normalizeSkillFilter(skill: string) {
   return skill.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-export async function getSupervisorProfileByAuthId(authUserId: string) {
-  const { data, error } = await supabase
+export async function getSupervisorProfileByAuthId(
+  authUserId: string,
+  organizationId?: string
+) {
+  let request = supabase
     .from("supervisors")
     .select(`
       id,
@@ -45,7 +48,13 @@ export async function getSupervisorProfileByAuthId(authUserId: string) {
         role
       )
     `)
-    .eq("users.auth_user_id", authUserId)
+    .eq("users.auth_user_id", authUserId);
+
+  if (organizationId) {
+    request = request.eq("organization_id", organizationId);
+  }
+
+  const { data, error } = await request
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -59,23 +68,23 @@ export async function getSupervisorProfileByAuthId(authUserId: string) {
 
 export async function createSupervisorProfile(
   authUserId: string,
+  organizationId: string | undefined,
   profileData: CreateSupervisorProfileRecordInput
 ) {
-  const { data: appUser, error: userError } = await supabase
-    .from("users")
-    .select("id, role")
-    .eq("auth_user_id", authUserId)
-    .single();
+  const appUser = await getAppUserByAuthId(authUserId);
+  const effectiveOrganizationId = organizationId;
 
-  if (userError || !appUser) {
-    throw new AppError("Application user profile was not found.", 404);
+  if (!effectiveOrganizationId) {
+    throw new AppError("Organization context is required.", 500);
   }
 
-  if (appUser.role !== "supervisor") {
-    throw new AppError("Only supervisor users can create supervisor profiles.", 403);
-  }
-
-  return createSupervisorProfileRecordForUser(appUser, profileData);
+  return createSupervisorProfileRecordForOrganization({
+    userId: appUser.id,
+    full_name: profileData.full_name,
+    department: profileData.department,
+    bio: profileData.bio,
+    organization_id: effectiveOrganizationId,
+  });
 }
 
 export async function createSupervisorProfileRecordForUser(
@@ -100,6 +109,50 @@ export async function createSupervisorProfileRecordForUser(
 
   if (error) {
     throw new AppError("Unable to create supervisor profile.", 400);
+  }
+
+  return data;
+}
+
+export async function updateSupervisorProfile(
+  authUserId: string,
+  organizationId: string,
+  profileData: {
+    full_name?: string;
+    department?: string | null;
+    bio?: string | null;
+  }
+) {
+  const updates: Record<string, unknown> = {};
+
+  if (profileData.full_name !== undefined) {
+    updates.full_name = profileData.full_name;
+  }
+
+  if (profileData.department !== undefined) {
+    updates.department = profileData.department;
+  }
+
+  if (profileData.bio !== undefined) {
+    updates.bio = profileData.bio;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new AppError("At least one profile field is required.", 400);
+  }
+
+  const currentSupervisor = await getSupervisorProfileByAuthId(authUserId, organizationId);
+
+  const { data, error } = await supabase
+    .from("supervisors")
+    .update(updates)
+    .eq("id", currentSupervisor.id)
+    .eq("organization_id", organizationId)
+    .select()
+    .single();
+
+  if (error || !data) {
+    throw new AppError("Unable to update supervisor profile.", 400);
   }
 
   return data;
@@ -136,8 +189,7 @@ export async function listAssignableEmployees(
   organizationId: string,
   query: SupervisorEmployeeDirectoryQuery
 ) {
-  const appUser = await getAppUserByAuthId(authUserId);
-  assertRole(appUser, ["admin", "supervisor"]);
+  await getAppUserByAuthId(authUserId);
 
   let employeeQuery = supabase
     .from("employees")
