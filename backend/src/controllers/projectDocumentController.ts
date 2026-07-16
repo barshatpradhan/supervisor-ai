@@ -18,8 +18,16 @@ export async function listProjectDocumentsHandler(
   }
 
   try {
+    if (!req.organization) {
+      throw new AppError("Organization context is required.", 500);
+    }
+
     const projectId = requireUuid(req.params.projectId, "Project id");
-    const documents = await listProjectDocuments(req.user.id, projectId);
+    const documents = await listProjectDocuments(
+      req.user.id,
+      req.organization.id,
+      projectId
+    );
 
     return sendSuccess(
       res,
@@ -42,10 +50,15 @@ export async function getProjectDocumentHandler(
   }
 
   try {
+    if (!req.organization) {
+      throw new AppError("Organization context is required.", 500);
+    }
+
     const projectId = requireUuid(req.params.projectId, "Project id");
     const documentId = requireUuid(req.params.documentId, "Document id");
     const document = await getProjectDocumentById(
       req.user.id,
+      req.organization.id,
       projectId,
       documentId
     );
@@ -71,13 +84,17 @@ export async function uploadProjectDocumentHandler(
   }
 
   try {
+    if (!req.organization) {
+      throw new AppError("Organization context is required.", 500);
+    }
+
     const projectId = requireUuid(req.params.projectId, "Project id");
 
     if (!req.file) {
       throw new AppError("Project document file is required.", 400);
     }
 
-    const result = await uploadProjectDocument(req.user.id, projectId, {
+    const result = await uploadProjectDocument(req.user.id, req.organization.id, projectId, {
       originalName: req.file.originalname,
       mimeType: req.file.mimetype,
       size: req.file.size,

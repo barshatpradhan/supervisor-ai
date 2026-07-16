@@ -16,7 +16,8 @@ import type {
 import { AppError } from "../utils/appError.js";
 import { analyzeProjectDocument } from "./aiService.js";
 import { extractDocumentText } from "./documentExtractionService.js";
-import { assertRole, getAppUserByAuthId } from "./userService.js";
+import { ensureProjectExistsInOrganization } from "./projectService.js";
+import { getAppUserByAuthId } from "./userService.js";
 
 const DOCUMENT_SELECT = `
   id,
@@ -44,10 +45,6 @@ const ANALYSIS_SELECT = `
   model,
   created_at
 `;
-
-interface ProjectExistsRow {
-  id: string;
-}
 
 interface ProjectDocumentRow extends ProjectDocumentSummary {}
 
@@ -89,19 +86,6 @@ function buildStoragePath(projectId: string, fileName: string) {
   return `${projectId}/${uniqueId}-${sanitizeFileName(fileName)}`;
 }
 
-async function ensureProjectExists(projectId: string) {
-  const { data, error } = await supabase
-    .from("projects")
-    .select("id")
-    .eq("id", projectId)
-    .is("deleted_at", null)
-    .single<ProjectExistsRow>();
-
-  if (error || !data) {
-    throw new AppError("Project not found.", 404);
-  }
-}
-
 async function getDocumentAnalysesByDocumentIds(documentIds: string[]) {
   if (documentIds.length === 0) {
     return new Map<string, ProjectDocumentAnalysisSummary>();
@@ -137,11 +121,11 @@ function attachAnalysesToDocuments(
 
 export async function listProjectDocuments(
   authUserId: string,
+  organizationId: string,
   projectId: string
 ): Promise<ProjectDocumentWithAnalysis[]> {
-  const appUser = await getAppUserByAuthId(authUserId);
-  assertRole(appUser, ["admin", "supervisor"]);
-  await ensureProjectExists(projectId);
+  await getAppUserByAuthId(authUserId);
+  await ensureProjectExistsInOrganization(projectId, organizationId);
 
   const { data, error } = await supabase
     .from("project_documents")
@@ -164,12 +148,12 @@ export async function listProjectDocuments(
 
 export async function getProjectDocumentById(
   authUserId: string,
+  organizationId: string,
   projectId: string,
   documentId: string
 ): Promise<ProjectDocumentWithAnalysis> {
-  const appUser = await getAppUserByAuthId(authUserId);
-  assertRole(appUser, ["admin", "supervisor"]);
-  await ensureProjectExists(projectId);
+  await getAppUserByAuthId(authUserId);
+  await ensureProjectExistsInOrganization(projectId, organizationId);
 
   const { data, error } = await supabase
     .from("project_documents")
@@ -192,12 +176,12 @@ export async function getProjectDocumentById(
 
 export async function uploadProjectDocument(
   authUserId: string,
+  organizationId: string,
   projectId: string,
   file: UploadedProjectDocumentFile
 ): Promise<ProjectDocumentUploadResult> {
   const appUser = await getAppUserByAuthId(authUserId);
-  assertRole(appUser, ["admin", "supervisor"]);
-  await ensureProjectExists(projectId);
+  await ensureProjectExistsInOrganization(projectId, organizationId);
   assertSupportedFile(file);
 
   const storagePath = buildStoragePath(projectId, file.originalName);
