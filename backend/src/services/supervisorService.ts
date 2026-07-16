@@ -18,6 +18,12 @@ interface EmployeeDirectoryRow {
   performance_score: number | null;
 }
 
+export interface CreateSupervisorProfileRecordInput {
+  full_name: string;
+  department?: string;
+  bio?: string;
+}
+
 function normalizeSkillFilter(skill: string) {
   return skill.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
@@ -49,11 +55,7 @@ export async function getSupervisorProfileByAuthId(authUserId: string) {
 
 export async function createSupervisorProfile(
   authUserId: string,
-  profileData: {
-    full_name: string;
-    department?: string;
-    bio?: string;
-  }
+  profileData: CreateSupervisorProfileRecordInput
 ) {
   const { data: appUser, error: userError } = await supabase
     .from("users")
@@ -65,6 +67,17 @@ export async function createSupervisorProfile(
     throw new AppError("Application user profile was not found.", 404);
   }
 
+  if (appUser.role !== "supervisor") {
+    throw new AppError("Only supervisor users can create supervisor profiles.", 403);
+  }
+
+  return createSupervisorProfileRecordForUser(appUser, profileData);
+}
+
+export async function createSupervisorProfileRecordForUser(
+  appUser: { id: string; role: "employee" | "supervisor" | "admin" },
+  profileData: CreateSupervisorProfileRecordInput
+) {
   if (appUser.role !== "supervisor") {
     throw new AppError("Only supervisor users can create supervisor profiles.", 403);
   }

@@ -3,10 +3,11 @@ import type {
   AuthenticatedAppUser,
   AuthSessionResponse,
   LoginInput,
-  SignupInput,
   UserRole,
 } from "../types/auth.js";
+import type { PublicEmployeeSignupInput } from "../types/provisioning.js";
 import { AppError } from "../utils/appError.js";
+import { signupEmployeeWithProvisioning } from "./accountProvisioningService.js";
 
 interface AppUserRow {
   id: string;
@@ -56,49 +57,8 @@ function buildSessionResponse(
   };
 }
 
-export async function signup(input: SignupInput) {
-  const { data: createdUser, error: createUserError } =
-    await supabase.auth.admin.createUser({
-      email: input.email,
-      password: input.password,
-      email_confirm: true,
-    });
-
-  if (createUserError || !createdUser.user) {
-    throw new AppError("Unable to create account.", 400);
-  }
-
-  const authUserId = createdUser.user.id;
-
-  const { error: appUserError } = await supabase.from("users").insert({
-    auth_user_id: authUserId,
-    email: input.email,
-    role: input.role,
-  });
-
-  if (appUserError) {
-    await supabase.auth.admin.deleteUser(authUserId);
-    throw new AppError("Unable to create application user profile.", 500);
-  }
-
-  const { data: sessionData, error: loginError } =
-    await supabaseAuth.auth.signInWithPassword({
-      email: input.email,
-      password: input.password,
-    });
-
-  if (loginError || !sessionData.session) {
-    throw new AppError("Account created, but login failed.", 500);
-  }
-
-  const appUser = await getAppUserByAuthId(authUserId);
-
-  return buildSessionResponse(
-    appUser,
-    sessionData.session.access_token,
-    sessionData.session.refresh_token,
-    sessionData.session.expires_at
-  );
+export async function signup(input: PublicEmployeeSignupInput) {
+  return signupEmployeeWithProvisioning(input);
 }
 
 export async function login(input: LoginInput) {

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  createUserHandler,
   approveSkillHandler,
   getPendingSkills,
   getUsers,
@@ -7,6 +8,7 @@ import {
   updateUserRole,
 } from "../controllers/adminController.js";
 import { authenticateUser } from "../middleware/authMiddleware.js";
+import { validateAdminCreateUserRequest } from "../middleware/authValidation.js";
 import { requireRole } from "../middleware/roleMiddleware.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 
@@ -41,6 +43,7 @@ router.get(
 );
 
 router.get("/users", getUsers);
+router.post("/users", validateAdminCreateUserRequest, createUserHandler);
 router.patch("/users/:userId/role", updateUserRole);
 
 export default router;

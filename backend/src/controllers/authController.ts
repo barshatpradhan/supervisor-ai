@@ -4,16 +4,21 @@ import {
   login,
   signup,
 } from "../services/authService.js";
-import type { LoginInput, SignupInput } from "../types/auth.js";
+import type { LoginInput } from "../types/auth.js";
+import type { PublicEmployeeSignupInput } from "../types/provisioning.js";
 import { AppError } from "../utils/appError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 
 export async function signupUser(req: Request, res: Response, next: NextFunction) {
   try {
-    const input: SignupInput = {
+    const input: PublicEmployeeSignupInput = {
       email: req.body.email,
       password: req.body.password,
-      role: "employee",
+      full_name: req.body.full_name,
+      bio: req.body.bio,
+      employment_type: req.body.employment_type,
+      weekly_capacity_hours: req.body.weekly_capacity_hours,
+      skills: req.body.skills,
     };
 
     const data = await signup(input);

@@ -2,7 +2,11 @@ import { supabase } from "../config/supabase.js";
 import { AppError } from "../utils/appError.js";
 import { enrichEmployeesWithCapacityMetrics } from "./employeeMetricsService.js";
 import { getAppUserByAuthId } from "./userService.js";
-import { getEmployeeSkills, syncEmployeeSkills } from "./skillService.js";
+import {
+  getEmployeeSkills,
+  syncEmployeeSkills,
+  type EmployeeSkillInput,
+} from "./skillService.js";
 
 type EmploymentType = "full_time" | "part_time";
 
@@ -14,6 +18,13 @@ interface EmployeeProfileInput {
 
 interface CreateEmployeeProfileInput extends EmployeeProfileInput {
   full_name: string;
+  employment_type?: EmploymentType;
+  weekly_capacity_hours?: number;
+}
+
+export interface CreateEmployeeProfileRecordInput {
+  full_name: string;
+  bio?: string | null;
   employment_type?: EmploymentType;
   weekly_capacity_hours?: number;
 }
@@ -60,6 +71,35 @@ function calculateWorkloadPercentage(
 async function withSkills<T extends { id: string }>(employee: T) {
   const skills = await getEmployeeSkills(employee.id);
   return { ...employee, skills };
+}
+
+export async function createEmployeeProfileRecordForUser(
+  appUser: { id: string; role: "employee" | "supervisor" | "admin" },
+  profileData: CreateEmployeeProfileRecordInput
+) {
+  if (appUser.role !== "employee") {
+    throw new AppError("Only employee users can create employee profiles.", 403);
+  }
+
+  const { data, error } = await supabase
+    .from("employees")
+    .insert({
+      user_id: appUser.id,
+      full_name: profileData.full_name,
+      bio: profileData.bio ?? null,
+      employment_type: profileData.employment_type ?? "full_time",
+      weekly_capacity_hours: profileData.weekly_capacity_hours ?? 40,
+      workload_percentage: 0,
+      availability_percentage: availabilityFromWorkload(0),
+    })
+    .select()
+    .single();
+
+  if (error || !data) {
+    throw new AppError("Unable to create employee profile.", 400);
+  }
+
+  return data;
 }
 
 async function ensureEmployeeExists(employeeId: string) {
@@ -151,28 +191,7 @@ export async function createEmployeeProfile(
   profileData: CreateEmployeeProfileInput
 ) {
   const appUser = await getAppUserByAuthId(authUserId);
-
-  if (appUser.role !== "employee") {
-    throw new AppError("Only employee users can create employee profiles.", 403);
-  }
-
-  const { data, error } = await supabase
-    .from("employees")
-    .insert({
-      user_id: appUser.id,
-      full_name: profileData.full_name,
-      bio: profileData.bio ?? null,
-      employment_type: profileData.employment_type ?? "full_time",
-      weekly_capacity_hours: profileData.weekly_capacity_hours ?? 40,
-      workload_percentage: 0,
-      availability_percentage: availabilityFromWorkload(0),
-    })
-    .select()
-    .single()
-
-  if (error) {
-    throw new AppError("Unable to create employee profile.", 400);
-  }
+  const data = await createEmployeeProfileRecordForUser(appUser, profileData);
 
   if (profileData.skills !== undefined) {
     await syncEmployeeSkills(data.id, appUser.id, profileData.skills);
