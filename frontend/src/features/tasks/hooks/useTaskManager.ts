@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { BackendProject } from '../../../types/backend'
 import { useEmployeeProfile } from '../../../hooks/useEmployeeProfile'
 import { useNotifications } from '../../../hooks/useNotifications'
-import { useAuth } from '../../auth/hooks/useAuth'
+import { useOrganization } from '../../organizations/hooks/useOrganization'
 import { useProjects } from '../../projects/hooks/useProjects'
 import {
   buildTaskDisplayList,
@@ -70,9 +70,10 @@ function createInitialTaskAssignmentMutationState(): TaskAssignmentMutationState
 
 export function useTaskManager(initialSelectedTaskId: string | null = null) {
   const notifications = useNotifications()
-  const { role } = useAuth()
-  const canManageTasks = role === 'admin' || role === 'supervisor'
-  const canUpdateProgress = role === 'employee'
+  const { activeRole } = useOrganization()
+  const canManageTasks =
+    activeRole === 'organization_admin' || activeRole === 'supervisor'
+  const canUpdateProgress = activeRole === 'employee'
   const tasksQuery = useTasks()
   const projectsQuery = useProjects(canManageTasks)
   const employeeProfileQuery = useEmployeeProfile(canUpdateProgress)
