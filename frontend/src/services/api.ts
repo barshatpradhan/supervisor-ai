@@ -6,6 +6,10 @@ import {
   getStoredAccessToken,
   notifyAuthSessionExpired,
 } from '../features/auth/utils/tokenStorage'
+import {
+  getActiveOrganizationId,
+  shouldSkipOrganizationHeader,
+} from '../features/organizations/utils/organizationRequestContext'
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -16,9 +20,21 @@ export const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = getStoredAccessToken()
+  const activeOrganizationId = getActiveOrganizationId()
+  const shouldAttachOrganizationHeader =
+    activeOrganizationId &&
+    !shouldSkipOrganizationHeader(
+      typeof config.url === 'string' ? config.url : undefined,
+      'skipOrganizationContext' in config &&
+        config.skipOrganizationContext === true,
+    )
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  }
+
+  if (shouldAttachOrganizationHeader && activeOrganizationId) {
+    config.headers['X-Organization-Id'] = activeOrganizationId
   }
 
   return config
