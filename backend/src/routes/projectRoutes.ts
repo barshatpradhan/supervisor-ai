@@ -41,32 +41,37 @@ router.post(
 router.get(
   "/:projectId/documents",
   authenticateUser,
-  requireRole("admin", "supervisor"),
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
   listProjectDocumentsHandler
 );
 router.get(
   "/:projectId/documents/:documentId",
   authenticateUser,
-  requireRole("admin", "supervisor"),
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
   getProjectDocumentHandler
 );
 router.post(
   "/:projectId/documents",
   authenticateUser,
-  requireRole("admin", "supervisor"),
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
   uploadProjectDocumentFile,
   uploadProjectDocumentHandler
 );
 router.post(
   "/:projectId/recommendations",
   authenticateUser,
-  requireRole("admin", "supervisor"),
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
   generateProjectRecommendationsHandler
 );
 router.get(
   "/:projectId/recommendations",
   authenticateUser,
-  requireRole("admin", "supervisor"),
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
   getLatestProjectRecommendationsHandler
 );
 router.get(
