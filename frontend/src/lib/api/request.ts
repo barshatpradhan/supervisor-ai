@@ -14,6 +14,7 @@ function unwrapApiResponse<TData>(response: ApiResponse<TData>) {
 export interface ApiRequestOptions<TBody = unknown>
   extends Omit<AxiosRequestConfig<TBody>, 'method' | 'url' | 'data'> {
   data?: TBody
+  skipOrganizationContext?: boolean
 }
 
 async function requestJson<TResponse, TBody = unknown>(
