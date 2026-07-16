@@ -18,6 +18,14 @@ export interface CreateTaskInput {
   assignedEmployeeId?: string;
 }
 
+export interface UpdateTaskInput {
+  title?: string;
+  description?: string;
+  status?: TaskStatus;
+  priority?: PriorityLevel;
+  estimatedHours?: number;
+}
+
 export interface AssignTaskInput {
   employeeId?: string;
 }

@@ -1,10 +1,11 @@
 import { supabase } from "../config/supabase.js";
 import type { CreateProjectInput, UpdateProjectInput } from "../types/project.js";
 import { AppError } from "../utils/appError.js";
-import { assertRole, getAppUserByAuthId } from "./userService.js";
+import { getAppUserByAuthId } from "./userService.js";
 
 const PROJECT_SELECT = `
   id,
+  organization_id,
   title,
   description,
   status,
@@ -15,14 +16,26 @@ const PROJECT_SELECT = `
   updated_at
 `;
 
+export interface OrganizationScopedProjectRow {
+  id: string;
+  organization_id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: string;
+  required_skills: string[] | null;
+  created_by_user_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
 function mapRequiredSkills(requiredSkills?: string[]) {
   // TODO: projects.required_skills text[] is MVP-only; migrate to project_required_skills.
   return requiredSkills?.map((skill) => skill.trim()).filter(Boolean);
 }
 
 export async function listProjects(authUserId: string, organizationId: string) {
-  const appUser = await getAppUserByAuthId(authUserId);
-  assertRole(appUser, ["admin", "supervisor"]);
+  await getAppUserByAuthId(authUserId);
 
   const { data, error } = await supabase
     .from("projects")
@@ -43,8 +56,7 @@ export async function getProjectById(
   organizationId: string,
   projectId: string
 ) {
-  const appUser = await getAppUserByAuthId(authUserId);
-  assertRole(appUser, ["admin", "supervisor"]);
+  await getAppUserByAuthId(authUserId);
 
   const { data, error } = await supabase
     .from("projects")
@@ -67,7 +79,6 @@ export async function createProject(
   input: CreateProjectInput
 ) {
   const appUser = await getAppUserByAuthId(authUserId);
-  assertRole(appUser, ["admin", "supervisor"]);
 
   const { data, error } = await supabase
     .from("projects")
@@ -96,8 +107,7 @@ export async function updateProject(
   projectId: string,
   input: UpdateProjectInput
 ) {
-  const appUser = await getAppUserByAuthId(authUserId);
-  assertRole(appUser, ["admin", "supervisor"]);
+  await getAppUserByAuthId(authUserId);
 
   const updates: Record<string, unknown> = {};
 
@@ -136,6 +146,25 @@ export async function updateProject(
 
   if (error || !data) {
     throw new AppError("Unable to update project.", 400);
+  }
+
+  return data;
+}
+
+export async function ensureProjectExistsInOrganization(
+  projectId: string,
+  organizationId: string
+) {
+  const { data, error } = await supabase
+    .from("projects")
+    .select(PROJECT_SELECT)
+    .eq("id", projectId)
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null)
+    .single<OrganizationScopedProjectRow>();
+
+  if (error || !data) {
+    throw new AppError("Project not found.", 404);
   }
 
   return data;

@@ -1,11 +1,17 @@
 import { supabase } from "../config/supabase.js";
-import type { CreateTaskInput, CreateTaskProgressInput } from "../types/task.js";
+import type {
+  CreateTaskInput,
+  CreateTaskProgressInput,
+  TaskStatus,
+  UpdateTaskInput,
+} from "../types/task.js";
 import { AppError } from "../utils/appError.js";
 import {
   ACTIVE_TASK_STATUSES,
   calculateWorkloadPercentage,
 } from "./employeeMetricsService.js";
-import { assertRole, getAppUserByAuthId } from "./userService.js";
+import { ensureProjectExistsInOrganization } from "./projectService.js";
+import { getAppUserByAuthId } from "./userService.js";
 
 const TASK_SELECT = `
   id,
@@ -38,6 +44,13 @@ interface EmployeePerformanceTaskRow {
   estimated_hours: number;
 }
 
+interface OrganizationScopedTaskRow {
+  id: string;
+  project_id: string;
+  assigned_employee_id: string | null;
+  status: TaskStatus;
+}
+
 interface TaskProgressPerformanceRow {
   task_id: string;
   progress_percentage: number;
@@ -56,7 +69,7 @@ async function runNonBlockingTaskFollowUp(
   }
 }
 
-async function getEmployeeForAuthUser(authUserId: string) {
+async function getEmployeeForAuthUser(authUserId: string, organizationId: string) {
   const { data, error } = await supabase
     .from("employees")
     .select(`
@@ -66,6 +79,7 @@ async function getEmployeeForAuthUser(authUserId: string) {
         auth_user_id
       )
     `)
+    .eq("organization_id", organizationId)
     .eq("users.auth_user_id", authUserId)
     .single<EmployeeCapacityRow>();
 
@@ -76,10 +90,11 @@ async function getEmployeeForAuthUser(authUserId: string) {
   return data;
 }
 
-async function ensureEmployeeExists(employeeId: string) {
+async function ensureEmployeeExists(employeeId: string, organizationId: string) {
   const { data, error } = await supabase
     .from("employees")
     .select("id, weekly_capacity_hours")
+    .eq("organization_id", organizationId)
     .eq("id", employeeId)
     .single<EmployeeCapacityRow>();
 
@@ -90,21 +105,34 @@ async function ensureEmployeeExists(employeeId: string) {
   return data;
 }
 
-async function ensureProjectExists(projectId: string) {
+async function getTaskForOrganization(taskId: string, organizationId: string) {
   const { data, error } = await supabase
-    .from("projects")
-    .select("id")
-    .eq("id", projectId)
+    .from("tasks")
+    .select(
+      `
+        id,
+        project_id,
+        assigned_employee_id,
+        status,
+        projects!inner (
+          organization_id
+        )
+      `
+    )
+    .eq("id", taskId)
+    .eq("projects.organization_id", organizationId)
     .is("deleted_at", null)
-    .single<{ id: string }>();
+    .maybeSingle<OrganizationScopedTaskRow>();
 
   if (error || !data) {
-    throw new AppError("Project not found.", 404);
+    throw new AppError("Task not found.", 404);
   }
+
+  return data;
 }
 
-async function recalculateEmployeeCapacity(employeeId: string) {
-  const employee = await ensureEmployeeExists(employeeId);
+async function recalculateEmployeeCapacity(employeeId: string, organizationId: string) {
+  const employee = await ensureEmployeeExists(employeeId, organizationId);
   const { data, error } = await supabase
     .from("tasks")
     .select("estimated_hours")
@@ -244,15 +272,27 @@ async function recalculateEmployeePerformance(employeeId: string) {
   }
 }
 
-export async function listTasks(authUserId: string) {
-  const appUser = await getAppUserByAuthId(authUserId);
+export async function listTasks(
+  authUserId: string,
+  organizationId: string,
+  membershipRole: "organization_admin" | "supervisor" | "employee"
+) {
+  await getAppUserByAuthId(authUserId);
 
-  if (appUser.role === "employee") {
-    const employee = await getEmployeeForAuthUser(authUserId);
+  if (membershipRole === "employee") {
+    const employee = await getEmployeeForAuthUser(authUserId, organizationId);
     const { data, error } = await supabase
       .from("tasks")
-      .select(TASK_SELECT)
+      .select(
+        `
+          ${TASK_SELECT},
+          projects!inner (
+            organization_id
+          )
+        `
+      )
       .eq("assigned_employee_id", employee.id)
+      .eq("projects.organization_id", organizationId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
 
@@ -263,11 +303,17 @@ export async function listTasks(authUserId: string) {
     return data;
   }
 
-  assertRole(appUser, ["admin", "supervisor"]);
-
   const { data, error } = await supabase
     .from("tasks")
-    .select(TASK_SELECT)
+    .select(
+      `
+        ${TASK_SELECT},
+        projects!inner (
+          organization_id
+        )
+      `
+    )
+    .eq("projects.organization_id", organizationId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
@@ -278,13 +324,71 @@ export async function listTasks(authUserId: string) {
   return data;
 }
 
-export async function createTask(authUserId: string, input: CreateTaskInput) {
+export async function getTaskById(
+  authUserId: string,
+  organizationId: string,
+  membershipRole: "organization_admin" | "supervisor" | "employee",
+  taskId: string
+) {
+  await getAppUserByAuthId(authUserId);
+
+  if (membershipRole === "employee") {
+    const employee = await getEmployeeForAuthUser(authUserId, organizationId);
+    const { data, error } = await supabase
+      .from("tasks")
+      .select(
+        `
+          ${TASK_SELECT},
+          projects!inner (
+            organization_id
+          )
+        `
+      )
+      .eq("id", taskId)
+      .eq("assigned_employee_id", employee.id)
+      .eq("projects.organization_id", organizationId)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (error || !data) {
+      throw new AppError("Task not found.", 404);
+    }
+
+    return data;
+  }
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .select(
+      `
+        ${TASK_SELECT},
+        projects!inner (
+          organization_id
+        )
+      `
+    )
+    .eq("id", taskId)
+    .eq("projects.organization_id", organizationId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (error || !data) {
+    throw new AppError("Task not found.", 404);
+  }
+
+  return data;
+}
+
+export async function createTask(
+  authUserId: string,
+  organizationId: string,
+  input: CreateTaskInput
+) {
   const appUser = await getAppUserByAuthId(authUserId);
-  assertRole(appUser, ["admin", "supervisor"]);
-  await ensureProjectExists(input.projectId);
+  await ensureProjectExistsInOrganization(input.projectId, organizationId);
 
   if (input.assignedEmployeeId) {
-    await ensureEmployeeExists(input.assignedEmployeeId);
+    await ensureEmployeeExists(input.assignedEmployeeId, organizationId);
   }
 
   const { data, error } = await supabase
@@ -310,7 +414,65 @@ export async function createTask(authUserId: string, input: CreateTaskInput) {
   if (input.assignedEmployeeId) {
     await runNonBlockingTaskFollowUp(
       `recalculate capacity for employee ${input.assignedEmployeeId}`,
-      () => recalculateEmployeeCapacity(input.assignedEmployeeId as string)
+      () => recalculateEmployeeCapacity(input.assignedEmployeeId as string, organizationId)
+    );
+  }
+
+  return data;
+}
+
+export async function updateTask(
+  authUserId: string,
+  organizationId: string,
+  taskId: string,
+  input: UpdateTaskInput
+) {
+  await getAppUserByAuthId(authUserId);
+  await getTaskForOrganization(taskId, organizationId);
+
+  const updates: Record<string, unknown> = {};
+
+  if (input.title !== undefined) {
+    updates.title = input.title;
+  }
+
+  if (input.description !== undefined) {
+    updates.description = input.description;
+  }
+
+  if (input.status !== undefined) {
+    updates.status = input.status;
+    updates.completed_at = input.status === "completed" ? new Date().toISOString() : null;
+  }
+
+  if (input.priority !== undefined) {
+    updates.priority = input.priority;
+  }
+
+  if (input.estimatedHours !== undefined) {
+    updates.estimated_hours = input.estimatedHours;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new AppError("At least one task field is required.", 400);
+  }
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .update(updates)
+    .eq("id", taskId)
+    .is("deleted_at", null)
+    .select(TASK_SELECT)
+    .single();
+
+  if (error || !data) {
+    throw new AppError("Unable to update task.", 400);
+  }
+
+  if (data.assigned_employee_id) {
+    await runNonBlockingTaskFollowUp(
+      `recalculate capacity for employee ${data.assigned_employee_id}`,
+      () => recalculateEmployeeCapacity(data.assigned_employee_id as string, organizationId)
     );
   }
 
@@ -319,25 +481,15 @@ export async function createTask(authUserId: string, input: CreateTaskInput) {
 
 export async function assignTask(
   authUserId: string,
+  organizationId: string,
   taskId: string,
   employeeId: string | undefined
 ) {
-  const appUser = await getAppUserByAuthId(authUserId);
-  assertRole(appUser, ["admin", "supervisor"]);
-
-  const { data: existingTask, error: taskError } = await supabase
-    .from("tasks")
-    .select("id, assigned_employee_id")
-    .eq("id", taskId)
-    .is("deleted_at", null)
-    .single<{ id: string; assigned_employee_id: string | null }>();
-
-  if (taskError || !existingTask) {
-    throw new AppError("Task not found.", 404);
-  }
+  await getAppUserByAuthId(authUserId);
+  const existingTask = await getTaskForOrganization(taskId, organizationId);
 
   if (employeeId) {
-    await ensureEmployeeExists(employeeId);
+    await ensureEmployeeExists(employeeId, organizationId);
   }
 
   const { data, error } = await supabase
@@ -358,14 +510,18 @@ export async function assignTask(
   if (existingTask.assigned_employee_id) {
     await runNonBlockingTaskFollowUp(
       `recalculate capacity for employee ${existingTask.assigned_employee_id}`,
-      () => recalculateEmployeeCapacity(existingTask.assigned_employee_id as string)
+      () =>
+        recalculateEmployeeCapacity(
+          existingTask.assigned_employee_id as string,
+          organizationId
+        )
     );
   }
 
   if (employeeId && employeeId !== existingTask.assigned_employee_id) {
     await runNonBlockingTaskFollowUp(
       `recalculate capacity for employee ${employeeId}`,
-      () => recalculateEmployeeCapacity(employeeId)
+      () => recalculateEmployeeCapacity(employeeId, organizationId)
     );
   }
 
@@ -374,23 +530,13 @@ export async function assignTask(
 
 export async function createTaskProgress(
   authUserId: string,
+  organizationId: string,
   taskId: string,
   input: CreateTaskProgressInput
 ) {
-  const appUser = await getAppUserByAuthId(authUserId);
-  assertRole(appUser, ["employee"]);
-  const employee = await getEmployeeForAuthUser(authUserId);
-
-  const { data: task, error: taskError } = await supabase
-    .from("tasks")
-    .select("id, assigned_employee_id")
-    .eq("id", taskId)
-    .is("deleted_at", null)
-    .single<{ id: string; assigned_employee_id: string | null }>();
-
-  if (taskError || !task) {
-    throw new AppError("Task not found.", 404);
-  }
+  await getAppUserByAuthId(authUserId);
+  const employee = await getEmployeeForAuthUser(authUserId, organizationId);
+  const task = await getTaskForOrganization(taskId, organizationId);
 
   if (task.assigned_employee_id !== employee.id) {
     throw new AppError("Only the assigned employee can update task progress.", 403);
@@ -428,7 +574,7 @@ export async function createTaskProgress(
 
   await runNonBlockingTaskFollowUp(
     `recalculate capacity for employee ${employee.id}`,
-    () => recalculateEmployeeCapacity(employee.id)
+    () => recalculateEmployeeCapacity(employee.id, organizationId)
   );
   await runNonBlockingTaskFollowUp(
     `recalculate performance for employee ${employee.id}`,
