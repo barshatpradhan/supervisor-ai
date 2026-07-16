@@ -4,21 +4,26 @@ import {
   getSupervisorDashboardHandler,
 } from "../controllers/dashboardController.js";
 import { authenticateUser } from "../middleware/authMiddleware.js";
-import { requireRole } from "../middleware/roleMiddleware.js";
+import {
+  requireOrganizationRole,
+  resolveOrganizationContext,
+} from "../middleware/organizationMiddleware.js";
 
 const router = Router();
 
 router.get(
   "/supervisor",
   authenticateUser,
-  requireRole("admin", "supervisor"),
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
   getSupervisorDashboardHandler
 );
 
 router.get(
   "/employee",
   authenticateUser,
-  requireRole("employee"),
+  resolveOrganizationContext,
+  requireOrganizationRole("employee"),
   getEmployeeDashboardHandler
 );
 
