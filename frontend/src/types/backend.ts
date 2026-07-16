@@ -1,4 +1,9 @@
 export type BackendUserRole = 'admin' | 'supervisor' | 'employee'
+export type BackendOrganizationMembershipRole =
+  | 'organization_admin'
+  | 'supervisor'
+  | 'employee'
+export type BackendOrganizationMembershipStatus = 'invited' | 'active' | 'suspended'
 
 export type BackendProjectStatus = 'draft' | 'active' | 'on_hold' | 'completed' | 'cancelled'
 
@@ -167,6 +172,12 @@ export interface BackendCreateSupervisorProfileRequest {
   full_name: string
   department?: string
   bio?: string
+}
+
+export interface BackendUpdateSupervisorProfileRequest {
+  full_name?: string
+  department?: string | null
+  bio?: string | null
 }
 
 export interface BackendAssignableEmployeeSkill {
@@ -519,4 +530,57 @@ export interface BackendEmployeeDashboardResponse {
   recentProgress: BackendEmployeeDashboardRecentProgressItem[]
   profile: BackendEmployeeDashboardProfileSummary
   attention: BackendEmployeeDashboardAttentionSummary
+}
+
+export interface BackendCurrentUserOrganizationMembershipSummary {
+  id: string
+  role: BackendOrganizationMembershipRole
+  status: BackendOrganizationMembershipStatus
+  invited_at: string | null
+  joined_at: string | null
+  created_at: string
+}
+
+export interface BackendCurrentUserOrganizationSummary {
+  id: string
+  name: string
+  slug: string
+}
+
+export interface BackendCurrentUserOrganizationInvitationSummary {
+  id: string
+  expires_at: string
+}
+
+export interface BackendCurrentUserOrganizationListItem {
+  membership: BackendCurrentUserOrganizationMembershipSummary
+  organization: BackendCurrentUserOrganizationSummary
+  invitation: BackendCurrentUserOrganizationInvitationSummary | null
+}
+
+export interface BackendCreateOrganizationRequest {
+  name: string
+  slug: string
+}
+
+export interface BackendOrganizationCreationResponse {
+  membership: {
+    id: string
+    organization_id: string
+    user_id: string
+    role: BackendOrganizationMembershipRole
+    status: BackendOrganizationMembershipStatus
+    invited_at: string | null
+    invited_by_user_id: string | null
+    joined_at: string | null
+    created_at: string
+  }
+  organization: {
+    id: string
+    name: string
+    slug: string
+    created_at: string
+    created_by_user_id: string
+    updated_at: string
+  }
 }
