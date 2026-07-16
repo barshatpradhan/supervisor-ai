@@ -3,6 +3,7 @@ import type { AuthenticatedAppUser, UserRole } from "../types/auth.js";
 import type {
   CreateOrganizationInput,
   CreateOrganizationInvitationInput,
+  CurrentUserOrganizationListItem,
   EmployeeInvitationProfileInput,
   Organization,
   OrganizationInvitation,
@@ -63,6 +64,15 @@ interface OrganizationInvitationRow {
 
 interface OrganizationInvitationListRow extends OrganizationInvitationRow {
   organization_members: Pick<OrganizationMembershipRow, "status"> | null;
+}
+
+interface CurrentUserOrganizationInvitationRow {
+  id: string;
+  membership_id: string;
+  expires_at: string;
+  accepted_at: string | null;
+  revoked_at: string | null;
+  invited_at: string;
 }
 
 interface UserRow {
@@ -153,6 +163,34 @@ function mapInvitation(row: OrganizationInvitationRow): OrganizationInvitation {
     accepted_at: row.accepted_at,
     revoked_at: row.revoked_at,
     created_at: row.created_at,
+  };
+}
+
+function mapCurrentUserOrganizationListItem(input: {
+  membership: OrganizationMembershipRow;
+  organization: OrganizationRow;
+  invitation: CurrentUserOrganizationInvitationRow | null;
+}): CurrentUserOrganizationListItem {
+  return {
+    membership: {
+      id: input.membership.id,
+      role: input.membership.role,
+      status: input.membership.status,
+      invited_at: input.membership.invited_at,
+      joined_at: input.membership.joined_at,
+      created_at: input.membership.created_at,
+    },
+    organization: {
+      id: input.organization.id,
+      name: input.organization.name,
+      slug: input.organization.slug,
+    },
+    invitation: input.invitation
+      ? {
+          id: input.invitation.id,
+          expires_at: input.invitation.expires_at,
+        }
+      : null,
   };
 }
 
@@ -494,6 +532,106 @@ export async function createOrganizationForAuthenticatedUser(
     membership: mapMembership(membership),
     organization: mapOrganization(organization),
   };
+}
+
+export async function listCurrentUserOrganizations(
+  authUserId: string
+): Promise<CurrentUserOrganizationListItem[]> {
+  const appUser = await getAppUserByAuthId(authUserId);
+
+  const { data: membershipRows, error: membershipError } = await supabase
+    .from("organization_members")
+    .select(
+      `
+        id,
+        organization_id,
+        user_id,
+        role,
+        status,
+        invited_by_user_id,
+        invited_at,
+        joined_at,
+        created_at,
+        organizations (
+          id,
+          name,
+          slug,
+          created_by_user_id,
+          created_at,
+          updated_at
+        )
+      `
+    )
+    .eq("user_id", appUser.id)
+    .returns<OrganizationMembershipWithOrganizationRow[]>();
+
+  if (membershipError) {
+    throw new AppError("Unable to fetch organizations.", 500, true, {
+      cause: membershipError,
+    });
+  }
+
+  const membershipsWithOrganizations = (membershipRows ?? []).filter(
+    (membership): membership is OrganizationMembershipWithOrganizationRow & {
+      organizations: OrganizationRow;
+    } => membership.organizations !== null
+  );
+
+  if (membershipsWithOrganizations.length === 0) {
+    return [];
+  }
+
+  const membershipIds = membershipsWithOrganizations.map((membership) => membership.id);
+  const { data: invitationRows, error: invitationError } = await supabase
+    .from("organization_invitations")
+    .select("id, membership_id, expires_at, accepted_at, revoked_at, invited_at")
+    .in("membership_id", membershipIds)
+    .is("accepted_at", null)
+    .is("revoked_at", null)
+    .order("invited_at", { ascending: false })
+    .returns<CurrentUserOrganizationInvitationRow[]>();
+
+  if (invitationError) {
+    throw new AppError("Unable to fetch organizations.", 500, true, {
+      cause: invitationError,
+    });
+  }
+
+  const latestInvitationByMembershipId = new Map<string, CurrentUserOrganizationInvitationRow>();
+  for (const invitation of invitationRows ?? []) {
+    if (!latestInvitationByMembershipId.has(invitation.membership_id)) {
+      latestInvitationByMembershipId.set(invitation.membership_id, invitation);
+    }
+  }
+
+  const statusRank: Record<OrganizationMembershipStatus, number> = {
+    active: 0,
+    invited: 1,
+    suspended: 2,
+  };
+
+  return membershipsWithOrganizations
+    .slice()
+    .sort((left, right) => {
+      const statusDifference = statusRank[left.status] - statusRank[right.status];
+      if (statusDifference !== 0) {
+        return statusDifference;
+      }
+
+      return left.organizations.name.localeCompare(right.organizations.name, undefined, {
+        sensitivity: "base",
+      });
+    })
+    .map((membership) =>
+      mapCurrentUserOrganizationListItem({
+        membership,
+        organization: membership.organizations,
+        invitation:
+          membership.status === "invited"
+            ? (latestInvitationByMembershipId.get(membership.id) ?? null)
+            : null,
+      })
+    );
 }
 
 export async function getOrganizationDetails(organizationId: string) {

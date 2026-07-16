@@ -4,6 +4,7 @@ import {
   createOrganizationForAuthenticatedUser,
   createOrganizationInvitation,
   getOrganizationDetails,
+  listCurrentUserOrganizations,
   listOrganizationInvitations,
   listOrganizationMembers,
 } from "../services/organizationService.js";
@@ -123,6 +124,23 @@ export async function createOrganizationHandler(
     });
 
     return sendSuccess(res, 201, "Organization created successfully.", organization);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function listCurrentUserOrganizationsHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  if (!req.user) {
+    return next(new AppError("Unauthorized.", 401));
+  }
+
+  try {
+    const organizations = await listCurrentUserOrganizations(req.user.id);
+    return sendSuccess(res, 200, "Organizations fetched successfully.", organizations);
   } catch (error) {
     return next(error);
   }
