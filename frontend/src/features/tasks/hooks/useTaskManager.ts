@@ -68,7 +68,7 @@ function createInitialTaskAssignmentMutationState(): TaskAssignmentMutationState
   }
 }
 
-export function useTaskManager() {
+export function useTaskManager(initialSelectedTaskId: string | null = null) {
   const notifications = useNotifications()
   const { role } = useAuth()
   const canManageTasks = role === 'admin' || role === 'supervisor'
@@ -76,7 +76,7 @@ export function useTaskManager() {
   const tasksQuery = useTasks()
   const projectsQuery = useProjects(canManageTasks)
   const employeeProfileQuery = useEmployeeProfile(canUpdateProgress)
-  const [selectedTaskIdState, setSelectedTaskId] = useState<string | null>(null)
+  const [selectedTaskIdState, setSelectedTaskId] = useState<string | null>(initialSelectedTaskId)
   const [panelMode, setPanelMode] = useState<'create' | 'progress' | 'view'>('view')
   const [taskMutationState, setTaskMutationState] = useState<TaskMutationState>(
     createInitialTaskMutationState(),

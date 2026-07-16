@@ -6,8 +6,12 @@ import { useTaskManager } from '../hooks/useTaskManager'
 import { TaskList } from './TaskList'
 import { TaskPanel } from './TaskPanel'
 
-export function TasksModule() {
-  const manager = useTaskManager()
+interface TasksModuleProps {
+  initialSelectedTaskId?: string | null
+}
+
+export function TasksModule({ initialSelectedTaskId = null }: TasksModuleProps) {
+  const manager = useTaskManager(initialSelectedTaskId)
 
   if (manager.isPageLoading && !manager.hasTasks) {
     return <SkeletonPage tableColumns={7} tableRows={5} titleWidth="w-44" />
