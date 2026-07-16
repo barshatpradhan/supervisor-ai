@@ -4,8 +4,13 @@ import {
   availabilityFromWorkload,
   calculateWorkloadPercentage,
 } from "./employeeMetricsService.js";
+import { getEmployeeSkills } from "./skillService.js";
 import type {
   DashboardAnalyzedProject,
+  EmployeeDashboardAssignment,
+  EmployeeDashboardProfileSummary,
+  EmployeeDashboardRecentProgressItem,
+  EmployeeDashboardResponse,
   DashboardEmployeeWorkloadRecord,
   DashboardProjectProgressSummary,
   DashboardRecommendationRunSummary,
@@ -21,7 +26,46 @@ import { assertRole, getAppUserByAuthId } from "./userService.js";
 
 const RECENT_ITEM_LIMIT = 5;
 const HIGH_WORKLOAD_THRESHOLD = 80;
+const EMPLOYEE_PROGRESS_STALE_DAYS = 7;
 const ACTIVE_TASK_STATUS_SET = new Set<string>(ACTIVE_TASK_STATUSES);
+
+interface EmployeeDashboardProfileRow {
+  id: string;
+  full_name: string;
+  bio: string | null;
+  employment_type: "full_time" | "part_time";
+  weekly_capacity_hours: number | null;
+  performance_score: number | null;
+  users: {
+    auth_user_id: string;
+  } | null;
+}
+
+interface EmployeeDashboardTaskRow {
+  id: string;
+  project_id: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: PriorityLevel;
+  estimated_hours: number;
+  assigned_at: string | null;
+  updated_at: string;
+}
+
+interface EmployeeDashboardProjectRow {
+  id: string;
+  title: string;
+}
+
+interface EmployeeDashboardProgressRow {
+  id: string;
+  task_id: string;
+  progress_percentage: number;
+  status: TaskStatus | null;
+  notes: string | null;
+  created_at: string;
+}
 
 interface DashboardProjectRow {
   id: string;
@@ -77,6 +121,16 @@ interface DashboardRecommendationTopRow {
 
 function roundToTwoDecimals(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function normalizeNumericValue(value: number | null | undefined) {
+  return Number(value ?? 0);
+}
+
+function subtractDays(timestamp: Date, days: number) {
+  const result = new Date(timestamp);
+  result.setUTCDate(result.getUTCDate() - days);
+  return result;
 }
 
 function createProjectStatusCounts(): Record<ProjectStatus, number> {
@@ -210,6 +264,10 @@ function buildProjectMap(projects: DashboardProjectRow[]) {
   return new Map(projects.map((project) => [project.id, project]));
 }
 
+function buildEmployeeProjectMap(projects: EmployeeDashboardProjectRow[]) {
+  return new Map(projects.map((project) => [project.id, project]));
+}
+
 function buildEmployeeMap(employees: DashboardEmployeeWorkloadRecord[]) {
   return new Map(employees.map((employee) => [employee.id, employee]));
 }
@@ -230,6 +288,176 @@ function buildAssignedHoursByEmployeeId(tasks: DashboardTaskRow[]) {
   }
 
   return assignedHoursByEmployeeId;
+}
+
+function calculateAssignedHours(tasks: EmployeeDashboardTaskRow[]) {
+  return tasks.reduce((total, task) => {
+    if (!ACTIVE_TASK_STATUS_SET.has(task.status)) {
+      return total;
+    }
+
+    return total + Number(task.estimated_hours);
+  }, 0);
+}
+
+function buildLatestProgressByTaskId(progressRows: EmployeeDashboardProgressRow[]) {
+  const latestProgressByTaskId = new Map<string, EmployeeDashboardProgressRow>();
+
+  for (const progress of progressRows) {
+    if (!latestProgressByTaskId.has(progress.task_id)) {
+      latestProgressByTaskId.set(progress.task_id, progress);
+    }
+  }
+
+  return latestProgressByTaskId;
+}
+
+function buildEmployeeAssignment(
+  task: EmployeeDashboardTaskRow,
+  projectTitle: string,
+  latestProgress: EmployeeDashboardProgressRow | undefined
+): EmployeeDashboardAssignment {
+  return {
+    task_id: task.id,
+    title: task.title,
+    description: task.description,
+    project_id: task.project_id,
+    project_title: projectTitle,
+    priority: task.priority,
+    status: task.status,
+    estimated_hours: Number(task.estimated_hours),
+    assigned_at: task.assigned_at,
+    current_progress_percentage:
+      latestProgress?.progress_percentage === undefined
+        ? task.status === "completed"
+          ? 100
+          : 0
+        : Number(latestProgress.progress_percentage),
+    latest_progress_status: latestProgress?.status ?? null,
+    latest_progress_notes: latestProgress?.notes ?? null,
+    last_progress_at: latestProgress?.created_at ?? null,
+  };
+}
+
+function buildEmployeeProfileSummary(
+  profile: EmployeeDashboardProfileRow,
+  workloadPercentage: number,
+  availabilityPercentage: number,
+  approvedSkills: string[],
+  pendingSkills: string[]
+): EmployeeDashboardProfileSummary {
+  return {
+    employee_id: profile.id,
+    full_name: profile.full_name,
+    bio: profile.bio,
+    employment_type: profile.employment_type,
+    weekly_capacity_hours: normalizeNumericValue(profile.weekly_capacity_hours),
+    workload_percentage: workloadPercentage,
+    availability_percentage: availabilityPercentage,
+    performance_score:
+      profile.performance_score === null ? null : Number(profile.performance_score),
+    approved_skills: approvedSkills,
+    pending_skills: pendingSkills,
+  };
+}
+
+async function getEmployeeProfileForDashboard(authUserId: string) {
+  const { data, error } = await supabase
+    .from("employees")
+    .select(
+      `
+        id,
+        full_name,
+        bio,
+        employment_type,
+        weekly_capacity_hours,
+        performance_score,
+        users!inner (
+          auth_user_id
+        )
+      `
+    )
+    .eq("users.auth_user_id", authUserId)
+    .single<EmployeeDashboardProfileRow>();
+
+  if (error || !data) {
+    throw new AppError("Employee profile not found.", 404);
+  }
+
+  return data;
+}
+
+async function listEmployeeTasksForDashboard(employeeId: string) {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select(
+      "id, project_id, title, description, status, priority, estimated_hours, assigned_at, updated_at"
+    )
+    .eq("assigned_employee_id", employeeId)
+    .is("deleted_at", null)
+    .order("assigned_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .returns<EmployeeDashboardTaskRow[]>();
+
+  if (error) {
+    throw new AppError("Unable to fetch employee dashboard tasks.", 500);
+  }
+
+  return data ?? [];
+}
+
+async function listProjectsByIds(projectIds: string[]) {
+  if (projectIds.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id, title")
+    .in("id", projectIds)
+    .is("deleted_at", null)
+    .returns<EmployeeDashboardProjectRow[]>();
+
+  if (error) {
+    throw new AppError("Unable to fetch employee dashboard projects.", 500);
+  }
+
+  return data ?? [];
+}
+
+async function listLatestProgressForTasks(taskIds: string[]) {
+  if (taskIds.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("task_progress")
+    .select("id, task_id, progress_percentage, status, notes, created_at")
+    .in("task_id", taskIds)
+    .order("created_at", { ascending: false })
+    .returns<EmployeeDashboardProgressRow[]>();
+
+  if (error) {
+    throw new AppError("Unable to fetch employee dashboard task progress.", 500);
+  }
+
+  return data ?? [];
+}
+
+async function listRecentProgressForEmployee(employeeId: string) {
+  const { data, error } = await supabase
+    .from("task_progress")
+    .select("id, task_id, progress_percentage, status, notes, created_at")
+    .eq("employee_id", employeeId)
+    .order("created_at", { ascending: false })
+    .limit(RECENT_ITEM_LIMIT)
+    .returns<EmployeeDashboardProgressRow[]>();
+
+  if (error) {
+    throw new AppError("Unable to fetch recent employee progress.", 500);
+  }
+
+  return data ?? [];
 }
 
 function buildEmployeeWorkloadRecords(
@@ -534,5 +762,129 @@ export async function getSupervisorDashboard(
       recent_recommendation_runs: recentRecommendationRuns,
     },
     projectProgress: buildProjectProgress(projects, tasks),
+  };
+}
+
+export async function getEmployeeDashboard(
+  authUserId: string
+): Promise<EmployeeDashboardResponse> {
+  const appUser = await getAppUserByAuthId(authUserId);
+  assertRole(appUser, ["employee"] satisfies readonly UserRole[]);
+
+  const profile = await getEmployeeProfileForDashboard(authUserId);
+  const [skills, tasks, recentProgressRows] = await Promise.all([
+    getEmployeeSkills(profile.id),
+    listEmployeeTasksForDashboard(profile.id),
+    listRecentProgressForEmployee(profile.id),
+  ]);
+
+  const assignedTasks = tasks.length;
+  const inProgressTasks = tasks.filter((task) => task.status === "in_progress").length;
+  const blockedTasks = tasks.filter((task) => task.status === "blocked").length;
+  const completedTasks = tasks.filter((task) => task.status === "completed").length;
+
+  const assignedHours = calculateAssignedHours(tasks);
+  const weeklyCapacityHours = normalizeNumericValue(profile.weekly_capacity_hours);
+  const workloadPercentage = calculateWorkloadPercentage(
+    assignedHours,
+    weeklyCapacityHours
+  );
+  const availabilityPercentage = availabilityFromWorkload(workloadPercentage);
+
+  const activeTasks = tasks.filter((task) => ACTIVE_TASK_STATUS_SET.has(task.status));
+  const allProjectIds = [...new Set(tasks.map((task) => task.project_id))];
+  const activeTaskIds = activeTasks.map((task) => task.id);
+
+  const [projects, assignmentProgressRows] = await Promise.all([
+    listProjectsByIds(allProjectIds),
+    listLatestProgressForTasks(activeTaskIds),
+  ]);
+
+  const projectById = buildEmployeeProjectMap(projects);
+  const latestProgressByTaskId = buildLatestProgressByTaskId(assignmentProgressRows);
+
+  const currentAssignments = activeTasks.map((task) =>
+    buildEmployeeAssignment(
+      task,
+      projectById.get(task.project_id)?.title ?? "",
+      latestProgressByTaskId.get(task.id)
+    )
+  );
+
+  const staleProgressThreshold = subtractDays(
+    new Date(),
+    EMPLOYEE_PROGRESS_STALE_DAYS
+  ).getTime();
+
+  const blockedAssignments = currentAssignments.filter(
+    (assignment) => assignment.status === "blocked"
+  );
+  const unstartedAssignments = currentAssignments.filter(
+    (assignment) => assignment.status === "todo"
+  );
+  const tasksRequiringProgressUpdate = currentAssignments.filter((assignment) => {
+    if (!assignment.last_progress_at) {
+      return true;
+    }
+
+    return new Date(assignment.last_progress_at).getTime() < staleProgressThreshold;
+  });
+
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const recentProgress: EmployeeDashboardRecentProgressItem[] = recentProgressRows.flatMap(
+    (progress) => {
+      const task = taskById.get(progress.task_id);
+
+      if (!task) {
+        return [];
+      }
+
+      return [
+        {
+          progress_id: progress.id,
+          task_id: task.id,
+          task_title: task.title,
+          project_id: task.project_id,
+          project_title: projectById.get(task.project_id)?.title ?? "",
+          progress_percentage: Number(progress.progress_percentage),
+          status: progress.status,
+          notes: progress.notes,
+          created_at: progress.created_at,
+        },
+      ];
+    }
+  );
+
+  const approvedSkills = skills
+    .filter((skill) => skill.isApproved)
+    .map((skill) => skill.name);
+  const pendingSkills = skills
+    .filter((skill) => !skill.isApproved)
+    .map((skill) => skill.name);
+
+  return {
+    workSummary: {
+      assigned_tasks: assignedTasks,
+      in_progress_tasks: inProgressTasks,
+      blocked_tasks: blockedTasks,
+      completed_tasks: completedTasks,
+      workload_percentage: workloadPercentage,
+      availability_percentage: availabilityPercentage,
+      weekly_capacity_hours: weeklyCapacityHours,
+    },
+    currentAssignments,
+    recentProgress,
+    profile: buildEmployeeProfileSummary(
+      profile,
+      workloadPercentage,
+      availabilityPercentage,
+      approvedSkills,
+      pendingSkills
+    ),
+    attention: {
+      blocked_tasks: blockedAssignments,
+      unstarted_assigned_tasks: unstartedAssignments,
+      tasks_requiring_progress_update: tasksRequiringProgressUpdate,
+    },
   };
 }

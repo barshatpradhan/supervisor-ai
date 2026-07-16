@@ -1,5 +1,6 @@
 import type { UserRole } from "./auth.js";
 import type { DocumentExtractionStatus } from "./document.js";
+import type { EmploymentType } from "./employee.js";
 import type { PriorityLevel, ProjectStatus } from "./project.js";
 import type { TaskStatus } from "./task.js";
 
@@ -124,3 +125,70 @@ export interface SupervisorDashboardResponse {
 }
 
 export type SupervisorDashboardAuthorizedRole = Extract<UserRole, "admin" | "supervisor">;
+
+export interface EmployeeDashboardWorkSummary {
+  assigned_tasks: number;
+  in_progress_tasks: number;
+  blocked_tasks: number;
+  completed_tasks: number;
+  workload_percentage: number;
+  availability_percentage: number;
+  weekly_capacity_hours: number;
+}
+
+export interface EmployeeDashboardAssignment {
+  task_id: string;
+  title: string;
+  description: string | null;
+  project_id: string;
+  project_title: string;
+  priority: PriorityLevel;
+  status: TaskStatus;
+  estimated_hours: number;
+  assigned_at: string | null;
+  current_progress_percentage: number;
+  latest_progress_status: TaskStatus | null;
+  latest_progress_notes: string | null;
+  last_progress_at: string | null;
+}
+
+export interface EmployeeDashboardRecentProgressItem {
+  progress_id: string;
+  task_id: string;
+  task_title: string;
+  project_id: string;
+  project_title: string;
+  progress_percentage: number;
+  status: TaskStatus | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface EmployeeDashboardProfileSummary {
+  employee_id: string;
+  full_name: string;
+  bio: string | null;
+  employment_type: EmploymentType;
+  weekly_capacity_hours: number;
+  workload_percentage: number;
+  availability_percentage: number;
+  performance_score: number | null;
+  approved_skills: string[];
+  pending_skills: string[];
+}
+
+export interface EmployeeDashboardAttentionSummary {
+  blocked_tasks: EmployeeDashboardAssignment[];
+  unstarted_assigned_tasks: EmployeeDashboardAssignment[];
+  tasks_requiring_progress_update: EmployeeDashboardAssignment[];
+}
+
+export interface EmployeeDashboardResponse {
+  workSummary: EmployeeDashboardWorkSummary;
+  currentAssignments: EmployeeDashboardAssignment[];
+  recentProgress: EmployeeDashboardRecentProgressItem[];
+  profile: EmployeeDashboardProfileSummary;
+  attention: EmployeeDashboardAttentionSummary;
+}
+
+export type EmployeeDashboardAuthorizedRole = Extract<UserRole, "employee">;

@@ -1,5 +1,8 @@
 import { Router } from "express";
-import { getSupervisorDashboardHandler } from "../controllers/dashboardController.js";
+import {
+  getEmployeeDashboardHandler,
+  getSupervisorDashboardHandler,
+} from "../controllers/dashboardController.js";
 import { authenticateUser } from "../middleware/authMiddleware.js";
 import { requireRole } from "../middleware/roleMiddleware.js";
 
@@ -10,6 +13,13 @@ router.get(
   authenticateUser,
   requireRole("admin", "supervisor"),
   getSupervisorDashboardHandler
+);
+
+router.get(
+  "/employee",
+  authenticateUser,
+  requireRole("employee"),
+  getEmployeeDashboardHandler
 );
 
 export default router;
