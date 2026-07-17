@@ -161,7 +161,27 @@ Legacy compatibility notes:
 - only legacy `admin` values are backfilled into `users.platform_role = 'platform_admin'`
 - legacy `employee` and `supervisor` values must not be treated as platform authorization
 
-Public signup always creates an `employee` application user. Tenant-scoped business routes must use verified organization membership rather than `users.role`.
+Current onboarding model:
+
+- `POST /api/v1/auth/register` creates account identity only
+- `POST /api/v1/organizations` bootstraps the caller's first organization and active `organization_admin` membership
+- employees and supervisors join only through organization invitations
+- `POST /api/v1/auth/signup` is deprecated legacy employee provisioning and should remain disabled unless temporary compatibility is required
+
+Onboarding state:
+
+- auth session responses and `GET /api/v1/auth/me` include `onboarding`
+- `onboarding.hasActiveOrganization` reflects active memberships
+- `onboarding.hasPendingInvitations` reflects invited memberships
+- `onboarding.requiresOrganizationCreation` is true only when the user has neither an active organization nor a pending invitation
+
+Compatibility flag:
+
+- `AUTH_LEGACY_EMPLOYEE_SIGNUP_ENABLED=true` temporarily re-enables legacy public employee signup
+- when omitted or set to any other value, `/api/v1/auth/signup` returns `410 Gone`
+- if a target database still enforces `users.role not null`, identity-only registration temporarily persists the legacy compatibility value `admin` with `platform_role = null`; auth responses still expose `legacyRole` and `role` as `null` for that case
+
+Tenant-scoped business routes must use verified organization membership rather than `users.role`.
 
 ## Supabase Integration
 
@@ -316,6 +336,7 @@ Migration strategy:
 - new tenant code must read authorization from `organization_members.role`
 - `users.role` remains deprecated compatibility data until remaining contracts no longer depend on it
 - never store tenant membership roles in `platform_role`
+- public account registration must not assign employee or supervisor meaning to `users.role`
 
 ## API Reference
 
@@ -332,9 +353,10 @@ All API routes are mounted under `/api/v1`.
 
 | Method | Path | Access | Description |
 | --- | --- | --- | --- |
-| `POST` | `/api/v1/auth/signup` | Public | Creates a Supabase Auth user, creates an app user with `employee` role, and returns a session. |
+| `POST` | `/api/v1/auth/register` | Public | Creates account identity only, signs in, and returns onboarding state requiring organization creation when no membership exists. |
+| `POST` | `/api/v1/auth/signup` | Public | Deprecated legacy employee provisioning endpoint. Returns `410 Gone` unless `AUTH_LEGACY_EMPLOYEE_SIGNUP_ENABLED=true`. |
 | `POST` | `/api/v1/auth/login` | Public | Signs in with email and password and returns a session including `user.platformRole`. |
-| `GET` | `/api/v1/auth/me` | Authenticated | Returns the current application user including `platformRole` and deprecated legacy-role compatibility fields. |
+| `GET` | `/api/v1/auth/me` | Authenticated | Returns the current application user including `platformRole`, deprecated legacy-role compatibility fields, and onboarding state. |
 
 ### Admin
 
@@ -489,6 +511,7 @@ Only variable names are documented. Do not commit real values.
 | `PORT` | No | HTTP server port; defaults to `5000`. |
 | `SUPABASE_URL` | Yes | Supabase project URL. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Backend-only Supabase service role key. |
+| `AUTH_LEGACY_EMPLOYEE_SIGNUP_ENABLED` | No | Set to `true` only for temporary compatibility with the deprecated public employee signup flow. |
 | `GEMINI_API_KEY` | No | Enables Gemini document analysis. |
 | `GEMINI_MODEL` | No | Overrides the Gemini model; defaults in code when omitted. |
 
@@ -499,6 +522,7 @@ Only variable names are documented. Do not commit real values.
 | `npm run dev` | Run the API with `tsx watch src/server.ts`. |
 | `npm run build` | Compile TypeScript into `dist`. |
 | `npm start` | Run `dist/server.js`. |
+| `npm run verify:onboarding` | Exercise public registration, organization bootstrap, invitation-only activation, and legacy-signup deprecation checks. |
 | `npm run verify:tenant-seed` | Seed or refresh the dedicated two-organization verification dataset. |
 | `npm run verify:tenant-isolation` | Seed the dataset and run automated multi-tenant API isolation checks against a running backend. |
 
@@ -510,7 +534,17 @@ Recommended flow:
 
 1. Start the backend with the target test environment variables.
 2. Run `npm run build`.
-3. Run `npm run verify:tenant-isolation`.
+3. Run `npm run verify:onboarding`.
+4. Run `npm run verify:tenant-isolation`.
+
+The onboarding verification currently covers:
+
+- identity-only public registration
+- onboarding state before and after first-organization bootstrap
+- organization-admin bootstrap membership creation
+- first-organization-only MVP restriction
+- invitation-only employee and supervisor activation
+- legacy public employee signup deprecation when the compatibility flag is off
 
 The verification dataset includes:
 
