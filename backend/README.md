@@ -125,7 +125,8 @@ Authentication uses Supabase Auth JWTs. `authenticateUser` reads the Bearer toke
 
 Authorization is split between platform-level and organization-level checks:
 
-- `requireRole()` uses the legacy `users.role` field for platform administration
+- `requirePlatformRole()` uses `users.platform_role` for platform administration
+- `requireRole()` remains as a deprecated compatibility alias and must not be used for new authorization work
 - `resolveOrganizationContext` plus `requireOrganizationRole()` enforce tenant-scoped access from `organization_members`
 
 ```mermaid
@@ -138,22 +139,27 @@ sequenceDiagram
   Client->>API: Request with Authorization Bearer token
   API->>SupabaseAuth: getUser(token)
   SupabaseAuth-->>API: Auth user
-  API->>DB: Select role by auth_user_id
-  DB-->>API: admin, supervisor, or employee
+  API->>DB: Select platform role by auth_user_id
+  DB-->>API: platform_admin or null
   API-->>Client: Continue or return 401/403
 ```
 
 Platform role values:
 
-- `admin`
-- `supervisor`
-- `employee`
+- `platform_admin`
 
 Organization membership role values:
 
 - `organization_admin`
 - `supervisor`
 - `employee`
+
+Legacy compatibility notes:
+
+- `users.role` remains temporarily for backward compatibility and migration safety
+- legacy values may still be `admin`, `supervisor`, or `employee`
+- only legacy `admin` values are backfilled into `users.platform_role = 'platform_admin'`
+- legacy `employee` and `supervisor` values must not be treated as platform authorization
 
 Public signup always creates an `employee` application user. Tenant-scoped business routes must use verified organization membership rather than `users.role`.
 
@@ -221,7 +227,7 @@ Replay expectations:
 Known intentional differences from live:
 
 - base-table drift outside the skills tables is documented but not normalized automatically when doing so would change current production behavior
-- examples include `users.role` and `employees.employment_type` being `text` in live while older repository migrations model them more strictly
+- examples include `users.role`, `users.platform_role`, and `employees.employment_type` being `text` in live while older repository migrations model them more strictly
 - nullable and timestamp-shape differences on legacy tables are also documented drift unless the application requires a safe forward migration
 
 Warning:
@@ -241,7 +247,8 @@ Source of truth for organization tenancy:
 Current behavior:
 
 - organization membership role is the source of truth for organization-scoped authorization
-- `users.role` remains as a temporary legacy compatibility field
+- `users.platform_role` is the source of truth for platform-only authorization
+- `users.role` remains as a temporary deprecated compatibility field
 - the selected organization is supplied by `X-Organization-Id`
 - the header only selects context; it never grants membership on its own
 - invited and suspended memberships are returned by `GET /api/v1/organizations` for state rendering but cannot access tenant data
@@ -269,7 +276,7 @@ Current tenant isolation guarantees:
 
 Known limitations:
 
-- `users.role` still exists for platform compatibility and must not be reused for tenant authorization
+- `users.role` still exists for legacy compatibility and must not be reused for tenant authorization
 - service-role backend flows still require explicit organization filters; frontend filtering is not security
 - PDF and DOCX extraction remain limited
 - clean replay with Supabase CLI has not been executed in this repository environment because the CLI is unavailable here
@@ -281,6 +288,34 @@ Rules for future multi-tenant work:
 - always scope migrated service queries by verified `organization_id`
 - use membership role middleware for tenant authorization instead of `users.role`
 - keep platform administration and organization administration separate
+
+## Platform and Tenant Role Model
+
+The backend uses two separate authorization layers:
+
+- platform identity: `users.platform_role`
+- tenant membership: `organization_members.role`
+
+Responsibilities:
+
+- `platform_admin` is for SaaS-platform administration only
+- `organization_admin`, `supervisor`, and `employee` are tenant roles only
+- a platform admin does not bypass tenant membership checks automatically
+- a single user may hold `platform_admin` plus one or more tenant memberships independently
+
+Middleware responsibilities:
+
+- `authenticateUser` verifies the JWT and populates `req.user`
+- `requirePlatformRole("platform_admin")` enforces platform-only routes
+- `resolveOrganizationContext` validates the selected `X-Organization-Id` against membership
+- `requireOrganizationRole(...)` enforces tenant role requirements after organization resolution
+
+Migration strategy:
+
+- new code must read platform authorization from `users.platform_role`
+- new tenant code must read authorization from `organization_members.role`
+- `users.role` remains deprecated compatibility data until remaining contracts no longer depend on it
+- never store tenant membership roles in `platform_role`
 
 ## API Reference
 
@@ -298,19 +333,19 @@ All API routes are mounted under `/api/v1`.
 | Method | Path | Access | Description |
 | --- | --- | --- | --- |
 | `POST` | `/api/v1/auth/signup` | Public | Creates a Supabase Auth user, creates an app user with `employee` role, and returns a session. |
-| `POST` | `/api/v1/auth/login` | Public | Signs in with email and password and returns a session. |
-| `GET` | `/api/v1/auth/me` | Authenticated | Returns the current application user. |
+| `POST` | `/api/v1/auth/login` | Public | Signs in with email and password and returns a session including `user.platformRole`. |
+| `GET` | `/api/v1/auth/me` | Authenticated | Returns the current application user including `platformRole` and deprecated legacy-role compatibility fields. |
 
 ### Admin
 
 | Method | Path | Access | Description |
 | --- | --- | --- | --- |
-| `GET` | `/api/v1/admin/skills/pending` | Admin | Lists unapproved skills. |
-| `PATCH` | `/api/v1/admin/skills/:skillId/approve` | Admin | Approves a pending skill. |
-| `DELETE` | `/api/v1/admin/skills/:skillId` | Admin | Deletes a rejected skill and related employee links. |
-| `GET` | `/api/v1/admin/dashboard` | Admin | Returns a basic admin welcome response. |
-| `GET` | `/api/v1/admin/users` | Admin | Lists application users. |
-| `PATCH` | `/api/v1/admin/users/:userId/role` | Admin | Updates an application user's role. |
+| `GET` | `/api/v1/admin/skills/pending` | Platform admin | Lists unapproved skills. |
+| `PATCH` | `/api/v1/admin/skills/:skillId/approve` | Platform admin | Approves a pending skill. |
+| `DELETE` | `/api/v1/admin/skills/:skillId` | Platform admin | Deletes a rejected skill and related employee links. |
+| `GET` | `/api/v1/admin/dashboard` | Platform admin | Returns a basic platform-admin response. |
+| `GET` | `/api/v1/admin/users` | Platform admin | Lists application users. |
+| `PATCH` | `/api/v1/admin/users/:userId/role` | Platform admin | Updates the legacy compatibility role and synchronized platform-role mapping. |
 
 ### Employees
 
@@ -481,6 +516,8 @@ The verification dataset includes:
 
 - Organization A and Organization B
 - organization admins, supervisors, and employees in each organization
+- one platform admin without memberships
+- one platform admin with an active tenant membership
 - one dual-role user across both organizations
 - one invited membership
 - one suspended membership
@@ -488,6 +525,7 @@ The verification dataset includes:
 
 The automated checks currently cover:
 
+- platform-admin versus tenant-role separation
 - organization discovery and invitation-state visibility
 - missing and invalid `X-Organization-Id` handling
 - invited and suspended membership denial
