@@ -17,19 +17,19 @@ const router = Router();
 router.get(
   "/skills/pending",
   authenticateUser,
-  requireRole("admin", "supervisor"),
+  requireRole("admin"),
   getPendingSkills
 );
 router.patch(
   "/skills/:skillId/approve",
   authenticateUser,
-  requireRole("admin", "supervisor"),
+  requireRole("admin"),
   approveSkillHandler
 );
 router.delete(
   "/skills/:skillId",
   authenticateUser,
-  requireRole("admin", "supervisor"),
+  requireRole("admin"),
   rejectSkillHandler
 );
 
