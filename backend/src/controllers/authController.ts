@@ -2,9 +2,10 @@ import type { NextFunction, Request, Response } from "express";
 import {
   getCurrentAppUser,
   login,
+  register,
   signup,
 } from "../services/authService.js";
-import type { LoginInput } from "../types/auth.js";
+import type { LoginInput, RegisterInput } from "../types/auth.js";
 import type { PublicEmployeeSignupInput } from "../types/provisioning.js";
 import { AppError } from "../utils/appError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
@@ -24,6 +25,21 @@ export async function signupUser(req: Request, res: Response, next: NextFunction
     const data = await signup(input);
 
     return sendSuccess(res, 201, "Account created successfully.", data);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function registerUser(req: Request, res: Response, next: NextFunction) {
+  try {
+    const input: RegisterInput = {
+      email: req.body.email,
+      password: req.body.password,
+    };
+
+    const data = await register(input);
+
+    return sendSuccess(res, 201, "Account registered successfully.", data);
   } catch (error) {
     return next(error);
   }

@@ -16,6 +16,11 @@ export interface PublicEmployeeSignupInput {
   skills?: ProvisioningSkillInput[];
 }
 
+export interface PublicAccountRegistrationInput {
+  email: string;
+  password: string;
+}
+
 export interface AdminProvisionUserInput {
   email: string;
   role: Extract<LegacyUserRole, "employee" | "supervisor">;

@@ -1,50 +1,26 @@
-import { supabase, supabaseAuth } from "../config/supabase.js";
+import { supabaseAuth } from "../config/supabase.js";
 import type {
-  AuthenticatedAppUser,
+  AuthUserContextResponse,
   AuthSessionResponse,
   LoginInput,
-  LegacyUserRole,
-  PlatformRole,
+  RegisterInput,
 } from "../types/auth.js";
 import type { PublicEmployeeSignupInput } from "../types/provisioning.js";
 import { AppError } from "../utils/appError.js";
-import { signupEmployeeWithProvisioning } from "./accountProvisioningService.js";
+import {
+  registerCustomerAccount,
+  signupEmployeeWithProvisioning,
+} from "./accountProvisioningService.js";
+import {
+  getAppUserByAuthId,
+  getAuthOnboardingStateForAppUser,
+} from "./userService.js";
 
-interface AppUserRow {
-  id: string;
-  auth_user_id: string;
-  email: string | null;
-  role: LegacyUserRole | null;
-  platform_role: PlatformRole | null;
-}
-
-function mapAppUser(row: AppUserRow): AuthenticatedAppUser {
-  return {
-    id: row.id,
-    authUserId: row.auth_user_id,
-    email: row.email ?? "",
-    platformRole: row.platform_role,
-    legacyRole: row.role,
-    role: row.role,
-  };
-}
-
-async function getAppUserByAuthId(authUserId: string) {
-  const { data, error } = await supabase
-    .from("users")
-    .select("id, auth_user_id, email, role, platform_role")
-    .eq("auth_user_id", authUserId)
-    .single<AppUserRow>();
-
-  if (error || !data) {
-    throw new AppError("Application user profile was not found.", 404);
-  }
-
-  return mapAppUser(data);
-}
+const LEGACY_EMPLOYEE_SIGNUP_ENABLED =
+  process.env.AUTH_LEGACY_EMPLOYEE_SIGNUP_ENABLED === "true";
 
 function buildSessionResponse(
-  appUser: AuthenticatedAppUser,
+  authContext: AuthUserContextResponse,
   accessToken: string | undefined,
   refreshToken: string | undefined,
   expiresAt: number | undefined
@@ -54,15 +30,35 @@ function buildSessionResponse(
   }
 
   return {
-    user: appUser,
+    ...authContext,
     accessToken,
     refreshToken,
     expiresAt: expiresAt ?? null,
   };
 }
 
+async function buildAuthUserContext(authUserId: string): Promise<AuthUserContextResponse> {
+  const appUser = await getAppUserByAuthId(authUserId);
+
+  return {
+    user: appUser,
+    onboarding: await getAuthOnboardingStateForAppUser(appUser.id),
+  };
+}
+
 export async function signup(input: PublicEmployeeSignupInput) {
+  if (!LEGACY_EMPLOYEE_SIGNUP_ENABLED) {
+    throw new AppError(
+      "Legacy employee signup has been deprecated. Register an account, create an organization, or accept an invitation.",
+      410
+    );
+  }
+
   return signupEmployeeWithProvisioning(input);
+}
+
+export async function register(input: RegisterInput) {
+  return registerCustomerAccount(input);
 }
 
 export async function login(input: LoginInput) {
@@ -75,10 +71,10 @@ export async function login(input: LoginInput) {
     throw new AppError("Invalid email or password.", 401);
   }
 
-  const appUser = await getAppUserByAuthId(data.user.id);
+  const authContext = await buildAuthUserContext(data.user.id);
 
   return buildSessionResponse(
-    appUser,
+    authContext,
     data.session.access_token,
     data.session.refresh_token,
     data.session.expires_at
@@ -86,5 +82,5 @@ export async function login(input: LoginInput) {
 }
 
 export async function getCurrentAppUser(authUserId: string) {
-  return getAppUserByAuthId(authUserId);
+  return buildAuthUserContext(authUserId);
 }

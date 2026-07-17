@@ -213,6 +213,38 @@ function mapLegacyUserRole(
   return role === "supervisor" ? "supervisor" : "employee";
 }
 
+async function createSupabaseInvitationUser(email: string) {
+  const inviteResponse = await supabase.auth.admin.inviteUserByEmail(email);
+
+  if (!inviteResponse.error && inviteResponse.data.user) {
+    return inviteResponse.data.user;
+  }
+
+  if (inviteResponse.error?.status !== 429) {
+    throw new AppError("Unable to create organization invitation.", 400, true, {
+      cause: inviteResponse.error,
+    });
+  }
+
+  const generateLinkResponse = await supabase.auth.admin.generateLink({
+    type: "invite",
+    email,
+  });
+
+  if (generateLinkResponse.error || !generateLinkResponse.data.user) {
+    throw new AppError("Unable to create organization invitation.", 400, true, {
+      cause: generateLinkResponse.error ?? inviteResponse.error,
+    });
+  }
+
+  logOrganizationEvent("organization_invitation_generate_link_fallback", {
+    email,
+    reason: inviteResponse.error.code ?? "rate_limited",
+  });
+
+  return generateLinkResponse.data.user;
+}
+
 async function ensureNoActiveOrganizationMembership(userId: string) {
   const { count, error } = await supabase
     .from("organization_members")
@@ -776,17 +808,10 @@ export async function createOrganizationInvitation(
   await ensureOrganizationAdmin(inviter.id, organizationId);
 
   const normalizedEmail = normalizeEmail(input.email);
-
-  const { data: invitedAuthUser, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
-    normalizedEmail
-  );
-
-  if (inviteError || !invitedAuthUser.user) {
-    throw new AppError("Unable to create organization invitation.", 400);
-  }
+  const invitedAuthUser = await createSupabaseInvitationUser(normalizedEmail);
 
   const invitedAppUser = await getOrCreateAppUserForInvitation({
-    authUserId: invitedAuthUser.user.id,
+    authUserId: invitedAuthUser.id,
     email: normalizedEmail,
     role: input.role,
   });

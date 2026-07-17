@@ -67,6 +67,47 @@ function validateEmployeeProvisioningFields(body: Record<string, unknown>) {
   validateProvisioningSkills(body, "skills");
 }
 
+export function validateRegisterRequest(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const body = requireBody(req.body);
+    requireEmail(body, "email");
+    requirePassword(body, "password");
+
+    const forbiddenFields = [
+      "role",
+      "platform_role",
+      "organization_id",
+      "membership_role",
+      "full_name",
+      "bio",
+      "department",
+      "employment_type",
+      "weekly_capacity_hours",
+      "skills",
+      "user_id",
+      "employee_id",
+      "supervisor_id",
+      "workload_percentage",
+      "availability_percentage",
+      "performance_score",
+    ];
+
+    for (const field of forbiddenFields) {
+      if (body[field] !== undefined) {
+        throw new AppError(`${field} cannot be assigned during account registration.`, 400);
+      }
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
+
 export function validateSignupRequest(
   req: Request,
   res: Response,
