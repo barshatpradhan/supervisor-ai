@@ -20,12 +20,3 @@ export function createOrganization(request: CreateOrganizationRequest) {
     },
   )
 }
-
-export function acceptOrganizationInvitation(organizationId: string) {
-  return postJson<OrganizationCreationResponse>('/organizations/invitations/accept', undefined, {
-    headers: {
-      'X-Organization-Id': organizationId,
-    },
-    skipOrganizationContext: true,
-  })
-}
