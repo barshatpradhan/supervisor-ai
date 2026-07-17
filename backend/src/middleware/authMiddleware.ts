@@ -32,3 +32,38 @@ export async function authenticateUser(
     next(error);
   }
 }
+
+export async function authenticateUserIfPresent(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+      return next();
+    }
+
+    if (!authHeader.startsWith("Bearer ")) {
+      throw new AppError("Missing or invalid authorization header.", 401);
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser(token);
+
+    if (error || !user) {
+      throw new AppError("Invalid or expired token.", 401);
+    }
+
+    req.user = user;
+
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}

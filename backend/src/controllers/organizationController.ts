@@ -7,9 +7,12 @@ import {
   listCurrentUserOrganizations,
   listOrganizationInvitations,
   listOrganizationMembers,
+  resendOrganizationInvitation,
+  revokeOrganizationInvitation,
 } from "../services/organizationService.js";
 import type {
   CreateOrganizationInvitationInput,
+  OrganizationInvitationMutationResult,
   OrganizationInvitationSkillInput,
 } from "../types/organization.js";
 import { AppError } from "../utils/appError.js";
@@ -27,6 +30,18 @@ import {
 
 const EMPLOYMENT_TYPES = ["full_time", "part_time"] as const;
 const ORGANIZATION_INVITATION_ROLES = ["employee", "supervisor"] as const;
+const INVITATION_DEBUG_RETURN_URL = process.env.INVITATION_DEBUG_RETURN_URL === "true";
+
+function sanitizeInvitationMutationResult(
+  result: OrganizationInvitationMutationResult
+): Omit<OrganizationInvitationMutationResult, "debug"> | OrganizationInvitationMutationResult {
+  if (INVITATION_DEBUG_RETURN_URL) {
+    return result;
+  }
+
+  const { debug: _debug, ...safeResult } = result;
+  return safeResult;
+}
 
 function parseInvitationSkills(body: Record<string, unknown>) {
   const skills = body.skills;
@@ -216,7 +231,65 @@ export async function createOrganizationInvitationHandler(
       res,
       201,
       "Organization invitation created successfully.",
-      invitation
+      sanitizeInvitationMutationResult(invitation)
+    );
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function resendOrganizationInvitationHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  if (!req.user) {
+    return next(new AppError("Unauthorized.", 401));
+  }
+
+  try {
+    const organizationId = requireUuid(req.params.organizationId, "Organization id");
+    const invitationId = requireUuid(req.params.invitationId, "Invitation id");
+    const result = await resendOrganizationInvitation(
+      req.user.id,
+      organizationId,
+      invitationId
+    );
+
+    return sendSuccess(
+      res,
+      200,
+      "Organization invitation resent successfully.",
+      sanitizeInvitationMutationResult(result)
+    );
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function revokeOrganizationInvitationHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  if (!req.user) {
+    return next(new AppError("Unauthorized.", 401));
+  }
+
+  try {
+    const organizationId = requireUuid(req.params.organizationId, "Organization id");
+    const invitationId = requireUuid(req.params.invitationId, "Invitation id");
+    const result = await revokeOrganizationInvitation(
+      req.user.id,
+      organizationId,
+      invitationId
+    );
+
+    return sendSuccess(
+      res,
+      200,
+      "Organization invitation revoked successfully.",
+      sanitizeInvitationMutationResult(result)
     );
   } catch (error) {
     return next(error);
