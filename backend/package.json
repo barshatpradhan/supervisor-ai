@@ -9,6 +9,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "verify:onboarding": "tsx src/scripts/onboardingVerification.ts",
+    "verify:invitations": "tsx src/scripts/invitationVerification.ts",
     "verify:tenant-seed": "tsx src/scripts/tenantIsolationDataset.ts",
     "verify:tenant-isolation": "tsx src/scripts/tenantIsolationVerification.ts"
   },
