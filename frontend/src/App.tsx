@@ -12,6 +12,7 @@ import { AiRecommendationsPage } from './pages/AiRecommendationsPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { EmployeesPage } from './pages/EmployeesPage'
 import { ForbiddenPage } from './pages/ForbiddenPage'
+import { InvitationAcceptPage } from './pages/InvitationAcceptPage'
 import { LoginPage } from './pages/LoginPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { ProjectsPage } from './pages/ProjectsPage'
@@ -25,6 +26,7 @@ function App() {
         <AuthProvider>
           <OrganizationProvider>
             <Routes>
+              <Route element={<InvitationAcceptPage />} path="/invitations/accept" />
               <Route element={<LoginPage />} path="/login" />
               <Route element={<SignupPage />} path="/signup" />
               <Route element={<ProtectedRoute />}>
