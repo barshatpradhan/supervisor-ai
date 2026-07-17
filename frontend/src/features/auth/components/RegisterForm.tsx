@@ -6,25 +6,39 @@ import { Button } from '../../../components/ui/Button'
 import { getPostAuthDestination } from '../../invitations/utils/invitationNavigation'
 import { useAuth } from '../hooks/useAuth'
 
-export function LoginForm() {
+const inputClassName =
+  'min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-primary-600 focus:ring-3 focus:ring-primary-200'
+
+interface RegisterFormProps {
+  helperText?: string
+}
+
+export function RegisterForm({ helperText }: RegisterFormProps) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { login } = useAuth()
+  const { register } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
+    if (password !== confirmPassword) {
+      setError('Passwords must match before you continue.')
+      return
+    }
+
     setError(null)
     setIsSubmitting(true)
 
     try {
-      await login({ email, password })
+      await register({ email, password })
       navigate(getPostAuthDestination(location.search), { replace: true })
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Unable to log in.')
+      setError(caughtError instanceof Error ? caughtError.message : 'Unable to create account.')
     } finally {
       setIsSubmitting(false)
     }
@@ -32,13 +46,15 @@ export function LoginForm() {
 
   return (
     <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
-      {error ? <ErrorState message={error} title="Login failed" /> : null}
+      {error ? <ErrorState message={error} title="Registration failed" /> : null}
+
+      {helperText ? <p className="text-sm leading-6 text-ink-600">{helperText}</p> : null}
 
       <label className="grid gap-2 text-sm font-semibold text-ink-800">
         Email
         <input
           autoComplete="email"
-          className="min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-primary-600 focus:ring-3 focus:ring-primary-200"
+          className={inputClassName}
           onChange={(event) => setEmail(event.target.value)}
           placeholder="you@example.com"
           required
@@ -50,18 +66,33 @@ export function LoginForm() {
       <label className="grid gap-2 text-sm font-semibold text-ink-800">
         Password
         <input
-          autoComplete="current-password"
-          className="min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-primary-600 focus:ring-3 focus:ring-primary-200"
+          autoComplete="new-password"
+          className={inputClassName}
+          minLength={8}
           onChange={(event) => setPassword(event.target.value)}
-          placeholder="Enter your password"
+          placeholder="Create a password"
           required
           type="password"
           value={password}
         />
       </label>
 
+      <label className="grid gap-2 text-sm font-semibold text-ink-800">
+        Confirm password
+        <input
+          autoComplete="new-password"
+          className={inputClassName}
+          minLength={8}
+          onChange={(event) => setConfirmPassword(event.target.value)}
+          placeholder="Repeat your password"
+          required
+          type="password"
+          value={confirmPassword}
+        />
+      </label>
+
       <Button className="mt-2" disabled={isSubmitting} type="submit">
-        {isSubmitting ? 'Signing in...' : 'Sign in'}
+        {isSubmitting ? 'Creating account...' : 'Create account'}
       </Button>
     </form>
   )

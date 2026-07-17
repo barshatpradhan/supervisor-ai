@@ -7,13 +7,16 @@ interface RoleGuardProps {
 }
 
 export function RoleGuard({ allowedRoles }: RoleGuardProps) {
-  const { user } = useAuth()
+  const { platformRole, user } = useAuth()
 
   if (!user) {
     return <Navigate replace to="/login" />
   }
 
-  if (!allowedRoles.includes(user.role)) {
+  const effectiveRole: UserRole | null =
+    platformRole === 'platform_admin' ? 'admin' : user.role
+
+  if (!effectiveRole || !allowedRoles.includes(effectiveRole)) {
     return <Navigate replace to="/forbidden" />
   }
 

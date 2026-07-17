@@ -1,7 +1,10 @@
 import { createContext } from 'react'
 import type {
+  AuthOnboardingState,
   AuthenticatedUser,
   LoginCredentials,
+  PlatformRole,
+  RegisterCredentials,
   SignupCredentials,
   UserRole,
 } from '../types/auth'
@@ -11,7 +14,10 @@ export interface AuthContextValue {
   isAuthenticated: boolean
   isLoading: boolean
   login: (credentials: LoginCredentials) => Promise<void>
-  logout: () => void
+  logout: (options?: { redirectTo?: string }) => void
+  onboarding: AuthOnboardingState | null
+  platformRole: PlatformRole | null
+  register: (credentials: RegisterCredentials) => Promise<void>
   role: UserRole | null
   signup: (credentials: SignupCredentials) => Promise<void>
   user: AuthenticatedUser | null
