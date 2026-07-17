@@ -17,6 +17,11 @@ export interface LoginInput {
   password: string;
 }
 
+export interface RegisterInput {
+  email: string;
+  password: string;
+}
+
 export interface AuthenticatedAppUser {
   id: string;
   authUserId: string;
@@ -32,8 +37,20 @@ export interface AuthenticatedAppUser {
   role: LegacyUserRole | null;
 }
 
+export interface AuthOnboardingState {
+  hasActiveOrganization: boolean;
+  requiresOrganizationCreation: boolean;
+  hasPendingInvitations: boolean;
+}
+
+export interface AuthUserContextResponse {
+  user: AuthenticatedAppUser;
+  onboarding: AuthOnboardingState;
+}
+
 export interface AuthSessionResponse {
   user: AuthenticatedAppUser;
+  onboarding: AuthOnboardingState;
   accessToken: string;
   refreshToken: string;
   expiresAt: number | null;

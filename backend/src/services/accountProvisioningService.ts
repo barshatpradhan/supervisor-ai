@@ -5,12 +5,14 @@ import {
 import type {
   AuthSessionResponse,
   AuthenticatedAppUser,
+  AuthUserContextResponse,
   LegacyUserRole,
   PlatformRole,
 } from "../types/auth.js";
 import type {
   AdminProvisionUserInput,
   ProvisionedAdminUserResponse,
+  PublicAccountRegistrationInput,
   ProvisioningSkillInput,
   PublicEmployeeSignupInput,
 } from "../types/provisioning.js";
@@ -24,7 +26,10 @@ import {
   createSupervisorProfileRecordForUser,
   type CreateSupervisorProfileRecordInput,
 } from "./supervisorService.js";
-import { getAppUserByAuthId } from "./userService.js";
+import {
+  getAppUserByAuthId,
+  getAuthOnboardingStateForAppUser,
+} from "./userService.js";
 
 interface ProvisioningCleanupState {
   appUserId: string | null;
@@ -36,11 +41,12 @@ interface AppUserInsertRow {
   id: string;
   auth_user_id: string;
   email: string | null;
-  role: Extract<LegacyUserRole, "employee" | "supervisor">;
+  role: Extract<LegacyUserRole, "employee" | "supervisor"> | null;
   platform_role: PlatformRole | null;
 }
 
 const DEFAULT_EMPLOYEE_AVAILABILITY_PERCENTAGE = 100;
+const REGISTRATION_COMPATIBILITY_ROLE: LegacyUserRole = "admin";
 
 function logProvisioningEvent(
   event: string,
@@ -98,18 +104,27 @@ function createCleanupState(): ProvisioningCleanupState {
   };
 }
 
-function buildSessionResponse(
+async function buildAuthUserContextResponse(
+  appUser: AuthenticatedAppUser
+): Promise<AuthUserContextResponse> {
+  return {
+    user: appUser,
+    onboarding: await getAuthOnboardingStateForAppUser(appUser.id),
+  };
+}
+
+async function buildSessionResponse(
   appUser: AuthenticatedAppUser,
   accessToken: string | undefined,
   refreshToken: string | undefined,
   expiresAt: number | undefined
-): AuthSessionResponse {
+): Promise<AuthSessionResponse> {
   if (!accessToken || !refreshToken) {
     throw new AppError("Authentication session was not created.", 500, false);
   }
 
   return {
-    user: appUser,
+    ...(await buildAuthUserContextResponse(appUser)),
     accessToken,
     refreshToken,
     expiresAt: expiresAt ?? null,
@@ -160,18 +175,56 @@ async function cleanupProvisioning(state: ProvisioningCleanupState) {
 async function createAppUserRecord(input: {
   authUserId: string;
   email: string;
-  role: "employee" | "supervisor";
+  role: Extract<LegacyUserRole, "employee" | "supervisor"> | null;
 }) {
+  const insertPayload = {
+    auth_user_id: input.authUserId,
+    email: input.email,
+    role: input.role,
+    platform_role: null,
+  };
+
   const { data, error } = await supabase
     .from("users")
-    .insert({
-      auth_user_id: input.authUserId,
-      email: input.email,
-      role: input.role,
-      platform_role: null,
-    })
+    .insert(insertPayload)
     .select("id, auth_user_id, email, role, platform_role")
     .single<AppUserInsertRow>();
+
+  if (
+    input.role === null &&
+    error?.code === "23502" &&
+    error.message?.includes("\"role\"")
+  ) {
+    logProvisioningEvent("legacy_role_compatibility_fallback", {
+      operation: "insert_app_user",
+      compatibilityRole: REGISTRATION_COMPATIBILITY_ROLE,
+    });
+
+    const compatibilityInsert = await supabase
+      .from("users")
+      .insert({
+        ...insertPayload,
+        role: REGISTRATION_COMPATIBILITY_ROLE,
+      })
+      .select("id, auth_user_id, email, role, platform_role")
+      .single<AppUserInsertRow>();
+
+    if (!compatibilityInsert.error && compatibilityInsert.data) {
+      return compatibilityInsert.data;
+    }
+
+    throw wrapProvisioningError(
+      "Unable to create application user profile.",
+      "insert_app_user_with_compatibility_role",
+      compatibilityInsert.error ?? {
+        message: "Missing application user row in Supabase response.",
+      },
+      500,
+      {
+        role: REGISTRATION_COMPATIBILITY_ROLE,
+      }
+    );
+  }
 
   if (error || !data) {
     throw wrapProvisioningError(
@@ -316,8 +369,74 @@ export async function signupEmployeeWithProvisioning(
       authUserId: createdUser.user.id,
     });
 
-    return buildSessionResponse(
+    return await buildSessionResponse(
       provisionedUser,
+      sessionData.session.access_token,
+      sessionData.session.refresh_token,
+      sessionData.session.expires_at
+    );
+  } catch (error) {
+    if (cleanupState.authUserId) {
+      await cleanupProvisioning(cleanupState);
+    }
+
+    throw error;
+  }
+}
+
+export async function registerCustomerAccount(
+  input: PublicAccountRegistrationInput
+): Promise<AuthSessionResponse> {
+  const cleanupState = createCleanupState();
+  logProvisioningEvent("registration_started", {});
+
+  try {
+    const { data: createdUser, error: createUserError } =
+      await supabase.auth.admin.createUser({
+        email: input.email,
+        password: input.password,
+        email_confirm: true,
+      });
+
+    if (createUserError || !createdUser.user) {
+      throw wrapProvisioningError(
+        "Unable to create account.",
+        "register_auth_user",
+        createUserError ?? {
+          message: "Missing auth user in Supabase response.",
+        },
+        400
+      );
+    }
+
+    cleanupState.authUserId = createdUser.user.id;
+
+    const appUser = await createAppUserRecord({
+      authUserId: createdUser.user.id,
+      email: input.email,
+      role: null,
+    });
+    cleanupState.appUserId = appUser.id;
+
+    const { data: sessionData, error: loginError } =
+      await supabaseAuth.auth.signInWithPassword({
+        email: input.email,
+        password: input.password,
+      });
+
+    if (loginError || !sessionData.session) {
+      throw new AppError("Account created, but login failed.", 500);
+    }
+
+    const registeredUser = await getAppUserByAuthId(createdUser.user.id);
+
+    logProvisioningEvent("registration_completed", {
+      appUserId: appUser.id,
+      authUserId: createdUser.user.id,
+    });
+
+    return await buildSessionResponse(
+      registeredUser,
       sessionData.session.access_token,
       sessionData.session.refresh_token,
       sessionData.session.expires_at
@@ -401,7 +520,7 @@ export async function provisionManagedUser(
       user: {
         id: appUser.id,
         email: appUser.email ?? input.email,
-        role: appUser.role,
+        role: input.role,
         platformRole: appUser.platform_role,
       },
       invitation_sent: true,
