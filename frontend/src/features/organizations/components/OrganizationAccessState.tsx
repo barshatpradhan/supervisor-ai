@@ -5,7 +5,7 @@ import { EmptyState } from '../../../components/shared/EmptyState'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { useNotifications } from '../../../hooks/useNotifications'
-import { acceptOrganizationInvitation, createOrganization } from '../services/organizationService'
+import { createOrganization } from '../services/organizationService'
 import type { CurrentUserOrganizationListItem } from '../types/organization'
 import {
   formatOrganizationRole,
@@ -55,7 +55,6 @@ export function OrganizationAccessState({
   const [didEditSlug, setDidEditSlug] = useState(false)
   const [creationError, setCreationError] = useState<string | null>(null)
   const [isCreatingOrganization, setIsCreatingOrganization] = useState(false)
-  const [acceptingOrganizationId, setAcceptingOrganizationId] = useState<string | null>(null)
 
   const activeOrganizations = useMemo(
     () => getActiveOrganizations(organizations),
@@ -127,32 +126,6 @@ export function OrganizationAccessState({
     }
   }
 
-  async function handleAcceptInvitation(organizationId: string) {
-    setAcceptingOrganizationId(organizationId)
-
-    try {
-      await acceptOrganizationInvitation(organizationId)
-      onSelectOrganization(organizationId)
-      await onRefresh()
-      notifications.success({
-        message: 'Your membership is now active for this organization.',
-        title: 'Invitation accepted',
-      })
-    } catch (caughtError) {
-      const message =
-        caughtError instanceof Error
-          ? caughtError.message
-          : 'Unable to accept the invitation.'
-
-      notifications.error({
-        message,
-        title: 'Invitation acceptance failed',
-      })
-    } finally {
-      setAcceptingOrganizationId(null)
-    }
-  }
-
   return (
     <div className="grid gap-6">
       {needsSelection ? (
@@ -201,7 +174,8 @@ export function OrganizationAccessState({
                 Invitations waiting for your acceptance
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-600">
-                Accept an invitation to activate that organization in your workspace.
+                Invitation acceptance now happens through the secure email link that was sent to
+                the invited account. Use that link to activate the organization workspace.
               </p>
             </div>
 
@@ -222,16 +196,13 @@ export function OrganizationAccessState({
                           ? ` · Expires ${formatDateTime(entry.invitation.expires_at)}`
                           : ''}
                       </p>
+                      <p className="mt-2 text-sm text-ink-600">
+                        Open the invitation link from your email to finish joining this
+                        organization. If the link expired, ask an organization admin to resend it.
+                      </p>
                     </div>
-                    <Button
-                      disabled={acceptingOrganizationId === entry.organization.id}
-                      onClick={() => {
-                        void handleAcceptInvitation(entry.organization.id)
-                      }}
-                    >
-                      {acceptingOrganizationId === entry.organization.id
-                        ? 'Accepting...'
-                        : 'Accept invitation'}
+                    <Button disabled type="button" variant="secondary">
+                      Use invitation link
                     </Button>
                   </div>
                 </div>
