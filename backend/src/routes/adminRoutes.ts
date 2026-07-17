@@ -9,7 +9,7 @@ import {
 } from "../controllers/adminController.js";
 import { authenticateUser } from "../middleware/authMiddleware.js";
 import { validateAdminCreateUserRequest } from "../middleware/authValidation.js";
-import { requireRole } from "../middleware/roleMiddleware.js";
+import { requirePlatformRole } from "../middleware/roleMiddleware.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 
 const router = Router();
@@ -17,23 +17,23 @@ const router = Router();
 router.get(
   "/skills/pending",
   authenticateUser,
-  requireRole("admin"),
+  requirePlatformRole("platform_admin"),
   getPendingSkills
 );
 router.patch(
   "/skills/:skillId/approve",
   authenticateUser,
-  requireRole("admin"),
+  requirePlatformRole("platform_admin"),
   approveSkillHandler
 );
 router.delete(
   "/skills/:skillId",
   authenticateUser,
-  requireRole("admin"),
+  requirePlatformRole("platform_admin"),
   rejectSkillHandler
 );
 
-router.use(authenticateUser, requireRole("admin"));
+router.use(authenticateUser, requirePlatformRole("platform_admin"));
 
 router.get(
   "/dashboard",
