@@ -278,9 +278,21 @@ Current behavior:
 Invitation lifecycle:
 
 1. An active `organization_admin` creates an invitation in a verified organization context.
-2. The backend creates or reuses the app user, stores an `invited` membership, and persists invitation metadata.
-3. `GET /api/v1/organizations` exposes the invited membership to the invited user.
-4. `POST /api/v1/organizations/invitations/accept` activates the membership and provisions the organization-scoped profile.
+2. The backend generates a high-entropy raw token, stores only its hash, persists invitation metadata, and creates or reuses the invited app user plus `invited` membership.
+3. The backend builds a frontend acceptance URL and sends the invitation through the current Supabase invite or generate-link flow.
+4. `GET /api/v1/organizations` exposes invited memberships for state rendering.
+5. `GET /api/v1/invitations/:token` returns safe invitation-inspection metadata without requiring `X-Organization-Id`.
+6. `POST /api/v1/invitations/:token/accept` verifies token, identity, expiry, status, and membership ownership, then activates the membership and provisions the organization-scoped profile.
+7. `POST /api/v1/organizations/:organizationId/invitations/:invitationId/resend` rotates the token, refreshes expiry, and invalidates the previous acceptance URL.
+8. `POST /api/v1/organizations/:organizationId/invitations/:invitationId/revoke` marks the invitation revoked and keeps the pending membership suspended as revoked metadata.
+
+Invitation compatibility and deprecation notes:
+
+- the legacy organization-context acceptance route `POST /api/v1/organizations/invitations/accept` remains temporarily for frontend compatibility and is deprecated
+- the secure token-based lifecycle is the canonical flow for new frontend work
+- the repository now includes a forward migration for dedicated invitation-token columns
+- until that migration is applied in every environment, the runtime also persists invitation token metadata in a reserved `profile.__invitation_meta` envelope so the secure flow keeps working safely on pre-migration databases
+- once the migration is applied everywhere, this compatibility layer can be removed in a later cleanup phase
 
 Current tenant isolation guarantees:
 
@@ -358,6 +370,13 @@ All API routes are mounted under `/api/v1`.
 | `POST` | `/api/v1/auth/login` | Public | Signs in with email and password and returns a session including `user.platformRole`. |
 | `GET` | `/api/v1/auth/me` | Authenticated | Returns the current application user including `platformRole`, deprecated legacy-role compatibility fields, and onboarding state. |
 
+### Invitations
+
+| Method | Path | Access | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/invitations/:token` | Public or authenticated | Returns safe invitation-inspection metadata for the supplied token. |
+| `POST` | `/api/v1/invitations/:token/accept` | Authenticated | Accepts the invitation token for the authenticated email and provisions the tenant profile. |
+
 ### Admin
 
 | Method | Path | Access | Description |
@@ -397,6 +416,20 @@ All API routes are mounted under `/api/v1`.
 | `POST` | `/api/v1/projects/:projectId/documents` | Admin, supervisor | Uploads and analyzes a project document. |
 | `POST` | `/api/v1/projects/:projectId/recommendations` | Admin, supervisor | Generates and persists employee recommendations. |
 | `GET` | `/api/v1/projects/:projectId/recommendations` | Admin, supervisor | Returns the latest recommendation run for a project. |
+
+### Organizations
+
+| Method | Path | Access | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/organizations` | Authenticated | Lists the current user's active, invited, and suspended organization memberships. |
+| `POST` | `/api/v1/organizations` | Authenticated | Creates the caller's first organization and active `organization_admin` membership. |
+| `GET` | `/api/v1/organizations/:organizationId` | Organization member | Returns organization details in verified context. |
+| `GET` | `/api/v1/organizations/:organizationId/members` | Organization admin, supervisor | Lists organization members. |
+| `GET` | `/api/v1/organizations/:organizationId/invitations` | Organization admin | Lists organization invitations. |
+| `POST` | `/api/v1/organizations/:organizationId/invitations` | Organization admin | Creates an employee or supervisor invitation. |
+| `POST` | `/api/v1/organizations/:organizationId/invitations/:invitationId/resend` | Organization admin | Rotates the invitation token, extends expiry, and resends the acceptance link. |
+| `POST` | `/api/v1/organizations/:organizationId/invitations/:invitationId/revoke` | Organization admin | Revokes an open invitation and suspends the pending membership metadata. |
+| `POST` | `/api/v1/organizations/invitations/accept` | Authenticated | Deprecated legacy organization-context acceptance route. |
 
 ### Tasks
 
@@ -512,6 +545,8 @@ Only variable names are documented. Do not commit real values.
 | `SUPABASE_URL` | Yes | Supabase project URL. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Backend-only Supabase service role key. |
 | `AUTH_LEGACY_EMPLOYEE_SIGNUP_ENABLED` | No | Set to `true` only for temporary compatibility with the deprecated public employee signup flow. |
+| `FRONTEND_APP_URL` | Yes in production | Base frontend URL used to build invitation acceptance links. |
+| `INVITATION_DEBUG_RETURN_URL` | No | Development-only flag that returns the acceptance URL in create or resend responses for local verification. |
 | `GEMINI_API_KEY` | No | Enables Gemini document analysis. |
 | `GEMINI_MODEL` | No | Overrides the Gemini model; defaults in code when omitted. |
 
@@ -523,6 +558,7 @@ Only variable names are documented. Do not commit real values.
 | `npm run build` | Compile TypeScript into `dist`. |
 | `npm start` | Run `dist/server.js`. |
 | `npm run verify:onboarding` | Exercise public registration, organization bootstrap, invitation-only activation, and legacy-signup deprecation checks. |
+| `npm run verify:invitations` | Exercise secure invitation creation, inspection, acceptance, resend, revoke, and profile provisioning checks. |
 | `npm run verify:tenant-seed` | Seed or refresh the dedicated two-organization verification dataset. |
 | `npm run verify:tenant-isolation` | Seed the dataset and run automated multi-tenant API isolation checks against a running backend. |
 
@@ -535,7 +571,8 @@ Recommended flow:
 1. Start the backend with the target test environment variables.
 2. Run `npm run build`.
 3. Run `npm run verify:onboarding`.
-4. Run `npm run verify:tenant-isolation`.
+4. Run `npm run verify:invitations`.
+5. Run `npm run verify:tenant-isolation`.
 
 The onboarding verification currently covers:
 
@@ -545,6 +582,19 @@ The onboarding verification currently covers:
 - first-organization-only MVP restriction
 - invitation-only employee and supervisor activation
 - legacy public employee signup deprecation when the compatibility flag is off
+
+The invitation verification currently covers:
+
+- organization-admin invitation creation for employees and supervisors
+- safe public inspection of invitation state
+- authenticated email matching during acceptance
+- expired, revoked, and already-used invitation denial
+- resend token rotation and old-token invalidation
+- employee and supervisor profile provisioning during acceptance
+- pending-membership denial before acceptance
+- post-acceptance tenant access
+- cross-organization resend and revoke denial
+- hashed-token storage verification
 
 The verification dataset includes:
 
@@ -573,6 +623,7 @@ The automated checks currently cover:
 - Provide all required Supabase environment variables.
 - Keep `SUPABASE_SERVICE_ROLE_KEY` backend-only.
 - Ensure the Supabase schema, storage bucket, and skills repair migration are applied before enabling profile skills or recommendations.
+- Apply the secure invitation migration before removing the runtime compatibility envelope for pre-migration invitation rows.
 - Configure CORS explicitly for production; the current implementation uses default `cors()` behavior.
 - If the Supabase CLI is available, validate replay later with `supabase db reset`.
 
