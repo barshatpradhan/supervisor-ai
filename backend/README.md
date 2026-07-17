@@ -123,7 +123,10 @@ Error responses use:
 
 Authentication uses Supabase Auth JWTs. `authenticateUser` reads the Bearer token, verifies it with Supabase, and attaches the Supabase user to `req.user`.
 
-Role authorization uses the application `users` table. `requireRole()` loads the user's application role by `auth_user_id` and rejects users outside the allowed roles.
+Authorization is split between platform-level and organization-level checks:
+
+- `requireRole()` uses the legacy `users.role` field for platform administration
+- `resolveOrganizationContext` plus `requireOrganizationRole()` enforce tenant-scoped access from `organization_members`
 
 ```mermaid
 sequenceDiagram
@@ -140,13 +143,19 @@ sequenceDiagram
   API-->>Client: Continue or return 401/403
 ```
 
-Implemented roles:
+Platform role values:
 
 - `admin`
 - `supervisor`
 - `employee`
 
-Public signup always creates an `employee` application user. Admin APIs can change roles.
+Organization membership role values:
+
+- `organization_admin`
+- `supervisor`
+- `employee`
+
+Public signup always creates an `employee` application user. Tenant-scoped business routes must use verified organization membership rather than `users.role`.
 
 ## Supabase Integration
 
@@ -220,10 +229,7 @@ Warning:
 - do not edit an applied migration to "fix history"
 - add a new migration and document the reason instead
 
-## Multi-Tenant Organization Foundation
-
-Phase 14 adds the first organization-aware backend slice without claiming that every
-domain is tenant-isolated yet.
+## Multi-Tenant Security Model
 
 Source of truth for organization tenancy:
 
@@ -232,19 +238,40 @@ Source of truth for organization tenancy:
 - `organization_invitations`
 - forward-only migrations under `supabase/migrations/`
 
-Current foundation behavior:
+Current behavior:
 
 - organization membership role is the source of truth for organization-scoped authorization
 - `users.role` remains as a temporary legacy compatibility field
 - the selected organization is supplied by `X-Organization-Id`
 - the header only selects context; it never grants membership on its own
+- invited and suspended memberships are returned by `GET /api/v1/organizations` for state rendering but cannot access tenant data
 - invitation acceptance provisions employee or supervisor profiles for the selected organization
-- employee directory and project list/create/get/update are scoped by verified `organization_id`
+- employee directory, profiles, projects, tasks, documents, recommendations, and dashboards are scoped by verified organization context
 
-Intentional limits in this phase:
+Invitation lifecycle:
 
-- tasks, documents, recommendations, dashboards, and legacy self-profile flows are not fully migrated yet
-- legacy platform-role middleware still exists for non-migrated routes
+1. An active `organization_admin` creates an invitation in a verified organization context.
+2. The backend creates or reuses the app user, stores an `invited` membership, and persists invitation metadata.
+3. `GET /api/v1/organizations` exposes the invited membership to the invited user.
+4. `POST /api/v1/organizations/invitations/accept` activates the membership and provisions the organization-scoped profile.
+
+Current tenant isolation guarantees:
+
+- organization details, members, and invitations are organization scoped
+- employee directory and employee work-setting changes are organization scoped
+- employee and supervisor self-profile routes are organization scoped
+- projects are filtered by verified organization membership
+- tasks and task progress are filtered through `project -> task` ownership plus org-specific employee assignment checks
+- project documents and analyses are filtered through verified parent projects
+- recommendation generation and retrieval only consider employees in the selected organization
+- supervisor and employee dashboards summarize only the selected organization
+- child tables without direct `organization_id` have RLS enabled and direct `anon` / `authenticated` table access revoked
+
+Known limitations:
+
+- `users.role` still exists for platform compatibility and must not be reused for tenant authorization
+- service-role backend flows still require explicit organization filters; frontend filtering is not security
+- PDF and DOCX extraction remain limited
 - clean replay with Supabase CLI has not been executed in this repository environment because the CLI is unavailable here
 
 Rules for future multi-tenant work:
@@ -278,9 +305,9 @@ All API routes are mounted under `/api/v1`.
 
 | Method | Path | Access | Description |
 | --- | --- | --- | --- |
-| `GET` | `/api/v1/admin/skills/pending` | Admin, supervisor | Lists unapproved skills. |
-| `PATCH` | `/api/v1/admin/skills/:skillId/approve` | Admin, supervisor | Approves a pending skill. |
-| `DELETE` | `/api/v1/admin/skills/:skillId` | Admin, supervisor | Deletes a rejected skill and related employee links. |
+| `GET` | `/api/v1/admin/skills/pending` | Admin | Lists unapproved skills. |
+| `PATCH` | `/api/v1/admin/skills/:skillId/approve` | Admin | Approves a pending skill. |
+| `DELETE` | `/api/v1/admin/skills/:skillId` | Admin | Deletes a rejected skill and related employee links. |
 | `GET` | `/api/v1/admin/dashboard` | Admin | Returns a basic admin welcome response. |
 | `GET` | `/api/v1/admin/users` | Admin | Lists application users. |
 | `PATCH` | `/api/v1/admin/users/:userId/role` | Admin | Updates an application user's role. |
@@ -437,6 +464,35 @@ Only variable names are documented. Do not commit real values.
 | `npm run dev` | Run the API with `tsx watch src/server.ts`. |
 | `npm run build` | Compile TypeScript into `dist`. |
 | `npm start` | Run `dist/server.js`. |
+| `npm run verify:tenant-seed` | Seed or refresh the dedicated two-organization verification dataset. |
+| `npm run verify:tenant-isolation` | Seed the dataset and run automated multi-tenant API isolation checks against a running backend. |
+
+## Tenant Verification Procedure
+
+Use a non-production Supabase environment only.
+
+Recommended flow:
+
+1. Start the backend with the target test environment variables.
+2. Run `npm run build`.
+3. Run `npm run verify:tenant-isolation`.
+
+The verification dataset includes:
+
+- Organization A and Organization B
+- organization admins, supervisors, and employees in each organization
+- one dual-role user across both organizations
+- one invited membership
+- one suspended membership
+- organization-scoped projects, tasks, progress updates, documents, analyses, and recommendations
+
+The automated checks currently cover:
+
+- organization discovery and invitation-state visibility
+- missing and invalid `X-Organization-Id` handling
+- invited and suspended membership denial
+- role restriction enforcement
+- project, task, document, recommendation, dashboard, and profile isolation
 
 ## Deployment Notes
 
@@ -460,9 +516,9 @@ Only variable names are documented. Do not commit real values.
 | Done | Project document upload and TXT extraction. |
 | Done | Gemini or fallback document analysis. |
 | Done | Recommendation generation and persistence. |
+| Done | Multi-tenant organization isolation verification script. |
 | Planned | PDF and DOCX extraction implementation. |
 | Planned | Recommendation accept, reject, and override workflow. |
 | Planned | Notification and analytics APIs. |
 | Planned | Rate limiting for auth, uploads, and AI routes. |
-| Planned | Automated tests. |
 | Planned | Production CORS and observability hardening. |
