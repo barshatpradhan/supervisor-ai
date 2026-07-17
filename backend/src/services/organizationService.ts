@@ -1,5 +1,5 @@
 import { supabase } from "../config/supabase.js";
-import type { AuthenticatedAppUser, UserRole } from "../types/auth.js";
+import type { AuthenticatedAppUser, LegacyUserRole, PlatformRole } from "../types/auth.js";
 import type {
   CreateOrganizationInput,
   CreateOrganizationInvitationInput,
@@ -79,7 +79,8 @@ interface UserRow {
   id: string;
   auth_user_id: string;
   email: string | null;
-  role: UserRole;
+  role: LegacyUserRole | null;
+  platform_role: PlatformRole | null;
   created_at?: string | null;
 }
 
@@ -208,7 +209,7 @@ function normalizeEmail(value: string) {
 
 function mapLegacyUserRole(
   role: Extract<OrganizationMembershipRole, "employee" | "supervisor">
-): Extract<UserRole, "employee" | "supervisor"> {
+): Extract<LegacyUserRole, "employee" | "supervisor"> {
   return role === "supervisor" ? "supervisor" : "employee";
 }
 
@@ -298,7 +299,7 @@ async function getOrCreateAppUserForInvitation(input: {
   const normalizedEmail = normalizeEmail(input.email);
   const { data: existingUserByAuthId, error: existingByAuthError } = await supabase
     .from("users")
-    .select("id, auth_user_id, email, role")
+    .select("id, auth_user_id, email, role, platform_role")
     .eq("auth_user_id", input.authUserId)
     .maybeSingle<UserRow>();
 
@@ -319,7 +320,7 @@ async function getOrCreateAppUserForInvitation(input: {
 
   const { data: existingUserByEmail, error: existingByEmailError } = await supabase
     .from("users")
-    .select("id, auth_user_id, email, role")
+    .select("id, auth_user_id, email, role, platform_role")
     .eq("email", normalizedEmail)
     .maybeSingle<UserRow>();
 
@@ -332,7 +333,7 @@ async function getOrCreateAppUserForInvitation(input: {
       .from("users")
       .update({ auth_user_id: input.authUserId, email: normalizedEmail })
       .eq("id", existingUserByEmail.id)
-      .select("id, auth_user_id, email, role")
+      .select("id, auth_user_id, email, role, platform_role")
       .single<UserRow>();
 
     if (updateError || !updatedUser) {
@@ -348,8 +349,9 @@ async function getOrCreateAppUserForInvitation(input: {
       auth_user_id: input.authUserId,
       email: normalizedEmail,
       role: mapLegacyUserRole(input.role),
+      platform_role: null,
     })
-    .select("id, auth_user_id, email, role")
+    .select("id, auth_user_id, email, role, platform_role")
     .single<UserRow>();
 
   if (createError || !createdUser) {

@@ -1,9 +1,15 @@
-export type UserRole = "admin" | "supervisor" | "employee";
+export type LegacyUserRole = "admin" | "supervisor" | "employee";
+export type PlatformRole = "platform_admin";
+
+/**
+ * @deprecated Use LegacyUserRole or PlatformRole explicitly.
+ */
+export type UserRole = LegacyUserRole;
 
 export interface SignupInput {
   email: string;
   password: string;
-  role: UserRole;
+  role: LegacyUserRole;
 }
 
 export interface LoginInput {
@@ -15,7 +21,15 @@ export interface AuthenticatedAppUser {
   id: string;
   authUserId: string;
   email: string;
-  role: UserRole;
+  platformRole: PlatformRole | null;
+  /**
+   * @deprecated Legacy compatibility field derived from users.role.
+   */
+  legacyRole: LegacyUserRole | null;
+  /**
+   * @deprecated Temporary compatibility alias for legacyRole.
+   */
+  role: LegacyUserRole | null;
 }
 
 export interface AuthSessionResponse {

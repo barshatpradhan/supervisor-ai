@@ -105,10 +105,10 @@ async function insertEmployeeProfileRecord(input: {
 }
 
 export async function createEmployeeProfileRecordForUser(
-  appUser: { id: string; role: "employee" | "supervisor" | "admin" },
+  appUser: { id: string; legacyRole: "employee" | "supervisor" | "admin" | null },
   profileData: CreateEmployeeProfileRecordInput
 ) {
-  if (appUser.role !== "employee") {
+  if (appUser.legacyRole !== "employee") {
     throw new AppError("Only employee users can create employee profiles.", 403);
   }
 
