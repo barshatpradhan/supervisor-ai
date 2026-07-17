@@ -4,6 +4,8 @@ export type BackendOrganizationMembershipRole =
   | 'supervisor'
   | 'employee'
 export type BackendOrganizationMembershipStatus = 'invited' | 'active' | 'suspended'
+export type BackendPlatformRole = 'platform_admin'
+export type BackendInvitationPublicStatus = 'pending' | 'expired' | 'revoked' | 'accepted'
 
 export type BackendProjectStatus = 'draft' | 'active' | 'on_hold' | 'completed' | 'cancelled'
 
@@ -31,20 +33,36 @@ export interface BackendAuthUser {
   id: string
   authUserId: string
   email: string
-  role: BackendUserRole
+  platformRole: BackendPlatformRole | null
+  legacyRole: BackendUserRole | null
+  role: BackendUserRole | null
+}
+
+export interface BackendAuthOnboardingState {
+  hasActiveOrganization: boolean
+  requiresOrganizationCreation: boolean
+  hasPendingInvitations: boolean
 }
 
 export interface BackendAuthSession {
   user: BackendAuthUser
+  onboarding: BackendAuthOnboardingState
   accessToken: string
   refreshToken: string
   expiresAt: number | null
+}
+
+export interface BackendAuthUserContext {
+  user: BackendAuthUser
+  onboarding: BackendAuthOnboardingState
 }
 
 export interface LoginRequest {
   email: string
   password: string
 }
+
+export type RegisterRequest = LoginRequest
 
 export interface BackendProvisioningSkillInput {
   name: string
@@ -582,5 +600,91 @@ export interface BackendOrganizationCreationResponse {
     created_at: string
     created_by_user_id: string
     updated_at: string
+  }
+}
+
+export interface BackendInvitationInspectionResponse {
+  organization: {
+    id: string
+    name: string
+    slug: string
+  }
+  invited_email_masked: string
+  role: Extract<BackendOrganizationMembershipRole, 'employee' | 'supervisor'>
+  expires_at: string
+  status: BackendInvitationPublicStatus
+  authentication_required: boolean
+  current_user_email_matches: boolean | null
+}
+
+export interface BackendInvitationAcceptanceResponse {
+  organization: {
+    id: string
+    name: string
+    slug: string
+    created_at: string
+    created_by_user_id: string
+    updated_at: string
+  }
+  membership: {
+    id: string
+    organization_id: string
+    user_id: string
+    role: BackendOrganizationMembershipRole
+    status: BackendOrganizationMembershipStatus
+    invited_at: string | null
+    invited_by_user_id: string | null
+    joined_at: string | null
+    created_at: string
+  }
+  profileCreated: boolean
+}
+
+export interface BackendOrganizationInvitationSummary {
+  invitation_id: string
+  membership_id: string
+  email: string
+  role: Extract<BackendOrganizationMembershipRole, 'employee' | 'supervisor'>
+  invited_at: string
+  last_sent_at: string | null
+  send_count: number
+  expires_at: string
+  accepted_by_user_id: string | null
+  accepted_at: string | null
+  revoked_by_user_id: string | null
+  revoked_at: string | null
+  membership_status: BackendOrganizationMembershipStatus
+}
+
+export interface BackendOrganizationInvitationMutationResponse {
+  invitation: {
+    id: string
+    organization_id: string
+    user_id: string
+    membership_id: string
+    email: string
+    role: Extract<BackendOrganizationMembershipRole, 'employee' | 'supervisor'>
+    profile: Record<string, unknown>
+    invited_by_user_id: string
+    invited_at: string
+    last_sent_at: string | null
+    send_count: number
+    expires_at: string
+    accepted_by_user_id: string | null
+    accepted_at: string | null
+    revoked_by_user_id: string | null
+    revoked_at: string | null
+    created_at: string
+  }
+  membership: {
+    id: string
+    organization_id: string
+    user_id: string
+    role: BackendOrganizationMembershipRole
+    status: BackendOrganizationMembershipStatus
+    invited_at: string | null
+    invited_by_user_id: string | null
+    joined_at: string | null
+    created_at: string
   }
 }
