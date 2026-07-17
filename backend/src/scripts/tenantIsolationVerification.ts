@@ -12,6 +12,13 @@ interface ApiEnvelope<T> {
 }
 
 interface LoginResponse {
+  user: {
+    id: string;
+    email: string;
+    platformRole: "platform_admin" | null;
+    role?: "admin" | "supervisor" | "employee" | null;
+    legacyRole?: "admin" | "supervisor" | "employee" | null;
+  };
   accessToken: string;
 }
 
@@ -188,8 +195,9 @@ async function login(email: string, password: string) {
 
   assertCondition(response.body.success, `Login failed for ${email}.`);
   assertCondition(response.body.data?.accessToken, `Missing access token for ${email}.`);
+  assertCondition(response.body.data?.user, `Missing user payload for ${email}.`);
 
-  return response.body.data.accessToken;
+  return response.body.data;
 }
 
 async function runScenario(
@@ -224,19 +232,84 @@ export async function verifyTenantIsolation() {
     dualRoleEmployeeBProfileId,
   } = dataset.resources;
 
-  const organizationAdminAToken = await login(
+  const organizationAdminASession = await login(
     usersByKey.organizationAdminA.email,
     password
   );
-  const supervisorAToken = await login(usersByKey.supervisorA.email, password);
-  const employeeAToken = await login(usersByKey.employeeA.email, password);
-  const organizationAdminBToken = await login(
+  const supervisorASession = await login(usersByKey.supervisorA.email, password);
+  const employeeASession = await login(usersByKey.employeeA.email, password);
+  const organizationAdminBSession = await login(
     usersByKey.organizationAdminB.email,
     password
   );
-  const dualRoleToken = await login(usersByKey.dualRoleUser.email, password);
-  const invitedToken = await login(usersByKey.invitedUser.email, password);
-  const suspendedToken = await login(usersByKey.suspendedUser.email, password);
+  const dualRoleSession = await login(usersByKey.dualRoleUser.email, password);
+  const invitedSession = await login(usersByKey.invitedUser.email, password);
+  const suspendedSession = await login(usersByKey.suspendedUser.email, password);
+  const platformAdminSession = await login(usersByKey.platformAdmin.email, password);
+  const platformAdminMemberSession = await login(
+    usersByKey.platformAdminMember.email,
+    password
+  );
+
+  const organizationAdminAToken = organizationAdminASession.accessToken;
+  const supervisorAToken = supervisorASession.accessToken;
+  const employeeAToken = employeeASession.accessToken;
+  const organizationAdminBToken = organizationAdminBSession.accessToken;
+  const dualRoleToken = dualRoleSession.accessToken;
+  const invitedToken = invitedSession.accessToken;
+  const suspendedToken = suspendedSession.accessToken;
+  const platformAdminToken = platformAdminSession.accessToken;
+  const platformAdminMemberToken = platformAdminMemberSession.accessToken;
+
+  await runScenario("platform-role-separation", async () => {
+    assertCondition(
+      organizationAdminASession.user.platformRole === null,
+      "Organization admin A must not receive a platform role."
+    );
+    assertCondition(
+      employeeASession.user.platformRole === null,
+      "Employees must not receive a platform role."
+    );
+    assertCondition(
+      platformAdminSession.user.platformRole === "platform_admin",
+      "Legacy admin users must be backfilled to platform_admin."
+    );
+    assertCondition(
+      platformAdminMemberSession.user.platformRole === "platform_admin",
+      "Platform admins with memberships must retain the platform role."
+    );
+  });
+
+  await runScenario("platform-admin-route-boundaries", async () => {
+    const [platformAdminResponse, organizationAdminResponse, platformAdminOrganizations] =
+      await Promise.all([
+        requestJson<Record<string, unknown>>("/admin/dashboard", {
+          token: platformAdminToken,
+          allowedStatuses: [200],
+        }),
+        requestJson<Record<string, unknown>>("/admin/dashboard", {
+          token: organizationAdminAToken,
+          allowedStatuses: [403],
+        }),
+        requestJson<CurrentUserOrganizationListItem[]>("/organizations", {
+          token: platformAdminToken,
+          allowedStatuses: [200],
+        }),
+      ]);
+
+    assertCondition(
+      platformAdminResponse.body.success,
+      "Platform admins must access platform-only admin routes."
+    );
+    assertCondition(
+      organizationAdminResponse.body.message === "Forbidden.",
+      "Organization admins must not access platform-only admin routes."
+    );
+    assertCondition(
+      (platformAdminOrganizations.body.data ?? []).length === 0,
+      "Platform admin without memberships should receive an empty organization list."
+    );
+  });
 
   await runScenario("organizations-list", async () => {
     const [adminAResponse, dualRoleResponse, invitedResponse, suspendedResponse] =
@@ -376,21 +449,33 @@ export async function verifyTenantIsolation() {
   });
 
   await runScenario("organization-membership-denials", async () => {
-    const crossOrganizationResponse = await requestJson<ProjectSummary[]>("/projects", {
-      token: organizationAdminAToken,
-      organizationId: orgB.id,
-      allowedStatuses: [403],
-    });
-    const invitedResponse = await requestJson<ProjectSummary[]>("/projects", {
-      token: invitedToken,
-      organizationId: orgA.id,
-      allowedStatuses: [403],
-    });
-    const suspendedResponse = await requestJson<ProjectSummary[]>("/projects", {
-      token: suspendedToken,
-      organizationId: orgB.id,
-      allowedStatuses: [403],
-    });
+    const [
+      crossOrganizationResponse,
+      invitedResponse,
+      suspendedResponse,
+      platformAdminTenantResponse,
+    ] = await Promise.all([
+      requestJson<ProjectSummary[]>("/projects", {
+        token: organizationAdminAToken,
+        organizationId: orgB.id,
+        allowedStatuses: [403],
+      }),
+      requestJson<ProjectSummary[]>("/projects", {
+        token: invitedToken,
+        organizationId: orgA.id,
+        allowedStatuses: [403],
+      }),
+      requestJson<ProjectSummary[]>("/projects", {
+        token: suspendedToken,
+        organizationId: orgB.id,
+        allowedStatuses: [403],
+      }),
+      requestJson<ProjectSummary[]>("/projects", {
+        token: platformAdminToken,
+        organizationId: orgA.id,
+        allowedStatuses: [403],
+      }),
+    ]);
 
     assertCondition(
       crossOrganizationResponse.body.message === "Organization membership not found.",
@@ -404,6 +489,10 @@ export async function verifyTenantIsolation() {
     assertCondition(
       suspendedResponse.body.message === "Organization membership is suspended.",
       "Suspended memberships must be blocked from tenant data."
+    );
+    assertCondition(
+      platformAdminTenantResponse.body.message === "Organization membership not found.",
+      "Platform admins without membership must not access tenant data."
     );
   });
 
@@ -761,13 +850,36 @@ export async function verifyTenantIsolation() {
     );
   });
 
+  await runScenario("platform-admin-membership-independence", async () => {
+    const [adminRouteResponse, tenantRouteResponse] = await Promise.all([
+      requestJson<Record<string, unknown>>("/admin/dashboard", {
+        token: platformAdminMemberToken,
+        allowedStatuses: [200],
+      }),
+      requestJson<ProjectSummary[]>("/projects", {
+        token: platformAdminMemberToken,
+        organizationId: orgA.id,
+        allowedStatuses: [200],
+      }),
+    ]);
+
+    assertCondition(
+      adminRouteResponse.body.success,
+      "Platform admins with memberships must still access platform routes."
+    );
+    assertCondition(
+      tenantRouteResponse.body.data?.some((project) => project.id === projectAId),
+      "Platform admins with active memberships must use membership-based tenant access."
+    );
+  });
+
   return {
     apiBaseUrl: API_BASE_URL,
     organizationIds: {
       organizationA: orgA.id,
       organizationB: orgB.id,
     },
-    verifiedScenarios: 12,
+    verifiedScenarios: 15,
   };
 }
 

@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { supabase } from "../config/supabase.js";
 
 type LegacyUserRole = "admin" | "supervisor" | "employee";
+type PlatformRole = "platform_admin" | null;
 type MembershipRole = "organization_admin" | "supervisor" | "employee";
 type MembershipStatus = "active" | "invited" | "suspended";
 
@@ -10,6 +11,7 @@ interface TestUserDefinition {
   email: string;
   key: string;
   legacyRole: LegacyUserRole;
+  platformRole: PlatformRole;
 }
 
 interface SeededUser {
@@ -17,6 +19,7 @@ interface SeededUser {
   auth_user_id: string;
   email: string;
   role: LegacyUserRole;
+  platform_role: PlatformRole;
 }
 
 interface SeededOrganization {
@@ -67,47 +70,68 @@ const TEST_USERS: TestUserDefinition[] = [
   {
     key: "organizationAdminA",
     email: "tenant-org-admin-a@example.test",
-    legacyRole: "admin",
+    legacyRole: "supervisor",
+    platformRole: null,
   },
   {
     key: "supervisorA",
     email: "tenant-supervisor-a@example.test",
     legacyRole: "supervisor",
+    platformRole: null,
   },
   {
     key: "employeeA",
     email: "tenant-employee-a@example.test",
     legacyRole: "employee",
+    platformRole: null,
   },
   {
     key: "organizationAdminB",
     email: "tenant-org-admin-b@example.test",
-    legacyRole: "admin",
+    legacyRole: "supervisor",
+    platformRole: null,
   },
   {
     key: "supervisorB",
     email: "tenant-supervisor-b@example.test",
     legacyRole: "supervisor",
+    platformRole: null,
   },
   {
     key: "employeeB",
     email: "tenant-employee-b@example.test",
     legacyRole: "employee",
+    platformRole: null,
   },
   {
     key: "dualRoleUser",
     email: "tenant-dual-role@example.test",
     legacyRole: "supervisor",
+    platformRole: null,
   },
   {
     key: "invitedUser",
     email: "tenant-invited@example.test",
     legacyRole: "employee",
+    platformRole: null,
   },
   {
     key: "suspendedUser",
     email: "tenant-suspended@example.test",
     legacyRole: "employee",
+    platformRole: null,
+  },
+  {
+    key: "platformAdmin",
+    email: "tenant-platform-admin@example.test",
+    legacyRole: "admin",
+    platformRole: "platform_admin",
+  },
+  {
+    key: "platformAdminMember",
+    email: "tenant-platform-admin-member@example.test",
+    legacyRole: "admin",
+    platformRole: "platform_admin",
   },
 ];
 
@@ -124,7 +148,7 @@ function logSeedEvent(event: string, details: Record<string, unknown>) {
 async function createOrUpdateAuthUser(email: string) {
   const { data: existingAppUser } = await supabase
     .from("users")
-    .select("id, auth_user_id, email, role")
+    .select("id, auth_user_id, email, role, platform_role")
     .eq("email", email)
     .maybeSingle<SeededUser>();
 
@@ -149,26 +173,58 @@ async function createOrUpdateAuthUser(email: string) {
     email_confirm: true,
   });
 
-  if (error || !data.user) {
-    throw new Error(`Unable to create auth user for ${email}.`);
+  if (!error && data.user) {
+    return data.user.id;
   }
 
-  return data.user.id;
+  const { data: listedUsers, error: listUsersError } =
+    await supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+
+  if (!listUsersError) {
+    const matchingUser = listedUsers.users.find(
+      (user) => user.email?.toLowerCase() === email.toLowerCase()
+    );
+
+    if (matchingUser) {
+      const { data: updatedUser, error: updateError } =
+        await supabase.auth.admin.updateUserById(matchingUser.id, {
+          email,
+          password: TEST_PASSWORD,
+          email_confirm: true,
+        });
+
+      if (!updateError && updatedUser.user) {
+        return updatedUser.user.id;
+      }
+    }
+  }
+
+  throw new Error(`Unable to create auth user for ${email}.`);
 }
 
 async function ensureAppUser(definition: TestUserDefinition): Promise<SeededUser> {
   const authUserId = await createOrUpdateAuthUser(definition.email);
-  const { data: existingUser } = await supabase
+  const { data: existingUserByEmail } = await supabase
     .from("users")
-    .select("id, auth_user_id, email, role")
+    .select("id, auth_user_id, email, role, platform_role")
     .eq("email", definition.email)
     .maybeSingle<SeededUser>();
+  const { data: existingUserByAuthId } = await supabase
+    .from("users")
+    .select("id, auth_user_id, email, role, platform_role")
+    .eq("auth_user_id", authUserId)
+    .maybeSingle<SeededUser>();
+  const existingUser = existingUserByEmail ?? existingUserByAuthId;
 
   if (existingUser) {
     if (
       existingUser.auth_user_id === authUserId &&
       existingUser.email === definition.email &&
-      existingUser.role === definition.legacyRole
+      existingUser.role === definition.legacyRole &&
+      existingUser.platform_role === definition.platformRole
     ) {
       return existingUser;
     }
@@ -179,9 +235,10 @@ async function ensureAppUser(definition: TestUserDefinition): Promise<SeededUser
         auth_user_id: authUserId,
         email: definition.email,
         role: definition.legacyRole,
+        platform_role: definition.platformRole,
       })
       .eq("id", existingUser.id)
-      .select("id, auth_user_id, email, role")
+      .select("id, auth_user_id, email, role, platform_role")
       .single<SeededUser>();
 
     if (error || !updatedUser) {
@@ -197,8 +254,9 @@ async function ensureAppUser(definition: TestUserDefinition): Promise<SeededUser
       auth_user_id: authUserId,
       email: definition.email,
       role: definition.legacyRole,
+      platform_role: definition.platformRole,
     })
-    .select("id, auth_user_id, email, role")
+    .select("id, auth_user_id, email, role, platform_role")
     .single<SeededUser>();
 
   if (error || !createdUser) {
@@ -781,6 +839,13 @@ export async function seedTenantIsolationDataset(): Promise<DatasetContext> {
       status: "suspended",
       invitedByUserId: users.organizationAdminB.id,
     }),
+    platformAdminMemberSupervisorA: await ensureMembership({
+      organizationId: organizationA.id,
+      userId: users.platformAdminMember.id,
+      role: "supervisor",
+      status: "active",
+      invitedByUserId: users.organizationAdminA.id,
+    }),
   };
 
   await ensureInvitation({
@@ -857,6 +922,13 @@ export async function seedTenantIsolationDataset(): Promise<DatasetContext> {
     fullName: "Dual Role User",
     department: "Operations",
     bio: "Supervisor in organization A",
+  });
+  await ensureSupervisorProfile({
+    organizationId: organizationA.id,
+    userId: users.platformAdminMember.id,
+    fullName: "Platform Admin Member",
+    department: "Platform Operations",
+    bio: "Platform admin with supervisor membership in organization A",
   });
 
   await resetProjectScopedData(organizationA.id, [PROJECT_A_TITLE]);
