@@ -659,7 +659,7 @@ export async function listOrganizationMembers(organizationId: string) {
         status,
         invited_at,
         joined_at,
-        users (
+        users!organization_members_user_id_fkey (
           id,
           email
         )
