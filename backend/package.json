@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "verify:tenant-seed": "tsx src/scripts/tenantIsolationDataset.ts",
+    "verify:tenant-isolation": "tsx src/scripts/tenantIsolationVerification.ts"
   },
   "keywords": [],
   "author": "",
