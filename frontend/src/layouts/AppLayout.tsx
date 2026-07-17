@@ -75,16 +75,21 @@ export function AppLayout() {
   const title = routeTitles[location.pathname] ?? 'Dashboard'
   const navigationItems = getNavigationItems({
     activeRole,
-    isPlatformAdmin: user?.role === 'admin',
+    isPlatformAdmin: user?.platformRole === 'platform_admin',
   })
   const eyebrow = activeOrganization
-    ? `${getEyebrow(activeRole)} · ${activeOrganization.name}`
+    ? `${getEyebrow(activeRole)} | ${activeOrganization.name}`
     : getEyebrow(activeRole)
 
   return (
     <PageShell
       actions={
-        <Button onClick={logout} variant="secondary">
+        <Button
+          onClick={() => {
+            logout()
+          }}
+          variant="secondary"
+        >
           Sign out
         </Button>
       }

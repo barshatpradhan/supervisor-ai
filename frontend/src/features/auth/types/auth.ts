@@ -1,6 +1,10 @@
 export type {
+  BackendAuthOnboardingState as AuthOnboardingState,
   BackendAuthSession as AuthSession,
+  BackendAuthUserContext as AuthUserContext,
   BackendAuthUser as AuthenticatedUser,
+  BackendPlatformRole as PlatformRole,
+  RegisterRequest as RegisterCredentials,
   BackendUserRole as UserRole,
   LoginRequest as LoginCredentials,
   SignupRequest as SignupCredentials,
