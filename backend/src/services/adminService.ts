@@ -1,5 +1,5 @@
 import { supabase } from "../config/supabase.js";
-import type { UserRole } from "../types/auth.js";
+import type { LegacyUserRole, PlatformRole, UserRole } from "../types/auth.js";
 import { AppError } from "../utils/appError.js";
 
 const VALID_ROLES: UserRole[] = ["admin", "supervisor", "employee"];
@@ -11,7 +11,7 @@ export function isValidUserRole(value: unknown): value is UserRole {
 export async function listAppUsers() {
   const { data, error } = await supabase
     .from("users")
-    .select("id, auth_user_id, email, role, created_at")
+    .select("id, auth_user_id, email, role, platform_role, created_at")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -21,12 +21,19 @@ export async function listAppUsers() {
   return data;
 }
 
+function mapLegacyRoleToPlatformRole(role: LegacyUserRole): PlatformRole | null {
+  return role === "admin" ? "platform_admin" : null;
+}
+
 export async function updateAppUserRole(userId: string, role: UserRole) {
   const { data, error } = await supabase
     .from("users")
-    .update({ role })
+    .update({
+      role,
+      platform_role: mapLegacyRoleToPlatformRole(role),
+    })
     .eq("id", userId)
-    .select("id, auth_user_id, email, role, created_at")
+    .select("id, auth_user_id, email, role, platform_role, created_at")
     .single();
 
   if (error) {

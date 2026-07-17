@@ -3,7 +3,8 @@ import type {
   AuthenticatedAppUser,
   AuthSessionResponse,
   LoginInput,
-  UserRole,
+  LegacyUserRole,
+  PlatformRole,
 } from "../types/auth.js";
 import type { PublicEmployeeSignupInput } from "../types/provisioning.js";
 import { AppError } from "../utils/appError.js";
@@ -13,7 +14,8 @@ interface AppUserRow {
   id: string;
   auth_user_id: string;
   email: string | null;
-  role: UserRole;
+  role: LegacyUserRole | null;
+  platform_role: PlatformRole | null;
 }
 
 function mapAppUser(row: AppUserRow): AuthenticatedAppUser {
@@ -21,6 +23,8 @@ function mapAppUser(row: AppUserRow): AuthenticatedAppUser {
     id: row.id,
     authUserId: row.auth_user_id,
     email: row.email ?? "",
+    platformRole: row.platform_role,
+    legacyRole: row.role,
     role: row.role,
   };
 }
@@ -28,7 +32,7 @@ function mapAppUser(row: AppUserRow): AuthenticatedAppUser {
 async function getAppUserByAuthId(authUserId: string) {
   const { data, error } = await supabase
     .from("users")
-    .select("id, auth_user_id, email, role")
+    .select("id, auth_user_id, email, role, platform_role")
     .eq("auth_user_id", authUserId)
     .single<AppUserRow>();
 

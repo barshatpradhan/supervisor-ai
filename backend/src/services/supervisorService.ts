@@ -88,10 +88,10 @@ export async function createSupervisorProfile(
 }
 
 export async function createSupervisorProfileRecordForUser(
-  appUser: { id: string; role: "employee" | "supervisor" | "admin" },
+  appUser: { id: string; legacyRole: "employee" | "supervisor" | "admin" | null },
   profileData: CreateSupervisorProfileRecordInput
 ) {
-  if (appUser.role !== "supervisor") {
+  if (appUser.legacyRole !== "supervisor") {
     throw new AppError("Only supervisor users can create supervisor profiles.", 403);
   }
 

@@ -1,4 +1,4 @@
-import type { AuthSessionResponse, UserRole } from "./auth.js";
+import type { AuthSessionResponse, LegacyUserRole, PlatformRole } from "./auth.js";
 
 export interface ProvisioningSkillInput {
   name: string;
@@ -18,7 +18,7 @@ export interface PublicEmployeeSignupInput {
 
 export interface AdminProvisionUserInput {
   email: string;
-  role: Extract<UserRole, "employee" | "supervisor">;
+  role: Extract<LegacyUserRole, "employee" | "supervisor">;
   full_name: string;
   bio?: string;
   department?: string;
@@ -31,7 +31,8 @@ export interface ProvisionedAdminUserResponse {
   user: {
     id: string;
     email: string;
-    role: Extract<UserRole, "employee" | "supervisor">;
+    role: Extract<LegacyUserRole, "employee" | "supervisor">;
+    platformRole: PlatformRole | null;
   };
   invitation_sent: boolean;
   employee_profile:

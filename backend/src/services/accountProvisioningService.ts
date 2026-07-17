@@ -5,6 +5,8 @@ import {
 import type {
   AuthSessionResponse,
   AuthenticatedAppUser,
+  LegacyUserRole,
+  PlatformRole,
 } from "../types/auth.js";
 import type {
   AdminProvisionUserInput,
@@ -34,7 +36,8 @@ interface AppUserInsertRow {
   id: string;
   auth_user_id: string;
   email: string | null;
-  role: "employee" | "supervisor";
+  role: Extract<LegacyUserRole, "employee" | "supervisor">;
+  platform_role: PlatformRole | null;
 }
 
 const DEFAULT_EMPLOYEE_AVAILABILITY_PERCENTAGE = 100;
@@ -165,8 +168,9 @@ async function createAppUserRecord(input: {
       auth_user_id: input.authUserId,
       email: input.email,
       role: input.role,
+      platform_role: null,
     })
-    .select("id, auth_user_id, email, role")
+    .select("id, auth_user_id, email, role, platform_role")
     .single<AppUserInsertRow>();
 
   if (error || !data) {
@@ -195,7 +199,7 @@ async function provisionEmployeeProfile(
   const employee = await createEmployeeProfileRecordForUser(
     {
       id: appUser.id,
-      role: appUser.role,
+      legacyRole: appUser.role,
     },
     input
   );
@@ -233,7 +237,7 @@ async function provisionSupervisorProfile(
   const supervisor = await createSupervisorProfileRecordForUser(
     {
       id: appUser.id,
-      role: appUser.role,
+      legacyRole: appUser.role,
     },
     input
   );
@@ -398,6 +402,7 @@ export async function provisionManagedUser(
         id: appUser.id,
         email: appUser.email ?? input.email,
         role: appUser.role,
+        platformRole: appUser.platform_role,
       },
       invitation_sent: true,
       employee_profile: employeeProfile,
