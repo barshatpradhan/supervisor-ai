@@ -9,13 +9,13 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38BDF8?logo=tailwindcss&logoColor=fff)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase&logoColor=111)](https://supabase.com/)
 
-Supervisor AI is a full-stack workforce management platform for supervisors, administrators, and employees. The current implementation provides a TypeScript Express API backed by Supabase and a React frontend with a branded application shell, protected routing, and backend-integrated authentication.
+Supervisor AI is a multi-tenant workforce management platform for organization admins, supervisors, and employees. The current implementation provides a TypeScript Express API backed by Supabase and a React frontend with authenticated organization context, organization switching, protected routing, and backend-integrated authentication.
 
-The backend already includes core APIs for authentication, user roles, employee and supervisor profiles, projects, tasks, document uploads, document analysis, and employee recommendations. The frontend currently implements the application foundation, authentication screens, protected shell, and placeholder workspace pages. Product dashboards and data-connected frontend feature screens are planned.
+The backend already includes core APIs for authentication, organizations, invitations, employee and supervisor profiles, projects, tasks, dashboards, document uploads, document analysis, and employee recommendations. The frontend includes the application shell, authentication, organization-aware request context, and connected business modules.
 
 ## Project Objectives
 
-- Help supervisors create projects, manage employees, assign tasks, and track work.
+- Help organization admins and supervisors create projects, manage employees, assign tasks, and track work.
 - Analyze uploaded project documents to identify skills, effort, risk, and staffing signals.
 - Rank employees for projects using skills, availability, workload, and performance.
 - Preserve human review: AI recommendations are advisory and do not auto-assign employees.
@@ -32,7 +32,7 @@ flowchart TD
   API --> Storage[Supabase Storage]
   API --> Gemini[Google Gemini API]
   Storage --> Documents[Project Documents]
-  Database --> AppData[Users, Profiles, Projects, Tasks, Analyses, Recommendations]
+  Database --> AppData[Users, Organizations, Memberships, Profiles, Projects, Tasks, Analyses, Recommendations]
   Gemini --> Analysis[Document Analysis Result]
   API --> RecommendationEngine[Recommendation Service]
   RecommendationEngine --> Database
@@ -70,18 +70,14 @@ The backend is an Express 5 REST API using a route, controller, service, middlew
 
 Implemented backend capabilities:
 
-- Public signup and login through Supabase Auth.
-- JWT authentication middleware.
-- Role middleware for `admin`, `supervisor`, and `employee`.
-- Admin user role management and skill approval workflows.
-- Employee and supervisor profile APIs.
-- Project creation, listing, detail, and update APIs.
-- Task creation, assignment, listing, and employee progress updates.
-- Workload and performance recalculation after assignment/progress changes.
-- Project document upload to Supabase Storage.
-- TXT extraction implemented; PDF and DOCX extraction currently return `pending`.
-- Gemini-backed document analysis with safe local fallback when Gemini is unavailable.
-- Recommendation generation persisted to `ai_recommendations`.
+- Public auth plus authenticated organization discovery.
+- Organization creation, membership resolution, invitations, and invitation acceptance.
+- Platform admin user-role management and skill moderation.
+- Organization-scoped employee and supervisor profile APIs.
+- Organization-scoped project, task, dashboard, document, and recommendation APIs.
+- Workload and performance recalculation after assignment and progress changes.
+- TXT extraction plus Gemini-backed or fallback document analysis.
+- Repeatable tenant-isolation verification dataset and API verification script.
 
 See [backend/README.md](backend/README.md) for the API reference and backend architecture.
 
@@ -94,17 +90,16 @@ Implemented frontend capabilities:
 - Locked brand color tokens and Supervisor logo component.
 - Login and signup screens connected to the backend auth API.
 - Auth provider with session restore, logout, and 401 handling.
-- Protected route wrapper and role guard placeholder.
-- Responsive app shell with sidebar and header.
-- Placeholder route containers for dashboard, projects, tasks, employees, AI recommendations, and profile.
-
-The frontend does not yet implement data-connected project, task, employee, dashboard, or recommendation screens.
+- Organization provider with active membership resolution and organization switching.
+- Shared Axios client that attaches `X-Organization-Id` to tenant-scoped requests.
+- Responsive app shell with role-aware navigation.
+- Connected dashboards, projects, tasks, employees, profile, documents, and recommendation screens.
 
 See [frontend/README.md](frontend/README.md) for frontend architecture and setup.
 
 ## Authentication Overview
 
-Authentication uses Supabase Auth on the backend. The frontend stores the access and refresh tokens for development, attaches the access token through the shared Axios client, and restores the user with `/api/v1/auth/me` on refresh.
+Authentication uses Supabase Auth on the backend. The frontend stores the access and refresh tokens for development, restores the user with `/api/v1/auth/me`, loads the authenticated user’s memberships from `GET /api/v1/organizations`, and only sends `X-Organization-Id` after a verified active organization is selected.
 
 ```mermaid
 sequenceDiagram
@@ -156,6 +151,30 @@ flowchart LR
   Metrics --> Review[Supervisor Review Planned]
 ```
 
+## Multi-Tenant Model
+
+Organization-scoped authorization is driven by:
+
+- `organizations`
+- `organization_members`
+- `organization_invitations`
+
+Membership roles:
+
+- `organization_admin`
+- `supervisor`
+- `employee`
+
+Membership statuses:
+
+- `active`
+- `invited`
+- `suspended`
+
+`X-Organization-Id` selects the tenant context for business routes. The backend verifies that the authenticated user has a matching active membership before a tenant-scoped operation is allowed.
+
+Platform administration remains separate from organization administration. The legacy `users.role` field still exists for platform compatibility and must not be treated as tenant authorization.
+
 ## Database Overview
 
 Migrations under `supabase/migrations` define core application tables and document/recommendation tables.
@@ -163,6 +182,7 @@ Migrations under `supabase/migrations` define core application tables and docume
 | Area | Tables or Storage |
 | --- | --- |
 | Identity | `users` mapped to Supabase Auth users |
+| Tenancy | `organizations`, `organization_members`, `organization_invitations` |
 | Profiles | `employees`, `supervisors` |
 | Work management | `projects`, `tasks`, `task_progress` |
 | Documents | `project_documents`, `project_document_analyses` |
@@ -220,6 +240,30 @@ Only variable names are documented here. Do not commit real values.
 | Backend | `PORT`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL` |
 | Frontend | `VITE_API_BASE_URL` |
 
+## Tenant Isolation Verification
+
+The repository includes a repeatable backend verification script that seeds a dedicated two-organization dataset and checks tenant-scoped APIs for cross-organization isolation failures.
+
+Recommended verification flow:
+
+```bash
+cd backend
+npm run build
+npm run verify:tenant-isolation
+
+cd ../frontend
+npm run build
+npm run lint
+```
+
+Use a safe non-production Supabase environment only.
+
+Known limitations:
+
+- the backend verification script does not replace manual browser testing of organization switching UX
+- PDF and DOCX extraction remain limited
+- production hardening still needs follow-up work such as rate limiting and broader observability
+
 ## Current Implementation Status
 
 | Area | Status |
@@ -234,8 +278,9 @@ Only variable names are documented here. Do not commit real values.
 | Gemini document analysis | Implemented with fallback |
 | Recommendation scoring and persistence | Implemented |
 | Frontend auth screens and app shell | Implemented |
-| Frontend data-connected dashboards and work management screens | Planned |
-| Automated tests | Planned |
+| Frontend organization context and switching | Implemented |
+| Frontend data-connected dashboards and work management screens | Implemented |
+| Automated tenant isolation verification | Implemented |
 
 ## Roadmap
 
@@ -244,13 +289,9 @@ Only variable names are documented here. Do not commit real values.
 | Done | Backend REST foundation with Supabase Auth and PostgreSQL access. |
 | Done | Backend profile, project, task, document, and recommendation services. |
 | Done | Frontend foundation, brand system, app shell, and authentication flow. |
-| Planned | Frontend project, task, employee, and recommendation screens connected to backend APIs. |
-| Planned | Supervisor dashboard and analytics views. |
-| Planned | Employee workspace and progress workflows. |
 | Planned | PDF and DOCX text extraction. |
 | Planned | Recommendation review, accept, reject, and override workflow. |
 | Planned | Notifications and richer analytics APIs. |
-| Planned | Automated backend and frontend tests. |
 | Planned | Production deployment hardening. |
 
 ## Future Milestones
