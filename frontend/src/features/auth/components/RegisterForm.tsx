@@ -16,12 +16,15 @@ interface RegisterFormProps {
 export function RegisterForm({ helperText }: RegisterFormProps) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { register } = useAuth()
+  const { register, registerInvitation } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const invitationToken = new URLSearchParams(location.search)
+    .get('returnTo')
+    ?.match(/[?&]token=([^&]+)/)?.[1]
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -35,8 +38,13 @@ export function RegisterForm({ helperText }: RegisterFormProps) {
     setIsSubmitting(true)
 
     try {
-      await register({ email, password })
-      navigate(getPostAuthDestination(location.search), { replace: true })
+      if (invitationToken) {
+        await registerInvitation(decodeURIComponent(invitationToken), password)
+        navigate('/dashboard', { replace: true })
+      } else {
+        await register({ email, password })
+        navigate(getPostAuthDestination(location.search), { replace: true })
+      }
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Unable to create account.')
     } finally {
@@ -50,18 +58,20 @@ export function RegisterForm({ helperText }: RegisterFormProps) {
 
       {helperText ? <p className="text-sm leading-6 text-ink-600">{helperText}</p> : null}
 
-      <label className="grid gap-2 text-sm font-semibold text-ink-800">
-        Email
-        <input
-          autoComplete="email"
-          className={inputClassName}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="you@example.com"
-          required
-          type="email"
-          value={email}
-        />
-      </label>
+      {!invitationToken ? (
+        <label className="grid gap-2 text-sm font-semibold text-ink-800">
+          Email
+          <input
+            autoComplete="email"
+            className={inputClassName}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="you@example.com"
+            required
+            type="email"
+            value={email}
+          />
+        </label>
+      ) : null}
 
       <label className="grid gap-2 text-sm font-semibold text-ink-800">
         Password

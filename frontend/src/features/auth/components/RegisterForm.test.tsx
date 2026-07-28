@@ -6,6 +6,7 @@ import { RegisterForm } from './RegisterForm'
 
 const navigateMock = vi.fn()
 const registerMock = vi.fn()
+const registerInvitationMock = vi.fn()
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom')
@@ -19,6 +20,7 @@ vi.mock('react-router-dom', async () => {
 vi.mock('../hooks/useAuth', () => ({
   useAuth: () => ({
     register: registerMock,
+    registerInvitation: registerInvitationMock,
   }),
 }))
 
@@ -26,10 +28,11 @@ describe('RegisterForm', () => {
   beforeEach(() => {
     navigateMock.mockReset()
     registerMock.mockReset()
+    registerInvitationMock.mockReset()
   })
 
   it('returns invited users to the invitation path after registration', async () => {
-    registerMock.mockResolvedValue(undefined)
+    registerInvitationMock.mockResolvedValue(undefined)
 
     render(
       <MemoryRouter
@@ -39,16 +42,13 @@ describe('RegisterForm', () => {
       </MemoryRouter>,
     )
 
-    await userEvent.type(screen.getByLabelText(/^email$/i), 'invitee@example.com')
+    expect(screen.queryByLabelText(/^email$/i)).not.toBeInTheDocument()
     await userEvent.type(screen.getByLabelText(/^password$/i), 'SecurePassword123!')
     await userEvent.type(screen.getByLabelText(/confirm password/i), 'SecurePassword123!')
     await userEvent.click(screen.getByRole('button', { name: /create account/i }))
 
-    expect(registerMock).toHaveBeenCalledWith({
-      email: 'invitee@example.com',
-      password: 'SecurePassword123!',
-    })
-    expect(navigateMock).toHaveBeenCalledWith('/invitations/accept?token=secure-token', {
+    expect(registerInvitationMock).toHaveBeenCalledWith('secure-token', 'SecurePassword123!')
+    expect(navigateMock).toHaveBeenCalledWith('/dashboard', {
       replace: true,
     })
   })

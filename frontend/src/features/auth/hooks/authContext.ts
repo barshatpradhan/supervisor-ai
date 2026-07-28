@@ -18,6 +18,7 @@ export interface AuthContextValue {
   onboarding: AuthOnboardingState | null
   platformRole: PlatformRole | null
   register: (credentials: RegisterCredentials) => Promise<void>
+  registerInvitation: (token: string, password: string) => Promise<void>
   role: UserRole | null
   signup: (credentials: SignupCredentials) => Promise<void>
   user: AuthenticatedUser | null

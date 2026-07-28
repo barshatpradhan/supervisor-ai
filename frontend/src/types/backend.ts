@@ -642,7 +642,7 @@ export interface BackendInvitationAcceptanceResponse {
 
 export interface BackendOrganizationInvitationSummary {
   invitation_id: string
-  membership_id: string
+  membership_id: string | null
   email: string
   role: Extract<BackendOrganizationMembershipRole, 'employee' | 'supervisor'>
   invited_at: string
@@ -660,8 +660,8 @@ export interface BackendOrganizationInvitationMutationResponse {
   invitation: {
     id: string
     organization_id: string
-    user_id: string
-    membership_id: string
+    user_id: string | null
+    membership_id: string | null
     email: string
     role: Extract<BackendOrganizationMembershipRole, 'employee' | 'supervisor'>
     profile: Record<string, unknown>
@@ -686,7 +686,7 @@ export interface BackendOrganizationInvitationMutationResponse {
     invited_by_user_id: string | null
     joined_at: string | null
     created_at: string
-  }
+  } | null
 }
 
 export interface BackendCreateOrganizationInvitationRequest {

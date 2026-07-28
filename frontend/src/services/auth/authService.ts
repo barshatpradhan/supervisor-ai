@@ -21,6 +21,14 @@ export function register(credentials: RegisterRequest) {
   })
 }
 
+export function registerInvitation(token: string, password: string) {
+  return postJson<BackendAuthSession, { password: string }>(
+    `/invitations/${encodeURIComponent(token)}/register`,
+    { password },
+    { skipOrganizationContext: true },
+  )
+}
+
 export function getCurrentUser() {
   return getJson<BackendAuthUserContext>('/auth/me', {
     skipOrganizationContext: true,
