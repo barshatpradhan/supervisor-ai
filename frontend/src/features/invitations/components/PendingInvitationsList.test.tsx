@@ -37,7 +37,7 @@ describe('PendingInvitationsList', () => {
 
     useOrganizationMock.mockReturnValue({
       activeOrganization: { id: 'org-1', name: 'Acme Corporation' },
-      activeRole: 'organization_admin',
+      activeMembershipRole: 'organization_admin',
     })
 
     usePendingInvitationsMock.mockReturnValue({
@@ -79,7 +79,7 @@ describe('PendingInvitationsList', () => {
 
     useOrganizationMock.mockReturnValue({
       activeOrganization: { id: 'org-1', name: 'Acme Corporation' },
-      activeRole: 'supervisor',
+      activeMembershipRole: 'supervisor',
     })
 
     rerender(<PendingInvitationsList />)

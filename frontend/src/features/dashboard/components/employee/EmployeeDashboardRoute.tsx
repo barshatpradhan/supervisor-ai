@@ -3,9 +3,9 @@ import { useOrganization } from '../../../organizations/hooks/useOrganization'
 import { EmployeeDashboardModule } from './EmployeeDashboardModule'
 
 export function EmployeeDashboardRoute() {
-  const { activeRole } = useOrganization()
+  const { activeMembershipRole } = useOrganization()
 
-  if (activeRole !== 'employee') {
+  if (activeMembershipRole !== 'employee') {
     return <Navigate replace to="/forbidden" />
   }
 

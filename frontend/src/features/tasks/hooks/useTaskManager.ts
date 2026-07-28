@@ -70,10 +70,10 @@ function createInitialTaskAssignmentMutationState(): TaskAssignmentMutationState
 
 export function useTaskManager(initialSelectedTaskId: string | null = null) {
   const notifications = useNotifications()
-  const { activeRole } = useOrganization()
+  const { activeMembershipRole } = useOrganization()
   const canManageTasks =
-    activeRole === 'organization_admin' || activeRole === 'supervisor'
-  const canUpdateProgress = activeRole === 'employee'
+    activeMembershipRole === 'organization_admin' || activeMembershipRole === 'supervisor'
+  const canUpdateProgress = activeMembershipRole === 'employee'
   const tasksQuery = useTasks()
   const projectsQuery = useProjects(canManageTasks)
   const employeeProfileQuery = useEmployeeProfile(canUpdateProgress)

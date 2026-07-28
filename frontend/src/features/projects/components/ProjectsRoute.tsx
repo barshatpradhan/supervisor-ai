@@ -3,9 +3,12 @@ import { useOrganization } from '../../organizations/hooks/useOrganization'
 import { ProjectsModule } from './ProjectsModule'
 
 export function ProjectsRoute() {
-  const { activeRole } = useOrganization()
+  const { activeMembershipRole } = useOrganization()
 
-  if (activeRole !== 'organization_admin' && activeRole !== 'supervisor') {
+  if (
+    activeMembershipRole !== 'organization_admin' &&
+    activeMembershipRole !== 'supervisor'
+  ) {
     return (
       <EmptyState
         description="Project management is currently available only for supervisor and organization admin memberships."

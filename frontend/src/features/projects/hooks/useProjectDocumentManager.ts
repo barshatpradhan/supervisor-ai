@@ -26,7 +26,7 @@ interface ProjectScopedDocumentSelectionState {
 }
 
 export function useProjectDocumentManager(projectId: string | undefined) {
-  const { activeRole } = useOrganization()
+  const { activeMembershipRole } = useOrganization()
   const notifications = useNotifications()
   const listQuery = useProjectDocuments(projectId)
   const [selectionState, setSelectionState] = useState<ProjectScopedDocumentSelectionState>({
@@ -39,7 +39,8 @@ export function useProjectDocumentManager(projectId: string | undefined) {
     successMessage: null,
   })
   const canUploadDocuments =
-    activeRole === 'organization_admin' || activeRole === 'supervisor'
+    activeMembershipRole === 'organization_admin' ||
+    activeMembershipRole === 'supervisor'
   const documents = listQuery.data ?? []
   const selectedDocumentId =
     selectionState.projectId === projectId &&
