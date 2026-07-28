@@ -11,11 +11,19 @@ import {
   getInvitationRoleLabel,
 } from '../utils/invitationPresentation'
 
-export function PendingInvitationsList() {
+interface PendingInvitationsListProps {
+  refreshKey?: number
+  showHeader?: boolean
+}
+
+export function PendingInvitationsList({
+  refreshKey = 0,
+  showHeader = true,
+}: PendingInvitationsListProps) {
   const notifications = useNotifications()
-  const { activeOrganization, activeRole } = useOrganization()
+  const { activeMembershipRole, activeOrganization } = useOrganization()
   const organizationId = activeOrganization?.id ?? null
-  const canManageInvitations = activeRole === 'organization_admin'
+  const canManageInvitations = activeMembershipRole === 'organization_admin'
   const {
     error,
     invitations,
@@ -24,7 +32,7 @@ export function PendingInvitationsList() {
     refresh,
     resend,
     revoke,
-  } = usePendingInvitations(organizationId, canManageInvitations)
+  } = usePendingInvitations(organizationId, canManageInvitations, refreshKey)
 
   const sortedInvitations = useMemo(
     () =>
@@ -84,18 +92,20 @@ export function PendingInvitationsList() {
 
   return (
     <Card className="grid gap-5">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-          Pending invitations
-        </p>
-        <h2 className="mt-2 text-2xl font-bold text-ink-900">
-          Organization invite management
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-ink-600">
-          Review open employee and supervisor invitations, resend fresh links, or revoke
-          access before it is accepted.
-        </p>
-      </div>
+      {showHeader ? (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
+            Pending invitations
+          </p>
+          <h2 className="mt-2 text-2xl font-bold text-ink-900">
+            Organization invite management
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-ink-600">
+            Review open employee and supervisor invitations, resend fresh links, or revoke
+            access before it is accepted.
+          </p>
+        </div>
+      ) : null}
 
       {error ? (
         <ErrorState

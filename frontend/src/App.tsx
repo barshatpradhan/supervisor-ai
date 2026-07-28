@@ -14,6 +14,7 @@ import { EmployeesPage } from './pages/EmployeesPage'
 import { ForbiddenPage } from './pages/ForbiddenPage'
 import { InvitationAcceptPage } from './pages/InvitationAcceptPage'
 import { LoginPage } from './pages/LoginPage'
+import { OrganizationInvitationsPage } from './pages/OrganizationInvitationsPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { ProjectsPage } from './pages/ProjectsPage'
 import { SignupPage } from './pages/SignupPage'
@@ -52,6 +53,15 @@ function App() {
                     <Route
                       element={<AiRecommendationsPage />}
                       path="/ai-recommendations"
+                    />
+                  </Route>
+
+                  <Route
+                    element={<OrganizationRoute allowedRoles={['organization_admin']} />}
+                  >
+                    <Route
+                      element={<OrganizationInvitationsPage />}
+                      path="/organization/invitations"
                     />
                   </Route>
 

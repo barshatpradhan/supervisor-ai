@@ -16,7 +16,7 @@ export interface OrganizationContextValue {
   organizations: CurrentUserOrganizationListItem[]
   activeMembership: CurrentUserOrganizationListItem['membership'] | null
   activeOrganization: CurrentUserOrganizationListItem['organization'] | null
-  activeRole: OrganizationMembershipRole | null
+  activeMembershipRole: OrganizationMembershipRole | null
   isLoading: boolean
   error: string | null
   selectOrganization: (organizationId: string | null) => void

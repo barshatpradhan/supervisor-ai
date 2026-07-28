@@ -4,13 +4,16 @@ import { useOrganization } from '../features/organizations/hooks/useOrganization
 import { SupervisorProfileModule } from '../features/supervisors/components/SupervisorProfileModule'
 
 export function ProfilePage() {
-  const { activeRole } = useOrganization()
+  const { activeMembershipRole } = useOrganization()
 
-  if (activeRole === 'employee') {
+  if (activeMembershipRole === 'employee') {
     return <EmployeeProfileModule />
   }
 
-  if (activeRole === 'organization_admin' || activeRole === 'supervisor') {
+  if (
+    activeMembershipRole === 'organization_admin' ||
+    activeMembershipRole === 'supervisor'
+  ) {
     return <SupervisorProfileModule />
   }
 

@@ -20,6 +20,7 @@ const inputClassName =
 
 interface OrganizationAccessStateProps {
   activeOrganizationId: string | null
+  canCreateOrganization: boolean
   organizations: CurrentUserOrganizationListItem[]
   onRefresh: () => Promise<CurrentUserOrganizationListItem[]>
   onSelectOrganization: (organizationId: string | null) => void
@@ -43,6 +44,7 @@ function formatDateTime(value: string | null) {
 
 export function OrganizationAccessState({
   activeOrganizationId,
+  canCreateOrganization,
   organizations,
   onRefresh,
   onSelectOrganization,
@@ -193,7 +195,7 @@ export function OrganizationAccessState({
                       <p className="mt-1 text-sm text-ink-700">
                         {formatOrganizationRole(entry.membership.role)}
                         {entry.invitation?.expires_at
-                          ? ` · Expires ${formatDateTime(entry.invitation.expires_at)}`
+                          ? ` | Expires ${formatDateTime(entry.invitation.expires_at)}`
                           : ''}
                       </p>
                       <p className="mt-2 text-sm text-ink-600">
@@ -240,14 +242,14 @@ export function OrganizationAccessState({
         </Card>
       ) : null}
 
-      {!needsSelection && activeOrganizations.length === 0 && organizations.length > 0 ? (
+      {!needsSelection && activeOrganizations.length === 0 && !canCreateOrganization ? (
         <EmptyState
           description="This account does not currently have an active organization membership. Accept an invitation, create a new organization if eligible, or contact an organization administrator."
           title="No active organization access"
         />
       ) : null}
 
-      {activeOrganizations.length === 0 ? (
+      {activeOrganizations.length === 0 && canCreateOrganization ? (
         <Card>
           <div className="grid gap-5">
             <div>
@@ -258,8 +260,8 @@ export function OrganizationAccessState({
                 Start a new organization
               </h2>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-ink-600">
-                Users without an active organization can create their first company
-                workspace here.
+                Users without an active organization and without pending invitations can create
+                their first company workspace here.
               </p>
             </div>
 

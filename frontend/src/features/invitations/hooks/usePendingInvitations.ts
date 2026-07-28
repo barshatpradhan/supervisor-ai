@@ -14,7 +14,11 @@ interface PendingInvitationsState {
   mutatingInvitationId: string | null
 }
 
-export function usePendingInvitations(organizationId: string | null, enabled: boolean) {
+export function usePendingInvitations(
+  organizationId: string | null,
+  enabled: boolean,
+  refreshKey = 0,
+) {
   const [state, setState] = useState<PendingInvitationsState>({
     error: null,
     invitations: [],
@@ -73,7 +77,7 @@ export function usePendingInvitations(organizationId: string | null, enabled: bo
 
   useEffect(() => {
     void loadInvitations()
-  }, [loadInvitations])
+  }, [loadInvitations, refreshKey])
 
   const resend = useCallback(
     async (invitationId: string) => {

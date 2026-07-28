@@ -16,6 +16,11 @@ const managerNavigationItems: NavigationItem[] = [
   { href: '/profile', label: 'Profile' },
 ]
 
+const organizationAdminNavigationItems: NavigationItem[] = [
+  ...managerNavigationItems,
+  { href: '/organization/invitations', label: 'Invitations' },
+]
+
 const employeeNavigationItems: NavigationItem[] = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/tasks', label: 'Tasks' },
@@ -33,17 +38,23 @@ const routeTitles: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/employees': 'Employees',
   '/forbidden': 'Access restricted',
+  '/organization/invitations': 'Invitations',
   '/profile': 'Profile',
   '/projects': 'Projects',
   '/tasks': 'Tasks',
 }
 
-function getEyebrow(activeRole: ReturnType<typeof useOrganization>['activeRole']) {
-  if (activeRole === 'employee') {
+function getEyebrow(
+  activeMembershipRole: ReturnType<typeof useOrganization>['activeMembershipRole'],
+) {
+  if (activeMembershipRole === 'employee') {
     return 'Employee workspace'
   }
 
-  if (activeRole === 'organization_admin' || activeRole === 'supervisor') {
+  if (
+    activeMembershipRole === 'organization_admin' ||
+    activeMembershipRole === 'supervisor'
+  ) {
     return 'Organization workspace'
   }
 
@@ -51,13 +62,15 @@ function getEyebrow(activeRole: ReturnType<typeof useOrganization>['activeRole']
 }
 
 function getNavigationItems(input: {
-  activeRole: ReturnType<typeof useOrganization>['activeRole']
+  activeMembershipRole: ReturnType<typeof useOrganization>['activeMembershipRole']
   isPlatformAdmin: boolean
 }) {
   const items =
-    input.activeRole === 'employee'
+    input.activeMembershipRole === 'employee'
       ? employeeNavigationItems
-      : input.activeRole === 'organization_admin' || input.activeRole === 'supervisor'
+      : input.activeMembershipRole === 'organization_admin'
+        ? organizationAdminNavigationItems
+        : input.activeMembershipRole === 'supervisor'
         ? managerNavigationItems
         : []
 
@@ -71,15 +84,15 @@ function getNavigationItems(input: {
 export function AppLayout() {
   const location = useLocation()
   const { logout, user } = useAuth()
-  const { activeOrganization, activeRole } = useOrganization()
+  const { activeMembershipRole, activeOrganization } = useOrganization()
   const title = routeTitles[location.pathname] ?? 'Dashboard'
   const navigationItems = getNavigationItems({
-    activeRole,
+    activeMembershipRole,
     isPlatformAdmin: user?.platformRole === 'platform_admin',
   })
   const eyebrow = activeOrganization
-    ? `${getEyebrow(activeRole)} | ${activeOrganization.name}`
-    : getEyebrow(activeRole)
+    ? `${getEyebrow(activeMembershipRole)} | ${activeOrganization.name}`
+    : getEyebrow(activeMembershipRole)
 
   return (
     <PageShell

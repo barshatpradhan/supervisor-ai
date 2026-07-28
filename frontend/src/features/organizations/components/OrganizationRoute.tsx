@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { ErrorState } from '../../../components/shared/ErrorState'
 import { LoadingState } from '../../../components/shared/LoadingState'
+import { useAuth } from '../../auth/hooks/useAuth'
 import { useOrganization } from '../hooks/useOrganization'
 import type { OrganizationMembershipRole } from '../types/organization'
 import { getActiveOrganizations } from '../utils/organizationPresentation'
@@ -11,10 +12,11 @@ interface OrganizationRouteProps {
 }
 
 export function OrganizationRoute({ allowedRoles }: OrganizationRouteProps) {
+  const { onboarding } = useAuth()
   const {
     activeMembership,
     activeOrganization,
-    activeRole,
+    activeMembershipRole,
     error,
     isLoading,
     organizations,
@@ -40,10 +42,18 @@ export function OrganizationRoute({ allowedRoles }: OrganizationRouteProps) {
 
   const activeOrganizations = getActiveOrganizations(organizations)
 
-  if (activeOrganizations.length === 0 || !activeOrganization || !activeMembership || !activeRole) {
+  if (
+    activeOrganizations.length === 0 ||
+    !activeOrganization ||
+    !activeMembership ||
+    !activeMembershipRole
+  ) {
     return (
       <OrganizationAccessState
         activeOrganizationId={activeOrganization?.id ?? null}
+        canCreateOrganization={Boolean(
+          onboarding?.requiresOrganizationCreation && !onboarding.hasPendingInvitations,
+        )}
         organizations={organizations}
         onRefresh={refreshOrganizations}
         onSelectOrganization={selectOrganization}
@@ -51,7 +61,7 @@ export function OrganizationRoute({ allowedRoles }: OrganizationRouteProps) {
     )
   }
 
-  if (allowedRoles && !allowedRoles.includes(activeRole)) {
+  if (allowedRoles && !allowedRoles.includes(activeMembershipRole)) {
     return <Navigate replace to="/forbidden" />
   }
 

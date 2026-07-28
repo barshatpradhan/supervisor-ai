@@ -1,5 +1,6 @@
 import { getJson, postJson } from '../../../lib/api'
 import type {
+  CreateOrganizationInvitationRequest,
   InvitationAcceptance,
   InvitationInspection,
   OrganizationInvitationMutationResponse,
@@ -25,6 +26,16 @@ export function acceptInvitation(token: string) {
 export function listOrganizationInvitations(organizationId: string) {
   return getJson<OrganizationInvitationSummary[]>(
     `/organizations/${organizationId}/invitations`,
+  )
+}
+
+export function createOrganizationInvitation(
+  organizationId: string,
+  request: CreateOrganizationInvitationRequest,
+) {
+  return postJson<OrganizationInvitationMutationResponse, CreateOrganizationInvitationRequest>(
+    `/organizations/${organizationId}/invitations`,
+    request,
   )
 }
 

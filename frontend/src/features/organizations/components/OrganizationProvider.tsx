@@ -154,7 +154,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
       organizations,
       activeMembership: activeEntry?.membership ?? null,
       activeOrganization: activeEntry?.organization ?? null,
-      activeRole: activeEntry?.membership.role ?? null,
+      activeMembershipRole: activeEntry?.membership.role ?? null,
       isLoading: isAuthLoading || (isAuthenticated && isLoading),
       error,
       selectOrganization,

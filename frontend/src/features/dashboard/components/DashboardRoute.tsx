@@ -4,13 +4,16 @@ import { EmployeeDashboardRoute } from './employee/EmployeeDashboardRoute'
 import { SupervisorDashboardRoute } from './SupervisorDashboardRoute'
 
 export function DashboardRoute() {
-  const { activeRole } = useOrganization()
+  const { activeMembershipRole } = useOrganization()
 
-  if (activeRole === 'organization_admin' || activeRole === 'supervisor') {
+  if (
+    activeMembershipRole === 'organization_admin' ||
+    activeMembershipRole === 'supervisor'
+  ) {
     return <SupervisorDashboardRoute />
   }
 
-  if (activeRole === 'employee') {
+  if (activeMembershipRole === 'employee') {
     return <EmployeeDashboardRoute />
   }
 
