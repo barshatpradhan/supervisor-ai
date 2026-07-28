@@ -47,6 +47,22 @@ class ResendEmailService implements EmailService {
   }
 }
 
+class DevelopmentEmailService implements EmailService {
+  async sendOrganizationInvitation(input: OrganizationInvitationEmailInput) {
+    console.info(
+      JSON.stringify({
+        scope: "development_email",
+        event: "organization_invitation_sent",
+        to: input.to,
+        organizationName: input.organizationName,
+        invitedRole: input.invitedRole,
+        expiresAt: input.expiresAt,
+        acceptanceUrl: input.acceptanceUrl,
+      })
+    );
+  }
+}
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>'"]/g, (character) => ({
     "&": "&amp;",
@@ -58,24 +74,30 @@ function escapeHtml(value: string) {
 }
 
 export function createEmailService(): EmailService {
-  if (process.env.TRANSACTIONAL_EMAIL_PROVIDER !== "resend") {
-    throw new AppError(
-      "Transactional email is not configured for organization invitations.",
-      503,
-      true
-    );
+  switch (process.env.TRANSACTIONAL_EMAIL_PROVIDER) {
+    case "development":
+      return new DevelopmentEmailService();
+
+    case "resend": {
+      const apiKey = process.env.RESEND_API_KEY;
+      const from = process.env.INVITATION_EMAIL_FROM;
+
+      if (!apiKey || !from) {
+        throw new AppError(
+          "Transactional email is not configured for organization invitations.",
+          503,
+          true
+        );
+      }
+
+      return new ResendEmailService(apiKey, from);
+    }
+
+    default:
+      throw new AppError(
+        "Transactional email is not configured for organization invitations.",
+        503,
+        true
+      );
   }
-
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.INVITATION_EMAIL_FROM;
-
-  if (!apiKey || !from) {
-    throw new AppError(
-      "Transactional email is not configured for organization invitations.",
-      503,
-      true
-    );
-  }
-
-  return new ResendEmailService(apiKey, from);
 }
