@@ -12,7 +12,6 @@ import {
 } from "../services/organizationService.js";
 import type {
   CreateOrganizationInvitationInput,
-  OrganizationInvitationMutationResult,
   OrganizationInvitationSkillInput,
 } from "../types/organization.js";
 import { AppError } from "../utils/appError.js";
@@ -30,19 +29,6 @@ import {
 
 const EMPLOYMENT_TYPES = ["full_time", "part_time"] as const;
 const ORGANIZATION_INVITATION_ROLES = ["employee", "supervisor"] as const;
-const INVITATION_DEBUG_RETURN_URL = process.env.INVITATION_DEBUG_RETURN_URL === "true";
-
-function sanitizeInvitationMutationResult(
-  result: OrganizationInvitationMutationResult
-): Omit<OrganizationInvitationMutationResult, "debug"> | OrganizationInvitationMutationResult {
-  if (INVITATION_DEBUG_RETURN_URL) {
-    return result;
-  }
-
-  const { debug: _debug, ...safeResult } = result;
-  return safeResult;
-}
-
 function parseInvitationSkills(body: Record<string, unknown>) {
   const skills = body.skills;
 
@@ -231,7 +217,7 @@ export async function createOrganizationInvitationHandler(
       res,
       201,
       "Organization invitation created successfully.",
-      sanitizeInvitationMutationResult(invitation)
+      invitation
     );
   } catch (error) {
     return next(error);
@@ -260,7 +246,7 @@ export async function resendOrganizationInvitationHandler(
       res,
       200,
       "Organization invitation resent successfully.",
-      sanitizeInvitationMutationResult(result)
+      result
     );
   } catch (error) {
     return next(error);
@@ -289,7 +275,7 @@ export async function revokeOrganizationInvitationHandler(
       res,
       200,
       "Organization invitation revoked successfully.",
-      sanitizeInvitationMutationResult(result)
+      result
     );
   } catch (error) {
     return next(error);
