@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
-import { supabase } from "../config/supabase.js";
-import type { AuthenticatedAppUser, LegacyUserRole, PlatformRole } from "../types/auth.js";
+import { supabase, supabaseAuth } from "../config/supabase.js";
+import type { AuthSessionResponse, AuthenticatedAppUser, LegacyUserRole, PlatformRole } from "../types/auth.js";
 import type {
   CreateOrganizationInput,
   CreateOrganizationInvitationInput,
@@ -24,7 +24,8 @@ import { isRecord } from "../utils/validation.js";
 import { createEmployeeProfileRecordForOrganization } from "./employeeService.js";
 import { replaceEmployeeSkillsWithDetails } from "./skillService.js";
 import { createSupervisorProfileRecordForOrganization } from "./supervisorService.js";
-import { getAppUserByAuthId } from "./userService.js";
+import { createEmailService } from "./email/emailService.js";
+import { getAppUserByAuthId, getAuthOnboardingStateForAppUser } from "./userService.js";
 
 interface OrganizationRow {
   id: string;
@@ -54,8 +55,8 @@ interface OrganizationMembershipWithOrganizationRow extends OrganizationMembersh
 interface OrganizationInvitationRow {
   id: string;
   organization_id: string;
-  user_id: string;
-  membership_id: string;
+  user_id: string | null;
+  membership_id: string | null;
   email: string;
   role: Extract<OrganizationMembershipRole, "employee" | "supervisor">;
   profile: Record<string, unknown>;
@@ -155,7 +156,6 @@ interface InvitationProfileProvisionResult {
 const INVITATION_EXPIRY_DAYS = 7;
 const INVITATION_TOKEN_BYTES = 32;
 const INVITATION_RESEND_COOLDOWN_MS = 60 * 1000;
-const INVITATION_DEBUG_RETURN_URL = process.env.INVITATION_DEBUG_RETURN_URL === "true";
 const INVITATION_PROFILE_META_KEY = "__invitation_meta";
 const LOCAL_FRONTEND_APP_URL = "http://127.0.0.1:5173";
 
@@ -439,37 +439,6 @@ function mapLegacyUserRole(
   role: Extract<OrganizationMembershipRole, "employee" | "supervisor">
 ): Extract<LegacyUserRole, "employee" | "supervisor"> {
   return role === "supervisor" ? "supervisor" : "employee";
-}
-
-async function sendSupabaseInvitationEmail(email: string, redirectTo: string) {
-  const inviteResponse = await supabase.auth.admin.inviteUserByEmail(email, {
-    redirectTo,
-  });
-
-  if (!inviteResponse.error && inviteResponse.data.user) {
-    return inviteResponse.data.user;
-  }
-
-  const generateLinkResponse = await supabase.auth.admin.generateLink({
-    type: "invite",
-    email,
-    options: {
-      redirectTo,
-    },
-  });
-
-  if (generateLinkResponse.error || !generateLinkResponse.data.user) {
-    throw new AppError("Unable to create organization invitation.", 400, true, {
-      cause: generateLinkResponse.error ?? inviteResponse.error,
-    });
-  }
-
-  logOrganizationEvent("organization_invitation_generate_link_fallback", {
-    email,
-    reason: inviteResponse.error?.code ?? "fallback",
-  });
-
-  return generateLinkResponse.data.user;
 }
 
 async function ensureNoActiveOrganizationMembership(userId: string) {
@@ -1255,7 +1224,7 @@ export async function createOrganizationInvitation(
   input: CreateOrganizationInvitationInput
 ): Promise<OrganizationInvitationMutationResult> {
   const inviter = await getAppUserByAuthId(authUserId);
-  await ensureOrganizationAdmin(inviter.id, organizationId);
+  const { organization } = await ensureOrganizationAdmin(inviter.id, organizationId);
 
   const normalizedEmail = normalizeEmail(input.email);
   const now = new Date();
@@ -1272,102 +1241,10 @@ export async function createOrganizationInvitation(
     revoked_by_user_id: null,
   });
 
-  const invitedAuthUser = await sendSupabaseInvitationEmail(normalizedEmail, acceptanceUrl);
-
-  const invitedAppUser = await getOrCreateAppUserForInvitation({
-    authUserId: invitedAuthUser.id,
-    email: normalizedEmail,
-    role: input.role,
-  });
-
-  const { data: existingMembership, error: existingMembershipError } = await supabase
-    .from("organization_members")
-    .select(
-      "id, organization_id, user_id, role, status, invited_by_user_id, invited_at, joined_at, created_at"
-    )
-    .eq("organization_id", organizationId)
-    .eq("user_id", invitedAppUser.id)
-    .maybeSingle<OrganizationMembershipRow>();
-
-  if (existingMembershipError) {
-    throw new AppError("Unable to validate organization invitation.", 500);
-  }
-
-  if (existingMembership?.status === "active") {
-    throw new AppError("This user is already an active member of the organization.", 409);
-  }
-
-  if (existingMembership?.status === "invited") {
-    const { data: existingOpenInvitation, error: existingInvitationError } = await supabase
-      .from("organization_invitations")
-      .select("id")
-      .eq("organization_id", organizationId)
-      .eq("membership_id", existingMembership.id)
-      .is("accepted_at", null)
-      .is("revoked_at", null)
-      .limit(1)
-      .maybeSingle<{ id: string }>();
-
-    if (existingInvitationError) {
-      throw new AppError("Unable to validate organization invitation.", 500, true, {
-        cause: existingInvitationError,
-      });
-    }
-
-    if (existingOpenInvitation) {
-      throw new AppError("This user already has a pending invitation for the organization.", 409);
-    }
-  }
-
-  if (existingMembership?.status === "suspended") {
-    throw new AppError("This user has a suspended organization membership.", 409);
-  }
-
-  const membershipResult = existingMembership
-    ? await supabase
-        .from("organization_members")
-        .update({
-          role: input.role,
-          status: "invited",
-          invited_by_user_id: inviter.id,
-          invited_at: invitedAt,
-          joined_at: null,
-        })
-        .eq("id", existingMembership.id)
-        .select(
-          "id, organization_id, user_id, role, status, invited_by_user_id, invited_at, joined_at, created_at"
-        )
-        .single<OrganizationMembershipRow>()
-    : await supabase
-        .from("organization_members")
-        .insert({
-          organization_id: organizationId,
-          user_id: invitedAppUser.id,
-          role: input.role,
-          status: "invited",
-          invited_by_user_id: inviter.id,
-          invited_at: invitedAt,
-        })
-        .select(
-          "id, organization_id, user_id, role, status, invited_by_user_id, invited_at, joined_at, created_at"
-        )
-        .single<OrganizationMembershipRow>();
-
-  const { data: membership, error: membershipError } = membershipResult;
-
-  if (membershipError || !membership) {
-    if (membershipError?.code === "23505") {
-      throw new AppError("This organization invitation already exists.", 409);
-    }
-
-    throw new AppError("Unable to create organization membership.", 400);
-  }
   const { data: invitation, error: invitationError } = await supabase
     .from("organization_invitations")
     .insert({
       organization_id: organizationId,
-      user_id: invitedAppUser.id,
-      membership_id: membership.id,
       email: normalizedEmail,
       role: input.role,
       profile: storedProfile,
@@ -1386,21 +1263,6 @@ export async function createOrganizationInvitation(
     >();
 
   if (invitationError || !invitation) {
-    if (existingMembership) {
-      await supabase
-        .from("organization_members")
-        .update({
-          role: existingMembership.role,
-          status: existingMembership.status,
-          invited_by_user_id: existingMembership.invited_by_user_id,
-          invited_at: existingMembership.invited_at,
-          joined_at: existingMembership.joined_at,
-        })
-        .eq("id", existingMembership.id);
-    } else {
-      await supabase.from("organization_members").delete().eq("id", membership.id);
-    }
-
     if (invitationError?.code === "23505") {
       throw new AppError("This organization invitation already exists.", 409);
     }
@@ -1410,10 +1272,21 @@ export async function createOrganizationInvitation(
     });
   }
 
+  try {
+    await createEmailService().sendOrganizationInvitation({
+      to: normalizedEmail,
+      organizationName: organization.name,
+      invitedRole: input.role,
+      acceptanceUrl,
+      expiresAt,
+    });
+  } catch (error) {
+    await supabase.from("organization_invitations").delete().eq("id", invitation.id);
+    throw error;
+  }
+
   logOrganizationEvent("organization_invitation_created", {
-    invitedAppUserId: invitedAppUser.id,
     inviterAppUserId: inviter.id,
-    membershipId: membership.id,
     organizationId,
     role: input.role,
     invitationId: invitation.id,
@@ -1421,12 +1294,7 @@ export async function createOrganizationInvitation(
 
   return {
     invitation: mapInvitation(hydrateInvitationRow(invitation)),
-    membership: mapMembership(membership),
-    debug: INVITATION_DEBUG_RETURN_URL
-      ? {
-          acceptance_url: acceptanceUrl,
-        }
-      : undefined,
+    membership: null,
   };
 }
 
@@ -1491,12 +1359,11 @@ export async function acceptInvitationByToken(
   }
 
   const organization = await getOrganizationById(invitation.organization_id);
-  const membership = await getMembershipById(invitation.membership_id);
   const appUser = await getAppUserByAuthId(authUserId);
   const normalizedUserEmail = normalizeEmail(appUser.email ?? "");
   const normalizedInvitationEmail = normalizeEmail(invitation.email);
 
-  if (invitation.accepted_at || membership.status === "active") {
+  if (invitation.accepted_at) {
     throw new AppError("This invitation has already been accepted.", 409);
   }
 
@@ -1512,20 +1379,29 @@ export async function acceptInvitationByToken(
     throw new AppError("This invitation does not match the authenticated account.", 403);
   }
 
-  if (membership.organization_id !== invitation.organization_id) {
+  const membership = invitation.membership_id
+    ? await getMembershipById(invitation.membership_id)
+    : null;
+
+  if (membership?.organization_id !== undefined && membership.organization_id !== invitation.organization_id) {
     throw new AppError("Invitation membership mismatch.", 409);
   }
 
-  if (membership.status === "suspended") {
+  if (membership?.status === "active") {
+    throw new AppError("This invitation has already been accepted.", 409);
+  }
+
+  if (membership?.status === "suspended") {
     throw new AppError("This membership is suspended.", 403);
   }
 
-  if (membership.user_id !== appUser.id) {
+  if (membership && membership.user_id !== appUser.id) {
     throw new AppError("This invitation does not belong to the authenticated account.", 403);
   }
 
   let createdProfileRef: InvitationProfileProvisionResult["createdProfileRef"] = null;
   let profileCreated = false;
+  let createdMembershipId: string | null = null;
 
   try {
     const profileProvision = await provisionInvitationProfile(
@@ -1537,28 +1413,44 @@ export async function acceptInvitationByToken(
     profileCreated = profileProvision.profileCreated;
 
     const acceptedAt = new Date().toISOString();
-    const { data: activatedMembership, error: membershipError } = await supabase
-      .from("organization_members")
-      .update({
-        status: "active",
-        joined_at: acceptedAt,
-      })
-      .eq("id", membership.id)
-      .eq("status", "invited")
-      .select(
-        "id, organization_id, user_id, role, status, invited_by_user_id, invited_at, joined_at, created_at"
-      )
-      .single<OrganizationMembershipRow>();
+    const membershipResult = membership
+      ? await supabase
+          .from("organization_members")
+          .update({ status: "active", joined_at: acceptedAt })
+          .eq("id", membership.id)
+          .eq("status", "invited")
+          .select("id, organization_id, user_id, role, status, invited_by_user_id, invited_at, joined_at, created_at")
+          .single<OrganizationMembershipRow>()
+      : await supabase
+          .from("organization_members")
+          .insert({
+            organization_id: invitation.organization_id,
+            user_id: appUser.id,
+            role: invitation.role,
+            status: "active",
+            invited_by_user_id: invitation.invited_by_user_id,
+            invited_at: invitation.invited_at,
+            joined_at: acceptedAt,
+          })
+          .select("id, organization_id, user_id, role, status, invited_by_user_id, invited_at, joined_at, created_at")
+          .single<OrganizationMembershipRow>();
+
+    const { data: activatedMembership, error: membershipError } = membershipResult;
 
     if (membershipError || !activatedMembership) {
       throw new AppError("Unable to activate organization membership.", 400, true, {
         cause: membershipError,
       });
     }
+    if (!membership) {
+      createdMembershipId = activatedMembership.id;
+    }
 
     const { error: invitationUpdateError } = await supabase
       .from("organization_invitations")
       .update({
+        user_id: appUser.id,
+        membership_id: activatedMembership.id,
         accepted_at: acceptedAt,
         profile: writeInvitationCompatibilityMetadata(invitation.profile, {
           token_hash: invitation.token_hash,
@@ -1580,7 +1472,7 @@ export async function acceptInvitationByToken(
     logOrganizationEvent("organization_invitation_accepted_via_token", {
       appUserId: appUser.id,
       invitationId: invitation.id,
-      membershipId: membership.id,
+      membershipId: activatedMembership.id,
       organizationId: invitation.organization_id,
       role: invitation.role,
     });
@@ -1599,6 +1491,60 @@ export async function acceptInvitationByToken(
     };
   } catch (error) {
     await rollbackCreatedInvitationProfile(createdProfileRef);
+    if (createdMembershipId) {
+      await supabase.from("organization_members").delete().eq("id", createdMembershipId);
+    }
+    throw error;
+  }
+}
+
+export async function registerInvitationAccount(
+  token: string,
+  password: string
+): Promise<AuthSessionResponse> {
+  const invitation = await getInvitationByTokenHash(hashInvitationToken(token));
+
+  if (!invitation?.token_hash || !invitationTokenHashesMatch(invitation.token_hash, hashInvitationToken(token))) {
+    throw new AppError("Invitation not found.", 404);
+  }
+  if (invitation.accepted_at || invitation.revoked_at || isInvitationExpired(invitation.expires_at)) {
+    throw new AppError("This invitation is no longer valid.", 410);
+  }
+
+  const { data: createdUser, error: createUserError } = await supabase.auth.admin.createUser({
+    email: invitation.email,
+    password,
+    email_confirm: true,
+  });
+
+  if (createUserError || !createdUser.user) {
+    throw new AppError("An account already exists for this invitation email. Sign in to accept it.", 409);
+  }
+
+  try {
+    const appUser = await getOrCreateAppUserForInvitation({
+      authUserId: createdUser.user.id,
+      email: invitation.email,
+      role: invitation.role,
+    });
+    await acceptInvitationByToken(token, createdUser.user.id);
+    const { data: sessionData, error: signInError } = await supabaseAuth.auth.signInWithPassword({
+      email: invitation.email,
+      password,
+    });
+    if (signInError || !sessionData.session) {
+      throw new AppError("Account created, but login failed.", 500);
+    }
+    const registeredUser = await getAppUserByAuthId(createdUser.user.id);
+    return {
+      user: registeredUser,
+      onboarding: await getAuthOnboardingStateForAppUser(appUser.id),
+      accessToken: sessionData.session.access_token,
+      refreshToken: sessionData.session.refresh_token,
+      expiresAt: sessionData.session.expires_at ?? null,
+    };
+  } catch (error) {
+    await supabase.auth.admin.deleteUser(createdUser.user.id);
     throw error;
   }
 }
@@ -1612,9 +1558,11 @@ export async function resendOrganizationInvitation(
   await ensureOrganizationAdmin(inviter.id, organizationId);
 
   const invitation = await getInvitationByIdForOrganization(organizationId, invitationId);
-  const membership = await getMembershipById(invitation.membership_id);
+  const membership = invitation.membership_id
+    ? await getMembershipById(invitation.membership_id)
+    : null;
 
-  if (invitation.accepted_at || membership.status === "active") {
+  if (invitation.accepted_at || membership?.status === "active") {
     throw new AppError("Accepted invitations cannot be resent.", 409);
   }
 
@@ -1636,7 +1584,14 @@ export async function resendOrganizationInvitation(
   const tokenHash = hashInvitationToken(rawToken);
   const acceptanceUrl = buildInvitationAcceptanceUrl(rawToken);
 
-  await sendSupabaseInvitationEmail(invitation.email, acceptanceUrl);
+  const organization = await getOrganizationById(organizationId);
+  await createEmailService().sendOrganizationInvitation({
+    to: invitation.email,
+    organizationName: organization.name,
+    invitedRole: invitation.role,
+    acceptanceUrl,
+    expiresAt,
+  });
 
   const { data: updatedInvitation, error: updateError } = await supabase
     .from("organization_invitations")
@@ -1681,12 +1636,7 @@ export async function resendOrganizationInvitation(
 
   return {
     invitation: mapInvitation(hydratedUpdatedInvitation),
-    membership: mapMembership(membership),
-    debug: INVITATION_DEBUG_RETURN_URL
-      ? {
-          acceptance_url: acceptanceUrl,
-        }
-      : undefined,
+    membership: membership ? mapMembership(membership) : null,
   };
 }
 
@@ -1699,9 +1649,11 @@ export async function revokeOrganizationInvitation(
   await ensureOrganizationAdmin(revoker.id, organizationId);
 
   const invitation = await getInvitationByIdForOrganization(organizationId, invitationId);
-  const membership = await getMembershipById(invitation.membership_id);
+  const membership = invitation.membership_id
+    ? await getMembershipById(invitation.membership_id)
+    : null;
 
-  if (invitation.accepted_at || membership.status === "active") {
+  if (invitation.accepted_at || membership?.status === "active") {
     throw new AppError("Accepted invitations cannot be revoked.", 409);
   }
 
@@ -1739,21 +1691,19 @@ export async function revokeOrganizationInvitation(
     });
   }
 
-  const { data: suspendedMembership, error: membershipError } = await supabase
-    .from("organization_members")
-    .update({
-      status: "suspended",
-    })
-    .eq("id", membership.id)
-    .eq("status", "invited")
-    .select(
-      "id, organization_id, user_id, role, status, invited_by_user_id, invited_at, joined_at, created_at"
-    )
-    .single<OrganizationMembershipRow>();
+  const suspendedMembership = membership
+    ? await supabase
+        .from("organization_members")
+        .update({ status: "suspended" })
+        .eq("id", membership.id)
+        .eq("status", "invited")
+        .select("id, organization_id, user_id, role, status, invited_by_user_id, invited_at, joined_at, created_at")
+        .single<OrganizationMembershipRow>()
+    : { data: null, error: null };
 
-  if (membershipError || !suspendedMembership) {
+  if (suspendedMembership.error || (membership && !suspendedMembership.data)) {
     throw new AppError("Unable to revoke organization invitation.", 400, true, {
-      cause: membershipError,
+      cause: suspendedMembership.error,
     });
   }
 
@@ -1767,7 +1717,7 @@ export async function revokeOrganizationInvitation(
 
   return {
     invitation: mapInvitation(hydrateInvitationRow(revokedInvitation)),
-    membership: mapMembership(suspendedMembership),
+    membership: suspendedMembership.data ? mapMembership(suspendedMembership.data) : null,
   };
 }
 

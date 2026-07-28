@@ -268,15 +268,16 @@ async function createInvitationWithDebugToken(input: {
       profile: input.profile,
     } as never
   );
+  const debugResult = result as typeof result & { debug?: { acceptance_url: string } };
 
   assertCondition(
-    result.debug?.acceptance_url,
+    debugResult.debug?.acceptance_url,
     "Invitation debug acceptance URL was not returned."
   );
 
   return {
     ...result,
-    token: extractTokenFromAcceptanceUrl(result.debug.acceptance_url),
+    token: extractTokenFromAcceptanceUrl(debugResult.debug!.acceptance_url),
   };
 }
 
@@ -291,15 +292,16 @@ async function resendInvitationWithDebugToken(input: {
     input.organizationId,
     input.invitationId
   );
+  const debugResult = result as typeof result & { debug?: { acceptance_url: string } };
 
   assertCondition(
-    result.debug?.acceptance_url,
+    debugResult.debug?.acceptance_url,
     "Invitation resend debug acceptance URL was not returned."
   );
 
   return {
     ...result,
-    token: extractTokenFromAcceptanceUrl(result.debug.acceptance_url),
+    token: extractTokenFromAcceptanceUrl(debugResult.debug!.acceptance_url),
   };
 }
 
@@ -915,12 +917,12 @@ export async function verifyInvitationLifecycle() {
   });
 
   const revokedInvitationRow = await getInvitationRow(revokedInvitation.invitation.id);
-  const revokedMembershipRow = await getMembershipRow(revokedInvitation.membership.id);
+  const revokedMembershipRow = await getMembershipRow(revokedInvitation.membership!.id);
   const acceptedEmployeeInvitationRow = await getInvitationRow(
     acceptedEmployeeInvitation.invitation.id
   );
   const acceptedEmployeeMembershipRow = await getMembershipRow(
-    acceptedEmployeeInvitation.membership.id
+    acceptedEmployeeInvitation.membership!.id
   );
 
   assertCondition(

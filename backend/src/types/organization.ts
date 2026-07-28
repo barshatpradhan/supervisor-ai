@@ -65,8 +65,8 @@ export interface CreateOrganizationInvitationInput {
 export interface OrganizationInvitation {
   id: string;
   organization_id: string;
-  user_id: string;
-  membership_id: string;
+  user_id: string | null;
+  membership_id: string | null;
   email: string;
   role: Extract<OrganizationMembershipRole, "employee" | "supervisor">;
   profile: Record<string, unknown>;
@@ -98,7 +98,7 @@ export interface OrganizationMemberSummary {
 
 export interface OrganizationInvitationSummary {
   invitation_id: string;
-  membership_id: string;
+  membership_id: string | null;
   email: string;
   role: Extract<OrganizationMembershipRole, "employee" | "supervisor">;
   invited_at: string;
@@ -162,8 +162,5 @@ export interface InvitationAcceptanceResult {
 
 export interface OrganizationInvitationMutationResult {
   invitation: OrganizationInvitation;
-  membership: OrganizationMembership;
-  debug?: {
-    acceptance_url: string;
-  };
+  membership: OrganizationMembership | null;
 }
