@@ -493,14 +493,12 @@ Extraction status:
 | Type | Current Behavior |
 | --- | --- |
 | TXT | Extracts UTF-8 text. |
-| PDF | Marks extraction as `pending`; PDF extraction is planned. |
-| DOCX | Marks extraction as `pending`; DOCX extraction is planned. |
+| PDF | Extracts text and page count with `pdf-parse`. |
+| DOCX | Extracts raw text with `mammoth`. |
 
 ## AI Analysis Architecture
 
-`aiService` analyzes extracted document text with Gemini when `GEMINI_API_KEY` is configured and text is available. Gemini responses are parsed and normalized into a constrained shape.
-
-If Gemini is unavailable, fails, or there is no extracted text, the service returns a local fallback analysis with `provider: "placeholder"`.
+`aiService` delegates to the Gemini SDK when `GEMINI_API_KEY` is configured. Responses must match the constrained JSON shape and are retried once if Gemini returns an invalid result. Failed extraction or analysis returns a structured API error and cleans up incomplete uploads; there is no placeholder analysis.
 
 ## Recommendation Engine Architecture
 
@@ -547,7 +545,7 @@ Only variable names are documented. Do not commit real values.
 | `AUTH_LEGACY_EMPLOYEE_SIGNUP_ENABLED` | No | Set to `true` only for temporary compatibility with the deprecated public employee signup flow. |
 | `FRONTEND_APP_URL` | Yes in production | Base frontend URL used to build invitation acceptance links. |
 | `INVITATION_DEBUG_RETURN_URL` | No | Development-only flag that returns the acceptance URL in create or resend responses for local verification. |
-| `GEMINI_API_KEY` | No | Enables Gemini document analysis. |
+| `GEMINI_API_KEY` | Yes for document analysis | Gemini API key; never expose it to clients. |
 | `GEMINI_MODEL` | No | Overrides the Gemini model; defaults in code when omitted. |
 
 ## Build and Development Commands
