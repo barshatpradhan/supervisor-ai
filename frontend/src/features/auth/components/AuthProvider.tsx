@@ -7,6 +7,7 @@ import {
   getCurrentUser,
   login as loginWithBackend,
   register as registerWithBackend,
+  registerInvitation as registerInvitationWithBackend,
   signup as signupWithBackend,
 } from '../services/authService'
 import type {
@@ -143,6 +144,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [handleSession],
   )
 
+  const registerInvitation = useCallback(
+    async (token: string, password: string) => {
+      try {
+        const session = await registerInvitationWithBackend(token, password)
+        handleSession(session)
+      } catch (caughtError) {
+        const message = caughtError instanceof Error ? caughtError.message : 'Unable to create account.'
+        setError(message)
+        throw new Error(message, { cause: caughtError })
+      }
+    },
+    [handleSession],
+  )
+
   const logout = useCallback((options?: { redirectTo?: string }) => {
     clearSession()
     navigate(options?.redirectTo ?? '/login', { replace: true })
@@ -158,11 +173,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       onboarding,
       platformRole: user?.platformRole ?? null,
       register,
+      registerInvitation,
       role: user?.role ?? null,
       signup,
       user,
     }),
-    [error, isLoading, login, logout, onboarding, register, signup, user],
+    [error, isLoading, login, logout, onboarding, register, registerInvitation, signup, user],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
