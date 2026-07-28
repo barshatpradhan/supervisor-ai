@@ -2,7 +2,6 @@ export type DocumentComplexity = "low" | "medium" | "high";
 
 export interface ProjectDocumentAnalysisInput {
   text: string;
-  fileName: string;
   mimeType: string;
 }
 
@@ -14,7 +13,7 @@ export interface ProjectDocumentAnalysisResult {
   summary: string;
   suggestedRoles: string[];
   risks: string[];
-  provider: "placeholder" | "gemini";
+  provider: "gemini";
   model: string | null;
   rawResult: Record<string, unknown>;
 }
