@@ -4,7 +4,8 @@ export const queryKeys = {
   projects: {
     all: ['projects'] as const,
     list: (organizationId: string) => ['projects', organizationId] as const,
-    detail: (projectId: string) => ['projects', projectId] as const,
+    detail: (organizationId: string, projectId: string) =>
+      ['projects', organizationId, projectId] as const,
   },
   tasks: { all: ['tasks'] as const, detail: (taskId: string) => ['tasks', taskId] as const },
   dashboard: {

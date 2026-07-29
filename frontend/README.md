@@ -317,6 +317,14 @@ npm run preview
 3. Existing invitee: open the same link, sign in with the invited email, accept it, and confirm the newly active organization is selected.
 4. Restoration: refresh a protected page, confirm `/auth/me` restores the session, sign out, and confirm protected URLs redirect to `/login` with private cached data removed.
 
+## Project details verification
+
+1. Sign in as an organization administrator or supervisor and select an organization.
+2. Open `/projects/:projectId` with a project ID from that organization.
+3. Confirm the title, description, status, priority, required skills, and created/updated timestamps match `GET /api/v1/projects/:projectId`.
+4. Refresh the details, switch organizations, and confirm the previous organization’s project data is not displayed.
+5. Verify missing or inaccessible projects show a safe state, then resize to tablet and mobile widths to confirm the metadata and skills wrap without overflow.
+
 ## Frontend Roadmap
 
 | Status | Item |
