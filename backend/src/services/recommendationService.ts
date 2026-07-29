@@ -1,12 +1,14 @@
 import crypto from "node:crypto";
 import { supabase } from "../config/supabase.js";
 import type {
+  AssignRecommendedEmployeeInput,
   EmployeeRecommendationResult,
   EmployeeRecommendationScoreBreakdown,
 } from "../types/ai.js";
 import { AppError } from "../utils/appError.js";
 import { enrichEmployeesWithCapacityMetrics } from "./employeeMetricsService.js";
 import { ensureProjectExistsInOrganization } from "./projectService.js";
+import { assignTask, createTask, getTaskById } from "./taskService.js";
 import { getAppUserByAuthId } from "./userService.js";
 
 interface AnalysisRow {
@@ -67,6 +69,10 @@ interface RecommendationResponse {
   analysisId: string | null;
   recommendationRunId: string;
   recommendations: EmployeeRecommendationResult[];
+}
+
+interface SelectedRecommendationRow {
+  employee_id: string;
 }
 
 const SCORE_WEIGHTS = {
@@ -436,4 +442,79 @@ export async function getLatestProjectRecommendations(authUserId: string, organi
     .returns<Array<{ id: string; full_name: string }>>();
   if (employeeError) throw new AppError("Unable to fetch recommendation employees.", 500);
   return mapRecommendationRows(rows, new Map((employees ?? []).map((employee) => [employee.id, employee.full_name])));
+}
+
+export async function assignRecommendedEmployee(
+  authUserId: string,
+  organizationId: string,
+  projectId: string,
+  input: AssignRecommendedEmployeeInput
+) {
+  await ensureProjectExistsInOrganization(projectId, organizationId);
+
+  const { data: recommendation, error: recommendationError } = await supabase
+    .from("ai_recommendations")
+    .select("employee_id")
+    .eq("project_id", projectId)
+    .eq("recommendation_run_id", input.recommendationRunId)
+    .eq("employee_id", input.employeeId)
+    .maybeSingle<SelectedRecommendationRow>();
+
+  if (recommendationError) {
+    throw new AppError("Unable to validate the selected recommendation.", 500);
+  }
+
+  if (!recommendation) {
+    throw new AppError("The employee is not part of the selected recommendation run.", 404);
+  }
+
+  let task;
+  if (input.taskId) {
+    const existingTask = await getTaskById(
+      authUserId,
+      organizationId,
+      "supervisor",
+      input.taskId
+    );
+
+    if (existingTask.project_id !== projectId) {
+      throw new AppError("Task does not belong to this project.", 400);
+    }
+
+    task = await assignTask(
+      authUserId,
+      organizationId,
+      input.taskId,
+      input.employeeId
+    );
+  } else if (input.task) {
+    task = await createTask(authUserId, organizationId, {
+      projectId,
+      title: input.task.title,
+      description: input.task.description,
+      priority: input.task.priority,
+      estimatedHours: input.task.estimatedHours,
+      dueDate: input.task.dueDate,
+      assignedEmployeeId: input.employeeId,
+    });
+  } else {
+    throw new AppError("A taskId or task is required.", 400);
+  }
+
+  console.info(
+    JSON.stringify({
+      scope: "recommendations",
+      event: "employee_selected_and_assigned",
+      projectId,
+      recommendationRunId: input.recommendationRunId,
+      employeeId: input.employeeId,
+      taskId: task.id,
+    })
+  );
+
+  return {
+    recommendationRunId: input.recommendationRunId,
+    employeeId: input.employeeId,
+    task,
+  };
 }

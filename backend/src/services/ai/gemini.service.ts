@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import type { DocumentComplexity, ProjectDocumentAnalysisInput, ProjectDocumentAnalysisResult } from "../../types/ai.js";
 import { AppError } from "../../utils/appError.js";
 import { buildProjectDocumentAnalysisPrompt } from "./promptBuilder.js";
+import { incrementMetric } from "../../middleware/observabilityMiddleware.js";
 
 const DEFAULT_MODEL = "gemini-2.0-flash";
 const COMPLEXITIES: readonly DocumentComplexity[] = ["low", "medium", "high"];
@@ -75,6 +76,7 @@ function normalizeResponse(value: unknown, model: string): ProjectDocumentAnalys
 }
 
 export async function analyzeWithGemini(input: ProjectDocumentAnalysisInput): Promise<ProjectDocumentAnalysisResult> {
+  const startedAt = performance.now();
   const { apiKey, model } = getGeminiConfiguration();
   const client = new GoogleGenAI({ apiKey });
   let lastError: unknown;
@@ -89,6 +91,8 @@ export async function analyzeWithGemini(input: ProjectDocumentAnalysisInput): Pr
       const text = response.text?.trim();
       if (!text) throw new AppError("Gemini returned an empty analysis response.", 502, true);
       const result = normalizeResponse(JSON.parse(text), model);
+      incrementMetric("gemini_requests_total", { outcome: "success" });
+      incrementMetric("gemini_latency_ms_total", {}, Math.round(performance.now() - startedAt));
       console.info(JSON.stringify({ scope: "document_analysis", event: "gemini_response_received", attempt }));
       return result;
     } catch (error) {
@@ -101,6 +105,7 @@ export async function analyzeWithGemini(input: ProjectDocumentAnalysisInput): Pr
           errorType: error instanceof Error ? error.name : "unknown",
         })
       );
+      incrementMetric("gemini_requests_total", { outcome: "failure" });
     }
   }
   throw new AppError("Unable to generate a valid document analysis.", 502, true, { cause: lastError });

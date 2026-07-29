@@ -5,6 +5,7 @@ import type { Organization, OrganizationMembership } from "./organization.js";
 declare global {
   namespace Express {
     interface Request {
+      requestId?: string;
       appUser?: AuthenticatedAppUser;
       membership?: OrganizationMembership;
       organization?: Organization;

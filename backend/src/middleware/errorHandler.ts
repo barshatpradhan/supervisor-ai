@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { isAppError } from "../utils/appError.js";
 import { sendError } from "../utils/apiResponse.js";
+import { logger } from "../utils/logger.js";
 
 export function notFoundHandler(req: Request, res: Response) {
   return sendError(res, 404, "Route not found.");
@@ -17,9 +18,12 @@ export function errorHandler(
   }
 
   if (isAppError(error)) {
+    logger.warn("request_failed", { requestId: req.requestId, operation: req.originalUrl, statusCode: error.statusCode, error: error.message });
     const message = error.expose ? error.message : "Internal server error.";
     return sendError(res, error.statusCode, message);
   }
+
+  logger.error("request_failed", { requestId: req.requestId, operation: req.originalUrl, statusCode: 500, stack: logger.errorDetails(error) });
 
   return sendError(res, 500, "Internal server error.");
 }

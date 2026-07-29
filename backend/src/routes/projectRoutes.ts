@@ -11,6 +11,7 @@ import {
   uploadProjectDocumentHandler,
 } from "../controllers/projectDocumentController.js";
 import {
+  assignRecommendedEmployeeHandler,
   generateProjectRecommendationsHandler,
   getLatestProjectRecommendationsHandler,
 } from "../controllers/recommendationController.js";
@@ -66,6 +67,13 @@ router.post(
   resolveOrganizationContext,
   requireOrganizationRole("organization_admin", "supervisor"),
   generateProjectRecommendationsHandler
+);
+router.post(
+  "/:projectId/recommendations/assign",
+  authenticateUser,
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
+  assignRecommendedEmployeeHandler
 );
 router.get(
   "/:projectId/recommendations",

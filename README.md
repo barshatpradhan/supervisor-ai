@@ -262,13 +262,27 @@ Known limitations:
 
 - the backend verification script does not replace manual browser testing of organization switching UX
 - PDF and DOCX extraction remain limited
-- production hardening still needs follow-up work such as rate limiting and broader observability
+- production hardening still needs follow-up work such as a distributed rate limiter for horizontal scaling and broader observability
 
 ## Task execution APIs
 
 The backend now supports employee task execution without adding notifications or UI work. Employees use `GET /api/v1/employees/me/tasks`, `GET /api/v1/employees/me/dashboard`, and `PATCH /api/v1/tasks/:taskId/progress`; supervisors use `GET /api/v1/supervisors/dashboard`. All organization-scoped calls require `X-Organization-Id`.
 
 Progress is append-only. A task becomes `todo` (pending) at 0%, `in_progress` at 1–99%, and `completed` at 100%. Project progress is stored as completed estimated hours divided by total estimated hours, multiplied by 100. Completed tasks are excluded from workload calculations, increasing employee availability automatically.
+
+## Production operations
+
+```mermaid
+flowchart LR
+  Client -->|JWT + tenant header| API[Express API]
+  API --> Auth[Supabase Auth]
+  API --> DB[(Supabase Postgres)]
+  API --> Storage[Supabase Storage]
+  API --> Gemini[Gemini Analysis]
+  API --> Logs[Structured logs / metrics]
+```
+
+Production configuration, deployment requirements, and troubleshooting are documented in [docs/environment.md](docs/environment.md) and [docs/production-readiness.md](docs/production-readiness.md). Operational endpoints are `/health`, `/ready`, `/metrics`, `/api/docs`, and `/api/openapi.json`.
 
 ## Current Implementation Status
 
@@ -298,11 +312,11 @@ Progress is append-only. A task becomes `todo` (pending) at 0%, `in_progress` at
 | Planned | PDF and DOCX text extraction. |
 | Planned | Recommendation review, accept, reject, and override workflow. |
 | Planned | Notifications and richer analytics APIs. |
-| Planned | Production deployment hardening. |
+| Done | Baseline production deployment hardening, including environment validation, deployment artifacts, health checks, rate limiting, and request observability. |
 
 ## Future Milestones
 
-Near-term work should connect the existing frontend placeholders to the implemented backend APIs, complete PDF/DOCX extraction, and add supervisor review workflows for generated recommendations. Longer-term work should add analytics, notifications, tests, observability, and production deployment configuration.
+Near-term work should connect the existing frontend placeholders to the implemented backend APIs, complete PDF/DOCX extraction, and add supervisor review workflows for generated recommendations. Longer-term work should add analytics, notifications, broader observability, and production deployment configuration refinements.
 
 ## Contributing
 
