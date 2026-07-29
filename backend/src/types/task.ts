@@ -16,6 +16,7 @@ export interface CreateTaskInput {
   priority?: PriorityLevel;
   estimatedHours?: number;
   assignedEmployeeId?: string;
+  dueDate?: string;
 }
 
 export interface UpdateTaskInput {
@@ -24,6 +25,7 @@ export interface UpdateTaskInput {
   status?: TaskStatus;
   priority?: PriorityLevel;
   estimatedHours?: number;
+  dueDate?: string;
 }
 
 export interface AssignTaskInput {
@@ -32,6 +34,16 @@ export interface AssignTaskInput {
 
 export interface CreateTaskProgressInput {
   progressPercentage: number;
-  status?: TaskStatus;
   notes?: string;
+}
+
+export interface EmployeeTaskListQuery {
+  status?: TaskStatus;
+  priority?: PriorityLevel;
+  projectId?: string;
+  dueBefore?: string;
+  dueAfter?: string;
+  page: number;
+  limit: number;
+  sort: "assignedAt" | "dueDate" | "priority" | "progress";
 }

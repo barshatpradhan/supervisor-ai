@@ -2,6 +2,7 @@ import { supabase } from "../config/supabase.js";
 import type {
   CreateTaskInput,
   CreateTaskProgressInput,
+  EmployeeTaskListQuery,
   TaskStatus,
   UpdateTaskInput,
 } from "../types/task.js";
@@ -12,6 +13,7 @@ import {
 } from "./employeeMetricsService.js";
 import { ensureProjectExistsInOrganization } from "./projectService.js";
 import { getAppUserByAuthId } from "./userService.js";
+import { logActivity } from "./activityLogService.js";
 
 const TASK_SELECT = `
   id,
@@ -21,6 +23,7 @@ const TASK_SELECT = `
   status,
   priority,
   estimated_hours,
+  due_date,
   assigned_employee_id,
   created_by_user_id,
   assigned_at,
@@ -49,6 +52,7 @@ interface OrganizationScopedTaskRow {
   project_id: string;
   assigned_employee_id: string | null;
   status: TaskStatus;
+  completed_at?: string | null;
 }
 
 interface TaskProgressPerformanceRow {
@@ -114,6 +118,7 @@ async function getTaskForOrganization(taskId: string, organizationId: string) {
         project_id,
         assigned_employee_id,
         status,
+        completed_at,
         projects!inner (
           organization_id
         )
@@ -166,6 +171,50 @@ async function recalculateEmployeeCapacity(employeeId: string, organizationId: s
   if (updateError) {
     throw new AppError("Unable to update employee capacity.", 500);
   }
+}
+
+async function recalculateProjectProgress(
+  authUserId: string,
+  organizationId: string,
+  projectId: string
+) {
+  const { data: tasks, error: tasksError } = await supabase
+    .from("tasks")
+    .select("status, estimated_hours")
+    .eq("project_id", projectId)
+    .is("deleted_at", null)
+    .returns<Array<{ status: TaskStatus; estimated_hours: number }>>();
+
+  if (tasksError) {
+    throw new AppError("Unable to calculate project progress.", 500);
+  }
+
+  const totalHours = (tasks ?? []).reduce((total, task) => total + Number(task.estimated_hours), 0);
+  const completedHours = (tasks ?? [])
+    .filter((task) => task.status === "completed")
+    .reduce((total, task) => total + Number(task.estimated_hours), 0);
+  const progressPercentage = totalHours === 0 ? 0 : Math.max(0, Math.min(100, Math.round((completedHours / totalHours) * 10000) / 100));
+
+  const { error: updateError } = await supabase
+    .from("projects")
+    .update({ progress_percentage: progressPercentage })
+    .eq("id", projectId)
+    .eq("organization_id", organizationId)
+    .is("deleted_at", null);
+
+  if (updateError) {
+    throw new AppError("Unable to update project progress.", 500);
+  }
+
+  await logActivity({
+    organizationId,
+    actorUserId: authUserId,
+    eventType: "project_progress_updated",
+    projectId,
+    metadata: { progressPercentage },
+  });
+
+  return progressPercentage;
 }
 
 function clampScore(value: number) {
@@ -300,7 +349,7 @@ export async function listTasks(
       throw new AppError("Unable to fetch tasks.", 500);
     }
 
-    return data;
+    return getTaskWithProgressHistory(data as unknown as { id: string });
   }
 
   const { data, error } = await supabase
@@ -321,7 +370,71 @@ export async function listTasks(
     throw new AppError("Unable to fetch tasks.", 500);
   }
 
-  return data;
+  return getTaskWithProgressHistory(data as unknown as { id: string });
+}
+
+async function getTaskWithProgressHistory<T extends { id: string }>(task: T) {
+  const { data: progressHistory, error } = await supabase
+    .from("task_progress")
+    .select("id, task_id, employee_id, progress_percentage, notes, created_at")
+    .eq("task_id", task.id)
+    .order("created_at", { ascending: false });
+  if (error) throw new AppError("Unable to fetch task progress history.", 500);
+  return { ...task, progress_history: progressHistory ?? [] };
+}
+
+export async function listEmployeeTasks(
+  authUserId: string,
+  organizationId: string,
+  query: EmployeeTaskListQuery
+) {
+  const employee = await getEmployeeForAuthUser(authUserId, organizationId);
+  let taskQuery = supabase
+    .from("tasks")
+    .select(`${TASK_SELECT}, projects!inner ( id, title, organization_id )`, { count: "exact" })
+    .eq("assigned_employee_id", employee.id)
+    .eq("projects.organization_id", organizationId)
+    .is("deleted_at", null);
+
+  if (query.status) taskQuery = taskQuery.eq("status", query.status);
+  if (query.priority) taskQuery = taskQuery.eq("priority", query.priority);
+  if (query.projectId) taskQuery = taskQuery.eq("project_id", query.projectId);
+  if (query.dueBefore) taskQuery = taskQuery.lte("due_date", query.dueBefore);
+  if (query.dueAfter) taskQuery = taskQuery.gte("due_date", query.dueAfter);
+
+  const sortColumn = {
+    assignedAt: "assigned_at",
+    dueDate: "due_date",
+    priority: "priority",
+    progress: "updated_at",
+  }[query.sort];
+  const from = (query.page - 1) * query.limit;
+  const { data, error, count } = await taskQuery
+    .order(sortColumn, { ascending: query.sort === "priority", nullsFirst: false })
+    .range(from, from + query.limit - 1);
+
+  if (error) throw new AppError("Unable to fetch employee tasks.", 500);
+
+  const taskIds = (data ?? []).map((task) => task.id);
+  const { data: progressRows, error: progressError } = taskIds.length === 0
+    ? { data: [], error: null }
+    : await supabase.from("task_progress").select("task_id, progress_percentage, created_at").in("task_id", taskIds).order("created_at", { ascending: false });
+  if (progressError) throw new AppError("Unable to fetch task progress.", 500);
+  const progressByTask = new Map<string, number>();
+  for (const progress of progressRows ?? []) {
+    if (!progressByTask.has(progress.task_id)) progressByTask.set(progress.task_id, Number(progress.progress_percentage));
+  }
+
+  return {
+    items: (data ?? []).map((task) => ({
+      ...task,
+      progress_percentage: progressByTask.get(task.id) ?? (task.status === "completed" ? 100 : 0),
+      remaining_hours: task.status === "completed" ? 0 : Number(task.estimated_hours),
+    })),
+    page: query.page,
+    limit: query.limit,
+    total: count ?? 0,
+  };
 }
 
 export async function getTaskById(
@@ -400,6 +513,7 @@ export async function createTask(
       status: input.status ?? "todo",
       priority: input.priority ?? "medium",
       estimated_hours: input.estimatedHours ?? 1,
+      due_date: input.dueDate ?? null,
       assigned_employee_id: input.assignedEmployeeId ?? null,
       assigned_at: input.assignedEmployeeId ? new Date().toISOString() : null,
       created_by_user_id: appUser.id,
@@ -417,6 +531,8 @@ export async function createTask(
       () => recalculateEmployeeCapacity(input.assignedEmployeeId as string, organizationId)
     );
   }
+
+  await recalculateProjectProgress(authUserId, organizationId, input.projectId);
 
   return data;
 }
@@ -453,6 +569,10 @@ export async function updateTask(
     updates.estimated_hours = input.estimatedHours;
   }
 
+  if (input.dueDate !== undefined) {
+    updates.due_date = input.dueDate;
+  }
+
   if (Object.keys(updates).length === 0) {
     throw new AppError("At least one task field is required.", 400);
   }
@@ -475,6 +595,8 @@ export async function updateTask(
       () => recalculateEmployeeCapacity(data.assigned_employee_id as string, organizationId)
     );
   }
+
+  await recalculateProjectProgress(authUserId, organizationId, data.project_id);
 
   return data;
 }
@@ -532,23 +654,29 @@ export async function createTaskProgress(
   authUserId: string,
   organizationId: string,
   taskId: string,
-  input: CreateTaskProgressInput
+  input: CreateTaskProgressInput,
+  membershipRole: "organization_admin" | "supervisor" | "employee" = "employee"
 ) {
-  await getAppUserByAuthId(authUserId);
-  const employee = await getEmployeeForAuthUser(authUserId, organizationId);
+  const actor = await getAppUserByAuthId(authUserId);
+  const employee = membershipRole === "employee"
+    ? await getEmployeeForAuthUser(authUserId, organizationId)
+    : null;
   const task = await getTaskForOrganization(taskId, organizationId);
 
-  if (task.assigned_employee_id !== employee.id) {
+  if (membershipRole === "employee" && task.assigned_employee_id !== employee?.id) {
     throw new AppError("Only the assigned employee can update task progress.", 403);
   }
+
+  const historyEmployeeId = employee?.id ?? task.assigned_employee_id;
+  if (!historyEmployeeId) throw new AppError("Task must be assigned before progress can be updated.", 400);
 
   const { data: progress, error: progressError } = await supabase
     .from("task_progress")
     .insert({
       task_id: taskId,
-      employee_id: employee.id,
+      employee_id: historyEmployeeId,
       progress_percentage: input.progressPercentage,
-      status: input.status ?? null,
+      status: null,
       notes: input.notes ?? null,
     })
     .select()
@@ -558,28 +686,38 @@ export async function createTaskProgress(
     throw new AppError("Unable to create task progress update.", 400);
   }
 
-  const nextStatus =
-    input.status ?? (input.progressPercentage === 100 ? "completed" : "in_progress");
-  const { error: updateTaskError } = await supabase
+  const nextStatus: TaskStatus = input.progressPercentage === 0
+    ? "todo"
+    : input.progressPercentage === 100 ? "completed" : "in_progress";
+  const completedAt = nextStatus === "completed" ? task.completed_at ?? new Date().toISOString() : task.completed_at ?? null;
+  const { data: updatedTask, error: updateTaskError } = await supabase
     .from("tasks")
     .update({
       status: nextStatus,
-      completed_at: nextStatus === "completed" ? new Date().toISOString() : null,
+      completed_at: completedAt,
     })
-    .eq("id", taskId);
+    .eq("id", taskId)
+    .select(TASK_SELECT)
+    .single();
 
   if (updateTaskError) {
     throw new AppError("Progress was saved, but task status was not updated.", 500);
   }
 
   await runNonBlockingTaskFollowUp(
-    `recalculate capacity for employee ${employee.id}`,
-    () => recalculateEmployeeCapacity(employee.id, organizationId)
+    `recalculate capacity for employee ${historyEmployeeId}`,
+    () => recalculateEmployeeCapacity(historyEmployeeId, organizationId)
   );
   await runNonBlockingTaskFollowUp(
-    `recalculate performance for employee ${employee.id}`,
-    () => recalculateEmployeePerformance(employee.id)
+    `recalculate performance for employee ${historyEmployeeId}`,
+    () => recalculateEmployeePerformance(historyEmployeeId)
   );
 
-  return progress;
+  const projectProgress = await recalculateProjectProgress(authUserId, organizationId, task.project_id);
+  await logActivity({ organizationId, actorUserId: actor.id, eventType: "task_progress_updated", taskId, projectId: task.project_id, metadata: { progressPercentage: input.progressPercentage } });
+  if (nextStatus === "completed" && !task.completed_at) {
+    await logActivity({ organizationId, actorUserId: actor.id, eventType: "task_completed", taskId, projectId: task.project_id, metadata: {} });
+  }
+
+  return { progress, task: updatedTask, project_progress_percentage: projectProgress };
 }

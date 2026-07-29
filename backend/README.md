@@ -394,6 +394,8 @@ All API routes are mounted under `/api/v1`.
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/employees/skills` | Authenticated | Lists approved skills. |
 | `GET` | `/api/v1/employees/me` | Authenticated employee | Returns the current employee profile. |
+| `GET` | `/api/v1/employees/me/tasks` | Authenticated employee | Lists only the caller's assigned tasks; supports status, priority, projectId, dueBefore, dueAfter, page, limit, and sort. |
+| `GET` | `/api/v1/employees/me/dashboard` | Authenticated employee | Returns workload, assignments, recent progress, and attention items. |
 | `POST` | `/api/v1/employees/profile` | Authenticated employee | Creates the current employee profile. |
 | `PATCH` | `/api/v1/employees/me` | Authenticated employee | Updates the current employee profile and skills. |
 
@@ -402,6 +404,7 @@ All API routes are mounted under `/api/v1`.
 | Method | Path | Access | Description |
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/supervisors/me` | Authenticated | Returns the current supervisor profile. |
+| `GET` | `/api/v1/supervisors/dashboard` | Admin, supervisor | Returns organization project, task, employee workload, and project-progress summaries. |
 | `POST` | `/api/v1/supervisors/profile` | Authenticated supervisor | Creates the current supervisor profile. |
 | `PATCH` | `/api/v1/supervisors/employees/:employeeId/work-settings` | Admin, supervisor | Updates employee employment type or weekly capacity. |
 
@@ -436,9 +439,10 @@ All API routes are mounted under `/api/v1`.
 | Method | Path | Access | Description |
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/tasks` | Authenticated | Lists all tasks for admins/supervisors, or assigned tasks for employees. |
+| `GET` | `/api/v1/tasks/:taskId` | Organization member | Employees are limited to their assigned task; supervisors/admins may access organization tasks. Includes immutable progress history. |
 | `POST` | `/api/v1/tasks` | Admin, supervisor | Creates a task. |
 | `PATCH` | `/api/v1/tasks/:taskId/assign` | Admin, supervisor | Assigns or unassigns a task. |
-| `POST` | `/api/v1/tasks/:taskId/progress` | Employee | Creates a progress update for the assigned employee. |
+| `PATCH` | `/api/v1/tasks/:taskId/progress` | Assigned employee, admin, supervisor | Appends an immutable progress update and derives task status. `POST` remains a temporary compatibility alias. |
 
 ## Validation
 
@@ -535,6 +539,26 @@ Availability is `100 - workload_percentage`, clamped between 0 and 100.
 
 Performance is recalculated from assigned tasks and latest progress records. Completed tasks score 100, review tasks score at least 85, blocked tasks score at most 60, cancelled tasks are ignored, and task scores are weighted by estimated hours.
 
+## Task Execution and Progress Tracking
+
+Each progress write is append-only in `task_progress`; prior entries are never updated. A value of `0` maps to the existing `todo` (pending) status, `1–99` maps to `in_progress`, and `100` maps to `completed`. `completed_at` is set only for the first transition to completion.
+
+Project progress is persisted after every task progress, creation, or task edit using:
+
+`completed estimated hours / total estimated hours * 100`
+
+The value is clamped from 0 to 100. Completing a task removes its estimated hours from the active-task workload calculation, then persists updated workload and availability. Activity logs record progress, completion, project-progress updates, and dashboard views without retaining progress notes or other sensitive content.
+
+Example progress update (supply the selected tenant header):
+
+```bash
+curl -X PATCH "$API_URL/api/v1/tasks/$TASK_ID/progress" \
+  -H "Authorization: Bearer $EMPLOYEE_TOKEN" \
+  -H "X-Organization-Id: $ORGANIZATION_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"progressPercentage":65,"notes":"Completed API implementation."}'
+```
+
 ## Environment Variables
 
 Only variable names are documented. Do not commit real values.
@@ -561,6 +585,7 @@ Only variable names are documented. Do not commit real values.
 | `npm run verify:invitations` | Exercise secure invitation creation, inspection, acceptance, resend, revoke, and profile provisioning checks. |
 | `npm run verify:tenant-seed` | Seed or refresh the dedicated two-organization verification dataset. |
 | `npm run verify:tenant-isolation` | Seed the dataset and run automated multi-tenant API isolation checks against a running backend. |
+| `npm run verify:task-progress` | Creates and assigns a verification task, updates and completes it, then verifies persisted progress and the employee dashboard. Requires the `TASK_PROGRESS_*` token, organization, and employee environment variables. |
 
 ## Tenant Verification Procedure
 

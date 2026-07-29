@@ -42,9 +42,15 @@ router.patch(
   requireOrganizationRole("organization_admin", "supervisor"),
   assignTaskHandler
 );
+router.patch(
+  "/:taskId/progress",
+  requireOrganizationRole("organization_admin", "supervisor", "employee"),
+  createTaskProgressHandler
+);
+// Retained temporarily for existing clients while PATCH is the documented update API.
 router.post(
   "/:taskId/progress",
-  requireOrganizationRole("employee"),
+  requireOrganizationRole("organization_admin", "supervisor", "employee"),
   createTaskProgressHandler
 );
 

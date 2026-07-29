@@ -9,7 +9,9 @@ import {
   createMyEmployeeProfile,
   getApprovedSkills,
   updateMyEmployeeProfile,
+  getMyTasks,
 } from "../controllers/employeeController.js";
+import { getEmployeeDashboardHandler } from "../controllers/dashboardController.js";
 
 const router = Router();
 
@@ -26,6 +28,20 @@ router.get(
   resolveOrganizationContext,
   requireOrganizationRole("employee"),
   getMyEmployeeProfile
+);
+router.get(
+  "/me/tasks",
+  authenticateUser,
+  resolveOrganizationContext,
+  requireOrganizationRole("employee"),
+  getMyTasks
+);
+router.get(
+  "/me/dashboard",
+  authenticateUser,
+  resolveOrganizationContext,
+  requireOrganizationRole("employee"),
+  getEmployeeDashboardHandler
 );
 router.patch(
   "/me",
