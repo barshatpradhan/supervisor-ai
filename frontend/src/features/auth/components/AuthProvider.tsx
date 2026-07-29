@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { AuthContext } from '../hooks/authContext'
 import type { AuthContextValue } from '../hooks/authContext'
 import {
@@ -31,6 +32,7 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [user, setUser] = useState<AuthenticatedUser | null>(null)
   const [onboarding, setOnboarding] = useState<AuthOnboardingState | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -38,10 +40,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const clearSession = useCallback(() => {
     clearAuthTokens()
+    queryClient.clear()
     setUser(null)
     setOnboarding(null)
     setError(null)
-  }, [])
+  }, [queryClient])
 
   useEffect(() => {
     let isMounted = true
@@ -168,6 +171,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       error,
       isAuthenticated: Boolean(user),
       isLoading,
+      status: isLoading ? 'loading' : user ? 'authenticated' : 'unauthenticated',
       login,
       logout,
       onboarding,
