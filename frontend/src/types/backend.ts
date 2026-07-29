@@ -338,14 +338,42 @@ export interface BackendRecommendationScoreBreakdown {
   availability: number
   performance: number
   workload: number
+  requiredSkillMatch?: number
+  preferredSkillMatch?: number
+  proficiency?: number
+  experience?: number
+  workloadPercentage?: number
+  availabilityPercentage?: number
+  performanceScore?: number | null
+  estimatedProjectHours?: number
+  weeklyCapacityHours?: number
+  suitability?: 'strong' | 'moderate' | 'weak'
+  reasons?: string[]
+  matchedRequiredSkills?: string[]
+  matchedPreferredSkills?: string[]
+  missingRequiredSkills?: string[]
+  missingPreferredSkills?: string[]
 }
 
 export interface BackendRecommendation {
   employeeId: string
+  fullName: string
+  score: number
   employeeName: string
   rank: number
   matchScore: number
   confidenceScore: number
+  matchedRequiredSkills: string[]
+  matchedPreferredSkills: string[]
+  missingRequiredSkills: string[]
+  missingPreferredSkills: string[]
+  workloadPercentage: number
+  availabilityPercentage: number
+  performanceScore: number | null
+  estimatedProjectHours: number
+  weeklyCapacityHours: number
+  suitability: 'strong' | 'moderate' | 'weak'
+  reasons: string[]
   matchedSkills: string[]
   missingSkills: string[]
   scoreBreakdown: BackendRecommendationScoreBreakdown
