@@ -351,6 +351,15 @@ npm run preview
 4. Refresh the latest saved run, switch organizations, and confirm previous tenant results are not reused.
 5. Verify the analysis prerequisite, no-eligible-employees response, generation failure, retrieval retry, responsive layout, and that no assignment action is present.
 
+## Recommendation assignment verification
+
+1. Open a persisted recommendation as an organization administrator or supervisor and select Assign employee.
+2. Verify the employee summary and advisory note, then test existing-task mode with an eligible unassigned project task.
+3. Test create-task mode with title, description, supported priority, estimated hours, and optional due date.
+4. Submit once, verify the backend success response and success panel, and confirm repeated clicks are disabled while pending.
+5. Verify validation, invalid recommendation, already-assigned task, unauthorized, and network errors; switch organizations or projects and confirm stale dialog state is cleared.
+6. Confirm employees do not see the assignment action and no general task-management controls appear.
+
 | Status | Item |
 | --- | --- |
 | Done | Vite, React, TypeScript, and Tailwind foundation. |

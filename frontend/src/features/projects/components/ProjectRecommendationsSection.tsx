@@ -1,14 +1,17 @@
 import { Link } from 'react-router-dom'
+import { useState } from 'react'
 import { Card } from '../../../components/ui/Card'
 import { ErrorState } from '../../../components/shared/ErrorState'
 import { LoadingState } from '../../../components/shared/LoadingState'
 import { Button } from '../../../components/ui/Button'
 import type { BackendRecommendation } from '../../../types/backend'
 import { useProjectDocuments } from '../hooks/useProjectDocuments'
+import { useProjectAssignmentTasks } from '../hooks/useProjectAssignmentTasks'
 import {
   useGenerateProjectRecommendations,
   useProjectRecommendations,
 } from '../hooks/useProjectRecommendations'
+import { RecommendationAssignmentDialog } from './RecommendationAssignmentDialog'
 
 interface ProjectRecommendationsSectionProps {
   organizationId: string
@@ -23,7 +26,7 @@ function SkillGroup({ emptyCopy, label, skills }: { emptyCopy: string; label: st
   return <div className="min-w-0 rounded-lg border border-border-subtle bg-surface-card-alt p-4"><h4 className="text-sm font-semibold text-ink-900">{label}</h4>{skills.length ? <ul aria-label={label} className="mt-3 flex flex-wrap gap-2">{skills.map((skill) => <li key={`${label}-${skill}`} className="rounded-md border border-border-subtle bg-surface-card px-3 py-1.5 text-sm font-medium text-ink-700">{skill}</li>)}</ul> : <p className="mt-2 text-sm text-ink-600">{emptyCopy}</p>}</div>
 }
 
-export function ProjectRecommendationCard({ recommendation }: { recommendation: BackendRecommendation }) {
+export function ProjectRecommendationCard({ onAssign, recommendation }: { onAssign?: () => void; recommendation: BackendRecommendation }) {
   const breakdown = recommendation.scoreBreakdown
   const breakdownEntries = [
     ['Skill match', breakdown.skillMatch],
@@ -41,6 +44,7 @@ export function ProjectRecommendationCard({ recommendation }: { recommendation: 
     <section><h4 className="text-sm font-semibold text-ink-900">Recommendation reasons</h4><ul className="mt-3 grid gap-2">{recommendation.reasons.map((reason) => <li key={reason} className="text-sm leading-6 text-ink-700">{reason}</li>)}</ul></section>
     <div className="grid gap-4 lg:grid-cols-3"><SkillGroup emptyCopy="No required skill matches were returned." label="Required skills matched" skills={recommendation.matchedRequiredSkills} /><SkillGroup emptyCopy="No preferred skill matches were returned." label="Preferred skills matched" skills={recommendation.matchedPreferredSkills} /><SkillGroup emptyCopy="No missing required skills were returned." label="Missing skills" skills={recommendation.missingRequiredSkills} /></div>
     {breakdownEntries.length ? <details className="rounded-lg border border-border-subtle bg-surface-card-alt p-4"><summary className="cursor-pointer text-sm font-semibold text-ink-900">Score breakdown</summary><dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{breakdownEntries.map(([label, value]) => <Metric key={label} label={label} value={formatValue(value)} />)}</dl></details> : null}
+    {onAssign ? <div className="flex justify-end border-t border-border-subtle pt-4"><Button onClick={onAssign}>Assign employee</Button></div> : null}
   </article>
 }
 
@@ -52,6 +56,8 @@ export function ProjectRecommendationsSection({ organizationId, projectId }: Pro
   const documentsQuery = useProjectDocuments(organizationId, projectId)
   const recommendationsQuery = useProjectRecommendations(organizationId, projectId)
   const generateMutation = useGenerateProjectRecommendations(organizationId, projectId)
+  const tasksQuery = useProjectAssignmentTasks(organizationId, projectId, true)
+  const [selectedRecommendation, setSelectedRecommendation] = useState<BackendRecommendation | null>(null)
   const hasAnalysis = Boolean(documentsQuery.data?.some((entry) => entry.analysis))
   const result = recommendationsQuery.data
 
@@ -66,6 +72,7 @@ export function ProjectRecommendationsSection({ organizationId, projectId }: Pro
     {generateMutation.error ? <ErrorState error={generateMutation.error} onRetry={() => generateMutation.mutate()} title="Recommendation generation failed" /> : null}
     {!result ? <Card className="text-center"><h3 className="text-lg font-semibold text-ink-900">Recommendations have not been generated</h3><p className="mt-2 text-sm text-ink-600">Generate the first saved recommendation run for this project when you are ready to review employee fit.</p></Card> : null}
     {result && !result.recommendations.length ? <Card className="text-center"><h3 className="text-lg font-semibold text-ink-900">No eligible employees were found</h3><p className="mt-2 text-sm text-ink-600">The backend returned an empty recommendation result for this project.</p></Card> : null}
-    {result && result.recommendations.length ? <><p className="text-sm text-ink-600" role="status">{result.recommendations.length} ranked employee{result.recommendations.length === 1 ? '' : 's'} in the latest saved recommendation run.</p><div className="grid gap-5">{result.recommendations.map((recommendation) => <ProjectRecommendationCard key={`${recommendation.rank}-${recommendation.employeeId}`} recommendation={recommendation} />)}</div></> : null}
+    {result && result.recommendations.length ? <><p className="text-sm text-ink-600" role="status">{result.recommendations.length} ranked employee{result.recommendations.length === 1 ? '' : 's'} in the latest saved recommendation run.</p><div className="grid gap-5">{result.recommendations.map((recommendation) => <ProjectRecommendationCard key={`${recommendation.rank}-${recommendation.employeeId}`} onAssign={recommendation.fullName ? () => setSelectedRecommendation(recommendation) : undefined} recommendation={recommendation} />)}</div></> : null}
+    {selectedRecommendation && result ? <RecommendationAssignmentDialog onOpenChange={(open) => { if (!open) setSelectedRecommendation(null) }} open organizationId={organizationId} projectId={projectId} recommendation={selectedRecommendation} recommendationRunId={result.recommendationRunId} tasks={tasksQuery.data ?? []} /> : null}
   </section>
 }
