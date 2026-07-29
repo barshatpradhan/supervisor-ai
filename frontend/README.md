@@ -218,6 +218,10 @@ Current sidebar links:
 
 Organization administrators use the existing `/dashboard` route. It calls `GET /api/v1/dashboard/supervisor` with the selected organization context and displays only its aggregate project, task, employee-workload, document-analysis, and recommendation data. Use the refresh control to refetch tenant-scoped dashboard data; switching organizations changes the dashboard query key and reloads data for the selected workspace.
 
+## Project list
+
+Authorized organization administrators and supervisors use `/projects`, backed by `GET /api/v1/projects`. The API returns all non-deleted projects for the selected organization and has no filtering, sorting, or pagination parameters. The page stores a client-side title/description search term in `?search=` and reloads safely when the active organization changes. Manual verification: select an organization, open Projects, search by title or description, clear search, refresh, switch organizations, and confirm that only the selected organization’s projects appear.
+
 ## Design System
 
 The active design implementation is token-driven and follows a monday/Vibe-inspired purpose-first color model.
