@@ -14,6 +14,7 @@ import {
 import { ensureProjectExistsInOrganization } from "./projectService.js";
 import { getAppUserByAuthId } from "./userService.js";
 import { logActivity } from "./activityLogService.js";
+import { incrementMetric } from "../middleware/observabilityMiddleware.js";
 
 const TASK_SELECT = `
   id,
@@ -657,6 +658,7 @@ export async function createTaskProgress(
   input: CreateTaskProgressInput,
   membershipRole: "organization_admin" | "supervisor" | "employee" = "employee"
 ) {
+  const progressStartedAt = performance.now();
   const actor = await getAppUserByAuthId(authUserId);
   const employee = membershipRole === "employee"
     ? await getEmployeeForAuthUser(authUserId, organizationId)
@@ -718,6 +720,8 @@ export async function createTaskProgress(
   if (nextStatus === "completed" && !task.completed_at) {
     await logActivity({ organizationId, actorUserId: actor.id, eventType: "task_completed", taskId, projectId: task.project_id, metadata: {} });
   }
+  incrementMetric("task_progress_updates_total", { status: nextStatus });
+  incrementMetric("task_progress_update_duration_ms_total", {}, Math.round(performance.now() - progressStartedAt));
 
   return { progress, task: updatedTask, project_progress_percentage: projectProgress };
 }

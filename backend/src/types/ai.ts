@@ -69,3 +69,16 @@ export interface EmployeeRecommendationResult extends EmployeeRecommendation {
   scoreBreakdown: EmployeeRecommendationScoreBreakdown;
   summary: string;
 }
+
+export interface AssignRecommendedEmployeeInput {
+  recommendationRunId: string;
+  employeeId: string;
+  taskId?: string;
+  task?: {
+    title: string;
+    description?: string;
+    priority?: "low" | "medium" | "high";
+    estimatedHours: number;
+    dueDate?: string;
+  };
+}

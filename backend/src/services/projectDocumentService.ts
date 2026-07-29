@@ -18,6 +18,7 @@ import { analyzeProjectDocument } from "./aiService.js";
 import { extractDocumentText } from "./documentExtractionService.js";
 import { ensureProjectExistsInOrganization } from "./projectService.js";
 import { getAppUserByAuthId } from "./userService.js";
+import { incrementMetric } from "../middleware/observabilityMiddleware.js";
 
 const DOCUMENT_SELECT = `
   id,
@@ -68,6 +69,15 @@ function assertSupportedFile(file: UploadedProjectDocumentFile) {
   ) {
     throw new AppError("Unsupported document type.", 400);
   }
+
+  const header = file.buffer.subarray(0, 8);
+  const isPdf = header.subarray(0, 5).toString("ascii") === "%PDF-";
+  const isZip = header[0] === 0x50 && header[1] === 0x4b;
+  const isText = !header.some((byte) => byte === 0);
+  const validContent = file.mimeType === "application/pdf" ? isPdf
+    : file.mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ? isZip
+      : isText;
+  if (!validContent) throw new AppError("Uploaded file content does not match its declared type.", 400);
 }
 
 function sanitizeFileName(fileName: string) {
@@ -230,6 +240,7 @@ export async function uploadProjectDocument(
       sizeBytes: file.size,
     })
   );
+  incrementMetric("document_uploads_total");
   const { error: uploadError } = await supabase.storage
     .from(PROJECT_DOCUMENT_BUCKET)
     .upload(storagePath, file.buffer, {
@@ -357,6 +368,7 @@ export async function uploadProjectDocument(
       durationMs: Date.now() - startedAt,
     })
   );
+  incrementMetric("document_upload_duration_ms_total", {}, Date.now() - startedAt);
 
   return {
     document,

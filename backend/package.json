@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
+    "lint": "tsc --noEmit",
     "test": "tsx --test src/services/taskProgressMetrics.test.ts",
+    "test:coverage": "tsx --test --experimental-test-coverage src/services/taskProgressMetrics.test.ts",
     "start": "node dist/server.js",
     "verify:onboarding": "tsx src/scripts/onboardingVerification.ts",
     "verify:invitations": "tsx src/scripts/invitationVerification.ts",
@@ -21,12 +23,14 @@
   "dependencies": {
     "@google/genai": "^2.13.0",
     "@supabase/supabase-js": "^2.106.2",
+    "@types/swagger-ui-express": "^4.1.8",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "mammoth": "^1.12.0",
     "multer": "^2.2.0",
-    "pdf-parse": "^2.4.5"
+    "pdf-parse": "^2.4.5",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
