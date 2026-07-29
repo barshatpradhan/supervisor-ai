@@ -26,9 +26,9 @@ interface ProjectScopedDocumentSelectionState {
 }
 
 export function useProjectDocumentManager(projectId: string | undefined) {
-  const { activeMembershipRole } = useOrganization()
+  const { activeMembershipRole, activeOrganization } = useOrganization()
   const notifications = useNotifications()
-  const listQuery = useProjectDocuments(projectId)
+  const listQuery = useProjectDocuments(activeOrganization?.id ?? null, projectId)
   const [selectionState, setSelectionState] = useState<ProjectScopedDocumentSelectionState>({
     documentId: null,
     projectId,
@@ -159,7 +159,7 @@ export function useProjectDocumentManager(projectId: string | undefined) {
     isDocumentDetailLoading: Boolean(selectedDocumentId) && detailQuery.isLoading && !detailQuery.data,
     isDocumentDetailRefreshing: detailQuery.isRefreshing,
     isDocumentListLoading: listQuery.isLoading,
-    isDocumentListRefreshing: listQuery.isRefreshing,
+    isDocumentListRefreshing: listQuery.isRefetching,
     retryDocuments,
     retrySelectedDocument,
     selectDocument,

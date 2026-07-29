@@ -23,7 +23,35 @@ No frontend endpoint is inferred. The backend exposes the following route groups
 
 The frontend route guards reflect the backend roles: `platform_admin` for platform administration; `organization_admin`, `supervisor`, and `employee` for tenant-scoped routes. `X-Organization-Id` is attached only to tenant-scoped requests.
 
+## Organization administrator dashboard
+
+`/dashboard` uses `GET /dashboard/supervisor` for active `organization_admin` and `supervisor` memberships. The TanStack Query key includes the active organization ID, preventing cached dashboard data from crossing tenants. The page renders backend-provided project, task, employee workload, document-analysis, and recommendation aggregates. Activity and supervisor totals are omitted because no read endpoint returns them. The workload chart is lazy loaded and section failures are presented without exposing backend details.
+
+## Project list
+
+`/projects` is available to active `organization_admin` and `supervisor` memberships and calls `GET /projects`. The backend returns the complete tenant-scoped list ordered by creation date and accepts no list query parameters. The query key includes the organization ID. Search is therefore client-side over the loaded title and description fields, reflected in `?search=`; filters, sorting controls, server pagination, and create controls are omitted until their corresponding backend support exists.
+
+## Project details
+
+`/projects/:projectId` is available to the same active organization administrator and supervisor memberships. It calls `GET /projects/:projectId` through the shared project service. Its React Query key is `['projects', organizationId, projectId]`, so a project response is never reused after an organization switch. The read-only overview displays only the returned title, description, status, priority, required skills, and timestamps. Documents, AI analysis, recommendations, tasks, and activity remain explicitly non-navigating “Coming next” extension points until their own routes and page experiences are implemented.
+
 ## Authentication and invitation onboarding
+
+## Project document upload
+
+The active Documents tab at `/projects/:projectId?tab=documents` calls `GET /projects/:projectId/documents` and uploads through `POST /projects/:projectId/documents` with a single `file` multipart field. The document-list key is `['documents', organizationId, projectId]`. PDF, DOCX, and TXT MIME types are allowed up to 10 MB. Axios reports actual upload progress and an in-flight upload can be cancelled. The list polls every three seconds only while the backend reports at least one `pending` extraction; polling stops when all documents are `extracted` or `failed`. There is no backend document deletion endpoint, and document analysis content is intentionally not presented here.
+
+## AI analysis viewer
+
+`/projects/:projectId?tab=analysis` uses the same tenant-scoped `GET /projects/:projectId/documents` response and `['documents', organizationId, projectId]` query key. The backend attaches one persisted analysis to each document when available; there is no standalone analysis route, project-level aggregate, re-analysis action, or analysis status enum. The viewer defaults to the newest document with analysis, accepts only a document ID from the loaded project documents, and stores selection in `documentId`. It displays the persisted summary, complexity, estimated hours, required and preferred skills, suggested roles, and collapsed provider/model metadata. Raw provider output is not returned by this contract and is not rendered. Existing document polling continues only while extraction is `pending`; completed analysis is not polled.
+
+## Employee recommendations viewer
+
+`/projects/:projectId?tab=recommendations` is available to the same organization administrator and supervisor roles as project details. It uses `GET /projects/:projectId/recommendations` with `['recommendations', organizationId, projectId]` for the latest saved recommendation run, plus `POST /projects/:projectId/recommendations` to synchronously create a new saved run. Generation requires the backend’s latest project document analysis and at least one organization employee. The backend provides rank-ordered results, and the client preserves that order without sorting or recalculating scores. It displays returned score, reasons, skill alignment, workload, availability, performance, capacity, suitability, and optional score-breakdown values. Recommendations remain advisory; assignment requires explicit confirmation in the separate assignment dialog. There is no snapshot history, deletion, or regeneration endpoint distinct from generating a new latest run.
+
+## Recommendation assignment
+
+The recommendation card’s `Assign employee` action opens a guarded dialog and submits only to `POST /projects/:projectId/recommendations/assign`. The backend accepts exactly one of `taskId` or a nested `task` object, along with the persisted `recommendationRunId` and `employeeId`. Existing-task choices come from the implemented `GET /tasks` response, filtered to the current project’s unassigned tasks; create-task mode accepts the backend’s title, description, low/medium/high priority, estimated hours, and optional ISO date fields. Successful assignment invalidates only the current organization/project recommendations, project, task, and dashboard queries. No recommendation score is changed locally and no assignment state is invented.
 
 Public owner registration uses `POST /auth/register`; public employee provisioning is intentionally not exposed because the backend legacy `/auth/signup` endpoint is disabled by default. Sessions are restored by validating the stored bearer token with `GET /auth/me`, never by treating local storage as authentication proof. A 401 response clears the session and React Query cache centrally.
 

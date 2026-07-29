@@ -214,6 +214,14 @@ Current sidebar links:
 - AI Recommendations
 - Profile
 
+## Organization administrator dashboard
+
+Organization administrators use the existing `/dashboard` route. It calls `GET /api/v1/dashboard/supervisor` with the selected organization context and displays only its aggregate project, task, employee-workload, document-analysis, and recommendation data. Use the refresh control to refetch tenant-scoped dashboard data; switching organizations changes the dashboard query key and reloads data for the selected workspace.
+
+## Project list
+
+Authorized organization administrators and supervisors use `/projects`, backed by `GET /api/v1/projects`. The API returns all non-deleted projects for the selected organization and has no filtering, sorting, or pagination parameters. The page stores a client-side title/description search term in `?search=` and reloads safely when the active organization changes. Manual verification: select an organization, open Projects, search by title or description, clear search, refresh, switch organizations, and confirm that only the selected organization’s projects appear.
+
 ## Design System
 
 The active design implementation is token-driven and follows a monday/Vibe-inspired purpose-first color model.
@@ -309,7 +317,48 @@ npm run preview
 3. Existing invitee: open the same link, sign in with the invited email, accept it, and confirm the newly active organization is selected.
 4. Restoration: refresh a protected page, confirm `/auth/me` restores the session, sign out, and confirm protected URLs redirect to `/login` with private cached data removed.
 
+## Project details verification
+
+1. Sign in as an organization administrator or supervisor and select an organization.
+2. Open `/projects/:projectId` with a project ID from that organization.
+3. Confirm the title, description, status, priority, required skills, and created/updated timestamps match `GET /api/v1/projects/:projectId`.
+4. Refresh the details, switch organizations, and confirm the previous organization’s project data is not displayed.
+5. Verify missing or inaccessible projects show a safe state, then resize to tablet and mobile widths to confirm the metadata and skills wrap without overflow.
+
 ## Frontend Roadmap
+
+## Project document upload verification
+
+1. As an organization administrator or supervisor, open `/projects/:projectId?tab=documents`.
+2. Upload a PDF, DOCX, or TXT requirement document under 10 MB and verify actual upload progress is shown.
+3. Confirm the document appears with its filename, type, size, upload date, and backend extraction status.
+4. Confirm a pending extraction refreshes automatically and stops refreshing when the status is extracted or failed.
+5. Verify unsupported, empty, and oversized files remain client-side validation errors; retry a failed network upload and use Cancel upload while a request is in flight.
+
+## AI analysis verification
+
+1. Sign in as an organization administrator or supervisor, choose an organization, and open `/projects/:projectId?tab=analysis`.
+2. Confirm the default source is the newest document with a persisted analysis; select another project document and verify `documentId` updates in the URL.
+3. Verify the backend summary, complexity, estimated hours, required skills, preferred skills, and suggested roles display without modification.
+4. Expand Analysis details to check the source filename, provider, model, and generated date. Raw AI output is not shown.
+5. Check projects with no documents, pending extraction, failed extraction, and extracted documents without analysis, then refresh and switch organizations to confirm stale analysis is not displayed.
+
+## Employee recommendations verification
+
+1. As an organization administrator or supervisor, open `/projects/:projectId?tab=recommendations` for a project with completed analysis.
+2. Generate recommendations when no saved run exists; confirm the button disables during the synchronous request.
+3. Verify the returned employee cards remain in backend rank order and show score, reasons, matched and missing skills, workload, availability, performance, capacity, suitability, and returned score-breakdown values.
+4. Refresh the latest saved run, switch organizations, and confirm previous tenant results are not reused.
+5. Verify the analysis prerequisite, no-eligible-employees response, generation failure, retrieval retry, responsive layout, and that no assignment action is present.
+
+## Recommendation assignment verification
+
+1. Open a persisted recommendation as an organization administrator or supervisor and select Assign employee.
+2. Verify the employee summary and advisory note, then test existing-task mode with an eligible unassigned project task.
+3. Test create-task mode with title, description, supported priority, estimated hours, and optional due date.
+4. Submit once, verify the backend success response and success panel, and confirm repeated clicks are disabled while pending.
+5. Verify validation, invalid recommendation, already-assigned task, unauthorized, and network errors; switch organizations or projects and confirm stale dialog state is cleared.
+6. Confirm employees do not see the assignment action and no general task-management controls appear.
 
 | Status | Item |
 | --- | --- |
