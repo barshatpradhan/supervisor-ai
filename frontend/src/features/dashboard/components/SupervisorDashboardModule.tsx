@@ -1,8 +1,10 @@
+import { lazy, Suspense } from 'react'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { EmptyState } from '../../../components/shared/EmptyState'
 import { ErrorState } from '../../../components/shared/ErrorState'
 import { Button } from '../../../components/ui/Button'
+import { MetricCard } from '../../../components/ui/MetricCard'
 import { ProjectStatusBadge } from '../../projects/components/ProjectStatusBadge'
 import { formatProjectDate } from '../../projects/utils/projectPresentation'
 import {
@@ -23,30 +25,10 @@ import {
 } from '../utils/dashboardPresentation'
 import { SupervisorDashboardSkeleton } from './SupervisorDashboardSkeleton'
 
-function SummaryCard({
-  description,
-  tone = 'default',
-  title,
-  value,
-}: {
-  description: string
-  title: string
-  tone?: 'ai' | 'default'
-  value: string
-}) {
-  const toneClassName =
-    tone === 'ai'
-      ? 'border-ai-fg/20 bg-linear-to-br from-ai-bg via-surface-card to-surface-card'
-      : 'border-border-subtle bg-surface-card'
-
-  return (
-    <article className={['rounded-lg border p-5', toneClassName].join(' ')}>
-      <p className="text-sm font-semibold text-ink-700">{title}</p>
-      <p className="mt-3 text-3xl font-bold tracking-tight text-ink-900">{value}</p>
-      <p className="mt-2 text-sm leading-6 text-ink-600">{description}</p>
-    </article>
-  )
-}
+const WorkloadDistributionChart = lazy(async () => {
+  const module = await import('./WorkloadDistributionChart')
+  return { default: module.WorkloadDistributionChart }
+})
 
 function SectionCard({
   children,
@@ -139,8 +121,13 @@ function ProgressBar({
   )
 }
 
-export function SupervisorDashboardModule() {
-  const dashboardQuery = useSupervisorDashboard()
+interface SupervisorDashboardModuleProps {
+  organizationId: string | null
+  organizationName: string
+}
+
+export function SupervisorDashboardModule({ organizationId, organizationName }: SupervisorDashboardModuleProps) {
+  const dashboardQuery = useSupervisorDashboard(organizationId)
 
   if (dashboardQuery.isLoading) {
     return <SupervisorDashboardSkeleton />
@@ -236,19 +223,18 @@ export function SupervisorDashboardModule() {
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-              Supervisor workspace
+              Organization administrator workspace
             </p>
             <h1 className="text-3xl font-bold tracking-normal text-ink-900">
               Dashboard
             </h1>
             <p className="max-w-3xl text-sm leading-6 text-ink-600">
-              Review project delivery, assignment pressure, document analysis coverage, and AI
-              recommendation readiness from one workspace.
+              {organizationName} — review delivery, workload, document analysis coverage, and AI recommendation readiness.
             </p>
           </div>
 
           <div className="flex items-center gap-3">
-            {dashboardQuery.isRefreshing ? (
+            {dashboardQuery.isFetching ? (
               <span className="text-sm text-ink-500">Refreshing dashboard...</span>
             ) : null}
             <Button
@@ -265,13 +251,7 @@ export function SupervisorDashboardModule() {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {summaryCards.map((card) => (
-          <SummaryCard
-            description={card.description}
-            key={card.title}
-            title={card.title}
-            tone={card.tone}
-            value={card.value}
-          />
+          <MetricCard detail={card.description} key={card.title} label={card.title} value={card.value} />
         ))}
       </section>
 
@@ -458,6 +438,7 @@ export function SupervisorDashboardModule() {
                 ))}
               </div>
             )}
+            <div className="mt-5"><Suspense fallback={<div className="h-56 animate-pulse rounded-xl bg-surface-muted" role="status">Loading workload chart…</div>}><WorkloadDistributionChart employees={dashboard.employees.top_workloads} /></Suspense></div>
           </SectionCard>
         </div>
 
