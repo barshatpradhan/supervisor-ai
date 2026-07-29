@@ -518,12 +518,14 @@ Scoring signals:
 
 | Signal | Weight |
 | --- | --- |
-| Skill match | 50% |
-| Availability | 25% |
-| Performance | 15% |
-| Workload | 10% |
+| Required skill match | 50% |
+| Preferred skill match | 15% |
+| Availability | 15% |
+| Performance | 10% |
+| Matching-skill proficiency | 5% |
+| Matching-skill experience | 5% |
 
-Recommendations include rank, match score, confidence score, matched skills, missing skills, score breakdown, and summary.
+Recommendations include rank, match score, confidence score, matched skills, missing skills, score breakdown, and summary. They also separate required and preferred skill matches, include workload, availability, performance, weekly capacity, estimated project hours, suitability, and human-readable reasons. Recommendations are advisory only; generating a run never assigns an employee to a task.
 
 ## Workload and Performance Calculation
 
