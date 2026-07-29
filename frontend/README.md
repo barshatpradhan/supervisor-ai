@@ -214,6 +214,10 @@ Current sidebar links:
 - AI Recommendations
 - Profile
 
+## Organization administrator dashboard
+
+Organization administrators use the existing `/dashboard` route. It calls `GET /api/v1/dashboard/supervisor` with the selected organization context and displays only its aggregate project, task, employee-workload, document-analysis, and recommendation data. Use the refresh control to refetch tenant-scoped dashboard data; switching organizations changes the dashboard query key and reloads data for the selected workspace.
+
 ## Design System
 
 The active design implementation is token-driven and follows a monday/Vibe-inspired purpose-first color model.

@@ -23,6 +23,10 @@ No frontend endpoint is inferred. The backend exposes the following route groups
 
 The frontend route guards reflect the backend roles: `platform_admin` for platform administration; `organization_admin`, `supervisor`, and `employee` for tenant-scoped routes. `X-Organization-Id` is attached only to tenant-scoped requests.
 
+## Organization administrator dashboard
+
+`/dashboard` uses `GET /dashboard/supervisor` for active `organization_admin` and `supervisor` memberships. The TanStack Query key includes the active organization ID, preventing cached dashboard data from crossing tenants. The page renders backend-provided project, task, employee workload, document-analysis, and recommendation aggregates. Activity and supervisor totals are omitted because no read endpoint returns them. The workload chart is lazy loaded and section failures are presented without exposing backend details.
+
 ## Authentication and invitation onboarding
 
 Public owner registration uses `POST /auth/register`; public employee provisioning is intentionally not exposed because the backend legacy `/auth/signup` endpoint is disabled by default. Sessions are restored by validating the stored bearer token with `GET /auth/me`, never by treating local storage as authentication proof. A 401 response clears the session and React Query cache centrally.

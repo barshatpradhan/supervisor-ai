@@ -3,7 +3,7 @@ import { useOrganization } from '../../organizations/hooks/useOrganization'
 import { SupervisorDashboardModule } from './SupervisorDashboardModule'
 
 export function SupervisorDashboardRoute() {
-  const { activeMembershipRole } = useOrganization()
+  const { activeMembershipRole, activeOrganization } = useOrganization()
 
   if (
     activeMembershipRole !== 'organization_admin' &&
@@ -17,5 +17,5 @@ export function SupervisorDashboardRoute() {
     )
   }
 
-  return <SupervisorDashboardModule />
+  return <SupervisorDashboardModule organizationId={activeOrganization?.id ?? null} organizationName={activeOrganization?.name ?? 'Organization'} />
 }
