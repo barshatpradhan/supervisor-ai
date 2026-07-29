@@ -39,7 +39,7 @@ export function validateProjectDocumentFile(file: File) {
     return 'The selected file exceeds the 10 MB size limit.'
   }
 
-  if (!supportedMimeTypes.has(file.type) && !supportedExtensions.has(getFileExtension(file.name))) {
+  if (!supportedMimeTypes.has(file.type) || !supportedExtensions.has(getFileExtension(file.name))) {
     return 'Only PDF, DOCX, and TXT files are supported.'
   }
 

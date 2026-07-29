@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { EmptyState } from '../../../components/shared/EmptyState'
@@ -10,8 +10,9 @@ import { useProject } from '../hooks/useProject'
 import type { Project } from '../types/project'
 import { formatProjectDate } from '../utils/projectPresentation'
 import { ProjectStatusBadge } from './ProjectStatusBadge'
+import { ProjectDocumentsSection } from './ProjectDocumentsSection'
 
-const futureSections = ['Documents', 'AI Analysis', 'Recommendations', 'Tasks', 'Activity']
+const futureSections = ['AI Analysis', 'Recommendations', 'Tasks', 'Activity']
 
 function ProjectDetailsSkeleton() {
   return (
@@ -36,10 +37,16 @@ export function ProjectDetailsContent({
   onRefresh,
   organizationName,
   project,
+  activeTab = 'overview',
+  onTabChange,
+  organizationId,
 }: {
+  activeTab?: 'overview' | 'documents'
   isRefreshing?: boolean
   onRefresh?: () => void
+  onTabChange?: (tab: 'overview' | 'documents') => void
   organizationName: string
+  organizationId?: string
   project: Project
 }) {
   return (
@@ -60,7 +67,7 @@ export function ProjectDetailsContent({
 
       <nav aria-label="Project sections" className="overflow-x-auto border-b border-border-subtle">
         <ul className="flex min-w-max gap-1" role="list">
-          <li><span aria-current="page" className="inline-flex border-b-2 border-primary-600 px-3 py-3 text-sm font-semibold text-primary-700">Overview</span></li>
+          {(['overview', 'documents'] as const).map((tab) => <li key={tab}><button aria-current={activeTab === tab ? 'page' : undefined} className={activeTab === tab ? 'inline-flex border-b-2 border-primary-600 px-3 py-3 text-sm font-semibold text-primary-700' : 'inline-flex px-3 py-3 text-sm text-ink-600 hover:text-ink-900 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary-300'} onClick={() => onTabChange?.(tab)} type="button">{tab === 'overview' ? 'Overview' : 'Documents'}</button></li>)}
           {futureSections.map((section) => (
             <li key={section}>
               <span aria-label={`${section}: coming next`} className="inline-flex px-3 py-3 text-sm text-ink-500">{section}<span className="ml-2 text-xs">Coming next</span></span>
@@ -69,7 +76,8 @@ export function ProjectDetailsContent({
         </ul>
       </nav>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
+      {activeTab === 'documents' && organizationId ? <ProjectDocumentsSection organizationId={organizationId} projectId={project.id} /> : null}
+      {activeTab === 'overview' ? <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
         <div className="space-y-6">
           <Card aria-labelledby="project-description-heading">
             <h2 id="project-description-heading" className="text-lg font-semibold text-ink-900">Project overview</h2>
@@ -95,7 +103,7 @@ export function ProjectDetailsContent({
             <Metadata label="Last updated">{formatProjectDate(project.updated_at)}</Metadata>
           </dl>
         </Card>
-      </div>
+      </div> : null}
     </div>
   )
 }
@@ -106,6 +114,7 @@ function Metadata({ children, label }: { children: ReactNode; label: string }) {
 
 export function ProjectDetailsModule() {
   const { projectId } = useParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { activeOrganization } = useOrganization()
   const projectQuery = useProject(activeOrganization?.id ?? null, projectId)
 
@@ -119,10 +128,22 @@ export function ProjectDetailsModule() {
   }
   if (!projectQuery.data) return <EmptyState description="This project is not currently available." title="Project unavailable" />
 
+  const activeTab = searchParams.get('tab') === 'documents' ? 'documents' : 'overview'
+
+  function changeTab(tab: 'overview' | 'documents') {
+    const nextParams = new URLSearchParams(searchParams)
+    if (tab === 'documents') nextParams.set('tab', tab)
+    else nextParams.delete('tab')
+    setSearchParams(nextParams)
+  }
+
   return <ProjectDetailsContent
+    activeTab={activeTab}
     isRefreshing={projectQuery.isFetching}
+    onTabChange={changeTab}
     onRefresh={() => { void projectQuery.refetch() }}
     organizationName={activeOrganization.name}
+    organizationId={activeOrganization.id}
     project={projectQuery.data}
   />
 }

@@ -1,18 +1,15 @@
-import type { useProjectDocumentManager } from '../hooks/useProjectDocumentManager'
 import { Card } from '../../../components/ui/Card'
 import { Button } from '../../../components/ui/Button'
 import type { Project } from '../types/project'
 import { formatProjectDate } from '../utils/projectPresentation'
-import { ProjectDocumentsSection } from './ProjectDocumentsSection'
 import { ProjectStatusBadge } from './ProjectStatusBadge'
 
 interface ProjectDetailCardProps {
-  documentManager: ReturnType<typeof useProjectDocumentManager>
   onEdit: () => void
   project: Project
 }
 
-export function ProjectDetailCard({ documentManager, onEdit, project }: ProjectDetailCardProps) {
+export function ProjectDetailCard({ onEdit, project }: ProjectDetailCardProps) {
   return (
     <div className="space-y-6">
       <Card>
@@ -98,8 +95,6 @@ export function ProjectDetailCard({ documentManager, onEdit, project }: ProjectD
           </div>
         </div>
       </Card>
-
-      <ProjectDocumentsSection manager={documentManager} />
     </div>
   )
 }
