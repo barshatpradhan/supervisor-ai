@@ -12,8 +12,9 @@ import { formatProjectDate } from '../utils/projectPresentation'
 import { ProjectStatusBadge } from './ProjectStatusBadge'
 import { ProjectDocumentsSection } from './ProjectDocumentsSection'
 import { ProjectAnalysisSection } from './ProjectAnalysisSection'
+import { ProjectRecommendationsSection } from './ProjectRecommendationsSection'
 
-const futureSections = ['Recommendations', 'Tasks', 'Activity']
+const futureSections = ['Tasks', 'Activity']
 
 function ProjectDetailsSkeleton() {
   return (
@@ -44,11 +45,11 @@ export function ProjectDetailsContent({
   onAnalysisDocumentChange,
   organizationId,
 }: {
-  activeTab?: 'overview' | 'documents' | 'analysis'
+  activeTab?: 'overview' | 'documents' | 'analysis' | 'recommendations'
   isRefreshing?: boolean
   onRefresh?: () => void
   analysisDocumentId?: string | null
-  onTabChange?: (tab: 'overview' | 'documents' | 'analysis') => void
+  onTabChange?: (tab: 'overview' | 'documents' | 'analysis' | 'recommendations') => void
   onAnalysisDocumentChange?: (documentId: string) => void
   organizationName: string
   organizationId?: string
@@ -72,7 +73,7 @@ export function ProjectDetailsContent({
 
       <nav aria-label="Project sections" className="overflow-x-auto border-b border-border-subtle">
         <ul className="flex min-w-max gap-1" role="list">
-          {(['overview', 'documents', 'analysis'] as const).map((tab) => <li key={tab}><button aria-current={activeTab === tab ? 'page' : undefined} className={activeTab === tab ? 'inline-flex border-b-2 border-primary-600 px-3 py-3 text-sm font-semibold text-primary-700' : 'inline-flex px-3 py-3 text-sm text-ink-600 hover:text-ink-900 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary-300'} onClick={() => onTabChange?.(tab)} type="button">{tab === 'overview' ? 'Overview' : tab === 'documents' ? 'Documents' : 'AI Analysis'}</button></li>)}
+          {(['overview', 'documents', 'analysis', 'recommendations'] as const).map((tab) => <li key={tab}><button aria-current={activeTab === tab ? 'page' : undefined} className={activeTab === tab ? 'inline-flex border-b-2 border-primary-600 px-3 py-3 text-sm font-semibold text-primary-700' : 'inline-flex px-3 py-3 text-sm text-ink-600 hover:text-ink-900 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary-300'} onClick={() => onTabChange?.(tab)} type="button">{tab === 'overview' ? 'Overview' : tab === 'documents' ? 'Documents' : tab === 'analysis' ? 'AI Analysis' : 'Recommendations'}</button></li>)}
           {futureSections.map((section) => (
             <li key={section}>
               <span aria-label={`${section}: coming next`} className="inline-flex px-3 py-3 text-sm text-ink-500">{section}<span className="ml-2 text-xs">Coming next</span></span>
@@ -83,6 +84,7 @@ export function ProjectDetailsContent({
 
       {activeTab === 'documents' && organizationId ? <ProjectDocumentsSection organizationId={organizationId} projectId={project.id} /> : null}
       {activeTab === 'analysis' && organizationId ? <ProjectAnalysisSection onDocumentChange={onAnalysisDocumentChange} organizationId={organizationId} projectId={project.id} selectedDocumentId={analysisDocumentId ?? null} /> : null}
+      {activeTab === 'recommendations' && organizationId ? <ProjectRecommendationsSection organizationId={organizationId} projectId={project.id} /> : null}
       {activeTab === 'overview' ? <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)]">
         <div className="space-y-6">
           <Card aria-labelledby="project-description-heading">
@@ -138,9 +140,11 @@ export function ProjectDetailsModule() {
     ? 'documents'
     : searchParams.get('tab') === 'analysis'
       ? 'analysis'
+      : searchParams.get('tab') === 'recommendations'
+        ? 'recommendations'
       : 'overview'
 
-  function changeTab(tab: 'overview' | 'documents' | 'analysis') {
+  function changeTab(tab: 'overview' | 'documents' | 'analysis' | 'recommendations') {
     const nextParams = new URLSearchParams(searchParams)
     if (tab === 'overview') {
       nextParams.delete('tab')

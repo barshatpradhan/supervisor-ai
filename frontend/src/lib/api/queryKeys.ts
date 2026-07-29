@@ -11,6 +11,10 @@ export const queryKeys = {
     list: (organizationId: string, projectId: string) =>
       ['documents', organizationId, projectId] as const,
   },
+  recommendations: {
+    detail: (organizationId: string, projectId: string) =>
+      ['recommendations', organizationId, projectId] as const,
+  },
   tasks: { all: ['tasks'] as const, detail: (taskId: string) => ['tasks', taskId] as const },
   dashboard: {
     employee: (organizationId: string) => ['dashboard', 'employee', organizationId] as const,
