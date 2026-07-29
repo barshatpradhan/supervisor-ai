@@ -387,6 +387,12 @@ export interface BackendRecommendationResponse {
   recommendations: BackendRecommendation[]
 }
 
+export interface BackendRecommendationAssignmentResponse {
+  recommendationRunId: string
+  employeeId: string
+  task: BackendTask
+}
+
 export interface BackendDocumentAnalysisRequest {
   text: string
   fileName: string
