@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNotifications } from '../../../hooks/useNotifications'
+import { useOrganization } from '../../organizations/hooks/useOrganization'
 import { createProject, updateProject } from '../services/projectService'
 import { useProjectDocumentManager } from './useProjectDocumentManager'
 import { useProject } from './useProject'
@@ -28,13 +29,14 @@ function createInitialMutationState(): ProjectMutationState {
 
 export function useProjectManager() {
   const notifications = useNotifications()
+  const { activeOrganization } = useOrganization()
   const {
     data: projects,
     error: listError,
     isLoading: isListLoading,
-    isRefreshing: isListRefreshing,
+    isRefetching: isListRefreshing,
     refetch: refetchProjects,
-  } = useProjects()
+  } = useProjects(activeOrganization?.id ?? null)
   const [selectedProjectIdState, setSelectedProjectId] = useState<string | null>(null)
   const [panelMode, setPanelMode] = useState<ProjectPanelMode>('view')
   const [mutationState, setMutationState] = useState<ProjectMutationState>(
@@ -44,9 +46,12 @@ export function useProjectManager() {
     data: selectedProject,
     error: projectError,
     isLoading: isProjectLoading,
-    isRefreshing: isProjectRefreshing,
+    isRefetching: isProjectRefreshing,
     refetch: refetchProject,
-  } = useProject(selectedProjectIdState ?? (panelMode === 'view' ? projects?.[0]?.id : undefined))
+  } = useProject(
+    activeOrganization?.id ?? null,
+    selectedProjectIdState ?? (panelMode === 'view' ? projects?.[0]?.id : undefined),
+  )
 
   const projectList = projects ?? []
   const hasProjects = projectList.length > 0

@@ -14,6 +14,7 @@ import { OrganizationInvitationsPage } from '../../pages/OrganizationInvitations
 import { ProfilePage } from '../../pages/ProfilePage'
 import { SelectOrganizationPage } from '../../pages/SelectOrganizationPage'
 import { ProjectsPage } from '../../pages/ProjectsPage'
+import { ProjectDetailsPage } from '../../pages/ProjectDetailsPage'
 import { SignupPage } from '../../pages/SignupPage'
 import { TasksPage } from '../../pages/TasksPage'
 
@@ -35,6 +36,7 @@ export function AppRouter() {
           </Route>
           <Route element={<OrganizationRoute allowedRoles={['organization_admin', 'supervisor']} />}>
             <Route element={<ProjectsPage />} path="/projects" />
+            <Route element={<ProjectDetailsPage />} path="/projects/:projectId" />
             <Route element={<EmployeesPage />} path="/employees" />
             <Route element={<AiRecommendationsPage />} path="/ai-recommendations" />
           </Route>

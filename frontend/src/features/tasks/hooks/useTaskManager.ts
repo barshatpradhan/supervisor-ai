@@ -70,12 +70,14 @@ function createInitialTaskAssignmentMutationState(): TaskAssignmentMutationState
 
 export function useTaskManager(initialSelectedTaskId: string | null = null) {
   const notifications = useNotifications()
-  const { activeMembershipRole } = useOrganization()
+  const { activeMembershipRole, activeOrganization } = useOrganization()
   const canManageTasks =
     activeMembershipRole === 'organization_admin' || activeMembershipRole === 'supervisor'
   const canUpdateProgress = activeMembershipRole === 'employee'
   const tasksQuery = useTasks()
-  const projectsQuery = useProjects(canManageTasks)
+  const projectsQuery = useProjects(
+    canManageTasks ? activeOrganization?.id ?? null : null,
+  )
   const employeeProfileQuery = useEmployeeProfile(canUpdateProgress)
   const [selectedTaskIdState, setSelectedTaskId] = useState<string | null>(initialSelectedTaskId)
   const [panelMode, setPanelMode] = useState<'create' | 'progress' | 'view'>('view')
@@ -118,7 +120,7 @@ export function useTaskManager(initialSelectedTaskId: string | null = null) {
   const isPageLoading =
     tasksQuery.isLoading || (canManageTasks && projectsQuery.isLoading && !projectsQuery.data)
   const pageError = tasksQuery.error ?? (canManageTasks ? projectsQuery.error : null)
-  const isRefreshing = tasksQuery.isRefreshing || projectsQuery.isRefreshing
+  const isRefreshing = tasksQuery.isRefreshing || projectsQuery.isRefetching
 
   function clearTaskMutationState() {
     setTaskMutationState(createInitialTaskMutationState())

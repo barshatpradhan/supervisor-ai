@@ -29,7 +29,11 @@ The frontend route guards reflect the backend roles: `platform_admin` for platfo
 
 ## Project list
 
-`/projects` is available to active `organization_admin` and `supervisor` memberships and calls `GET /projects`. The backend returns the complete tenant-scoped list ordered by creation date and accepts no list query parameters. The query key includes the organization ID. Search is therefore client-side over the loaded title and description fields, reflected in `?search=`; filters, sorting controls, server pagination, create controls, and project-detail actions are omitted until their corresponding backend or route support exists.
+`/projects` is available to active `organization_admin` and `supervisor` memberships and calls `GET /projects`. The backend returns the complete tenant-scoped list ordered by creation date and accepts no list query parameters. The query key includes the organization ID. Search is therefore client-side over the loaded title and description fields, reflected in `?search=`; filters, sorting controls, server pagination, and create controls are omitted until their corresponding backend support exists.
+
+## Project details
+
+`/projects/:projectId` is available to the same active organization administrator and supervisor memberships. It calls `GET /projects/:projectId` through the shared project service. Its React Query key is `['projects', organizationId, projectId]`, so a project response is never reused after an organization switch. The read-only overview displays only the returned title, description, status, priority, required skills, and timestamps. Documents, AI analysis, recommendations, tasks, and activity remain explicitly non-navigating “Coming next” extension points until their own routes and page experiences are implemented.
 
 ## Authentication and invitation onboarding
 
