@@ -58,3 +58,12 @@ Public owner registration uses `POST /auth/register`; public employee provisioni
 The invitation link route is `/invitations/accept?token=…`. The token stays only in the URL during the flow: the client inspects it with `GET /invitations/:token`, creates a new invitee account using `POST /invitations/:token/register`, or accepts it for an authenticated matching user using `POST /invitations/:token/accept`. It is never persisted or used to derive access locally.
 
 After sign-in, `GET /organizations` refreshes memberships. A single active membership is selected automatically; a valid saved organization ID is restored; users with multiple active memberships use `/select-organization`; and users with no active membership receive the safe onboarding/access state. The membership returned by the backend remains the authorization source.
+## Public landing and organizer registration
+
+The public route `/` uses a standalone marketing layout with anchored sections for the supported workflow, features, roles, and security model. It does not initialize organization-scoped data or load the authenticated dashboard shell. `/login` and invitation onboarding remain separate public entry points.
+
+`/register` is organizer self-registration. The backend contract is intentionally two-step: `POST /api/v1/auth/register` accepts only email and password, creates an authenticated account with no role or organization membership, and returns a session; the authenticated client then calls `POST /api/v1/organizations` with `{ name, slug }`. The backend creates the organization membership and administrator role. The frontend never submits or assigns a role, employee profile, or organization ID during registration. Email verification is not required by the current backend implementation; the registration service confirms the auth user and returns a session.
+
+After organization creation, the organization provider refreshes memberships and selects the returned organization. The user enters the existing dashboard; a dismissible administrator welcome panel provides navigational next steps without fabricating checklist completion. Registration errors preserve only non-sensitive form values and never retain or log passwords. Existing invitation registration continues to use its dedicated `/signup` and invitation routes.
+
+Unsupported public capabilities intentionally omitted: employee or supervisor self-registration, social login, pricing, contact-sales, organization settings, and persistent onboarding completion data.

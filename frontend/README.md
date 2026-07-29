@@ -374,3 +374,10 @@ npm run preview
 | Planned | Role-specific frontend experiences. |
 | Planned | Automated frontend tests. |
 | Planned | Production deployment configuration. |
+## Public landing and organizer registration
+
+- `/` is the public Supervisor AI landing page. It links to the existing login flow and `/register`, and describes only implemented analysis, recommendations, assignment, progress, and organization-security workflows.
+- `/register` first calls `POST /api/v1/auth/register` with email and password, then calls the authenticated `POST /api/v1/organizations` endpoint with a generated slug. The backend, not the client, assigns the organization administrator membership.
+- A successful response updates the auth provider, refreshes memberships, selects the created organization, and opens the dashboard welcome panel. Email verification is not part of the current backend lifecycle.
+
+Manual verification: open `/` logged out; test section links and the mobile menu; open `/register`; submit empty and invalid forms; test mismatched passwords and duplicate email responses; complete registration; verify membership and active organization selection; dismiss the welcome panel; refresh the dashboard; log out and verify login and invitation onboarding remain available. Confirm `/register` while authenticated offers only a dashboard link.
