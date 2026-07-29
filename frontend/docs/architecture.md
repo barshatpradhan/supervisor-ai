@@ -27,6 +27,10 @@ The frontend route guards reflect the backend roles: `platform_admin` for platfo
 
 `/dashboard` uses `GET /dashboard/supervisor` for active `organization_admin` and `supervisor` memberships. The TanStack Query key includes the active organization ID, preventing cached dashboard data from crossing tenants. The page renders backend-provided project, task, employee workload, document-analysis, and recommendation aggregates. Activity and supervisor totals are omitted because no read endpoint returns them. The workload chart is lazy loaded and section failures are presented without exposing backend details.
 
+## Project list
+
+`/projects` is available to active `organization_admin` and `supervisor` memberships and calls `GET /projects`. The backend returns the complete tenant-scoped list ordered by creation date and accepts no list query parameters. The query key includes the organization ID. Search is therefore client-side over the loaded title and description fields, reflected in `?search=`; filters, sorting controls, server pagination, create controls, and project-detail actions are omitted until their corresponding backend or route support exists.
+
 ## Authentication and invitation onboarding
 
 Public owner registration uses `POST /auth/register`; public employee provisioning is intentionally not exposed because the backend legacy `/auth/signup` endpoint is disabled by default. Sessions are restored by validating the stored bearer token with `GET /auth/me`, never by treating local storage as authentication proof. A 401 response clears the session and React Query cache centrally.
