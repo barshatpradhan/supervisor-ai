@@ -264,6 +264,12 @@ Known limitations:
 - PDF and DOCX extraction remain limited
 - production hardening still needs follow-up work such as rate limiting and broader observability
 
+## Task execution APIs
+
+The backend now supports employee task execution without adding notifications or UI work. Employees use `GET /api/v1/employees/me/tasks`, `GET /api/v1/employees/me/dashboard`, and `PATCH /api/v1/tasks/:taskId/progress`; supervisors use `GET /api/v1/supervisors/dashboard`. All organization-scoped calls require `X-Organization-Id`.
+
+Progress is append-only. A task becomes `todo` (pending) at 0%, `in_progress` at 1–99%, and `completed` at 100%. Project progress is stored as completed estimated hours divided by total estimated hours, multiplied by 100. Completed tasks are excluded from workload calculations, increasing employee availability automatically.
+
 ## Current Implementation Status
 
 | Area | Status |

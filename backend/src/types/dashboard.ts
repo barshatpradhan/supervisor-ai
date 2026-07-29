@@ -88,8 +88,10 @@ export interface SupervisorDashboardTasksSummary {
   in_progress_tasks: number;
   blocked_tasks: number;
   completed_tasks: number;
+  overdue_tasks: number;
   by_status: Record<TaskStatus, number>;
   recent_tasks: DashboardTaskSummaryItem[];
+  recent_assignments: DashboardTaskSummaryItem[];
 }
 
 export interface SupervisorDashboardEmployeesSummary {
@@ -131,6 +133,7 @@ export interface EmployeeDashboardWorkSummary {
   in_progress_tasks: number;
   blocked_tasks: number;
   completed_tasks: number;
+  overdue_tasks: number;
   workload_percentage: number;
   availability_percentage: number;
   weekly_capacity_hours: number;
