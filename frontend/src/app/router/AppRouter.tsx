@@ -10,19 +10,23 @@ import { EmployeesPage } from '../../pages/EmployeesPage'
 import { ForbiddenPage } from '../../pages/ForbiddenPage'
 import { InvitationAcceptPage } from '../../pages/InvitationAcceptPage'
 import { LoginPage } from '../../pages/LoginPage'
+import { LandingPage } from '../../pages/LandingPage'
 import { OrganizationInvitationsPage } from '../../pages/OrganizationInvitationsPage'
 import { ProfilePage } from '../../pages/ProfilePage'
 import { SelectOrganizationPage } from '../../pages/SelectOrganizationPage'
 import { ProjectsPage } from '../../pages/ProjectsPage'
 import { ProjectDetailsPage } from '../../pages/ProjectDetailsPage'
 import { SignupPage } from '../../pages/SignupPage'
+import { RegisterOrganizerPage } from '../../pages/RegisterOrganizerPage'
 import { TasksPage } from '../../pages/TasksPage'
 
 export function AppRouter() {
   return (
     <Routes>
+      <Route element={<LandingPage />} path="/" />
       <Route element={<InvitationAcceptPage />} path="/invitations/accept" />
       <Route element={<LoginPage />} path="/login" />
+      <Route element={<RegisterOrganizerPage />} path="/register" />
       <Route element={<SignupPage />} path="/signup" />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
