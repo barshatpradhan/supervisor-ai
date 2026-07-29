@@ -9,13 +9,15 @@ export interface NavigationItem {
 
 interface SidebarProps {
   activeHref?: string
+  className?: string
   children?: ReactNode
   items: NavigationItem[]
+  onNavigate?: () => void
 }
 
-export function Sidebar({ activeHref = '/dashboard', children, items }: SidebarProps) {
+export function Sidebar({ activeHref = '/dashboard', children, className = '', items, onNavigate }: SidebarProps) {
   return (
-    <aside className="border-b border-border-subtle bg-surface-card lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r">
+    <aside className={`border-b border-border-subtle bg-surface-card lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r ${className}`}>
       <div className="flex h-full flex-col gap-5 p-4 lg:p-5">
         <Link
           className="rounded-md focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-primary-300"
@@ -41,6 +43,7 @@ export function Sidebar({ activeHref = '/dashboard', children, items }: SidebarP
                         ? 'bg-glass-tinted text-primary-700 ring-1 ring-border-primary'
                         : 'text-ink-700 hover:bg-surface-muted hover:text-ink-900',
                     ].join(' ')}
+                    onClick={onNavigate}
                     to={item.href}
                   >
                     {item.label}

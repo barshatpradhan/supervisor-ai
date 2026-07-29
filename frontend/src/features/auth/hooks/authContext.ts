@@ -13,6 +13,7 @@ export interface AuthContextValue {
   error: string | null
   isAuthenticated: boolean
   isLoading: boolean
+  status: 'loading' | 'authenticated' | 'unauthenticated'
   login: (credentials: LoginCredentials) => Promise<void>
   logout: (options?: { redirectTo?: string }) => void
   onboarding: AuthOnboardingState | null

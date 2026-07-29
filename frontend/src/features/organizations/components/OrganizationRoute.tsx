@@ -1,11 +1,9 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { ErrorState } from '../../../components/shared/ErrorState'
 import { LoadingState } from '../../../components/shared/LoadingState'
-import { useAuth } from '../../auth/hooks/useAuth'
 import { useOrganization } from '../hooks/useOrganization'
 import type { OrganizationMembershipRole } from '../types/organization'
 import { getActiveOrganizations } from '../utils/organizationPresentation'
-import { OrganizationAccessState } from './OrganizationAccessState'
 
 interface OrganizationRouteProps {
   allowedRoles?: OrganizationMembershipRole[]
@@ -42,23 +40,16 @@ export function OrganizationRoute({ allowedRoles }: OrganizationRouteProps) {
 
   const activeOrganizations = getActiveOrganizations(organizations)
 
+  if (activeOrganizations.length === 0) {
+    return <OrganizationAccessState activeOrganizationId={activeOrganization?.id ?? null} canCreateOrganization={Boolean(onboarding?.requiresOrganizationCreation && !onboarding.hasPendingInvitations)} organizations={organizations} onRefresh={refreshOrganizations} onSelectOrganization={selectOrganization} />
+  }
+
   if (
-    activeOrganizations.length === 0 ||
     !activeOrganization ||
     !activeMembership ||
     !activeMembershipRole
   ) {
-    return (
-      <OrganizationAccessState
-        activeOrganizationId={activeOrganization?.id ?? null}
-        canCreateOrganization={Boolean(
-          onboarding?.requiresOrganizationCreation && !onboarding.hasPendingInvitations,
-        )}
-        organizations={organizations}
-        onRefresh={refreshOrganizations}
-        onSelectOrganization={selectOrganization}
-      />
-    )
+    return <Navigate replace to="/select-organization" />
   }
 
   if (allowedRoles && !allowedRoles.includes(activeMembershipRole)) {
@@ -67,3 +58,5 @@ export function OrganizationRoute({ allowedRoles }: OrganizationRouteProps) {
 
   return <Outlet key={activeOrganization.id} />
 }
+import { useAuth } from '../../auth/hooks/useAuth'
+import { OrganizationAccessState } from './OrganizationAccessState'
