@@ -335,6 +335,22 @@ npm run preview
 4. Confirm a pending extraction refreshes automatically and stops refreshing when the status is extracted or failed.
 5. Verify unsupported, empty, and oversized files remain client-side validation errors; retry a failed network upload and use Cancel upload while a request is in flight.
 
+## AI analysis verification
+
+1. Sign in as an organization administrator or supervisor, choose an organization, and open `/projects/:projectId?tab=analysis`.
+2. Confirm the default source is the newest document with a persisted analysis; select another project document and verify `documentId` updates in the URL.
+3. Verify the backend summary, complexity, estimated hours, required skills, preferred skills, and suggested roles display without modification.
+4. Expand Analysis details to check the source filename, provider, model, and generated date. Raw AI output is not shown.
+5. Check projects with no documents, pending extraction, failed extraction, and extracted documents without analysis, then refresh and switch organizations to confirm stale analysis is not displayed.
+
+## Employee recommendations verification
+
+1. As an organization administrator or supervisor, open `/projects/:projectId?tab=recommendations` for a project with completed analysis.
+2. Generate recommendations when no saved run exists; confirm the button disables during the synchronous request.
+3. Verify the returned employee cards remain in backend rank order and show score, reasons, matched and missing skills, workload, availability, performance, capacity, suitability, and returned score-breakdown values.
+4. Refresh the latest saved run, switch organizations, and confirm previous tenant results are not reused.
+5. Verify the analysis prerequisite, no-eligible-employees response, generation failure, retrieval retry, responsive layout, and that no assignment action is present.
+
 | Status | Item |
 | --- | --- |
 | Done | Vite, React, TypeScript, and Tailwind foundation. |
