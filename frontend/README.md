@@ -327,6 +327,14 @@ npm run preview
 
 ## Frontend Roadmap
 
+## Project document upload verification
+
+1. As an organization administrator or supervisor, open `/projects/:projectId?tab=documents`.
+2. Upload a PDF, DOCX, or TXT requirement document under 10 MB and verify actual upload progress is shown.
+3. Confirm the document appears with its filename, type, size, upload date, and backend extraction status.
+4. Confirm a pending extraction refreshes automatically and stops refreshing when the status is extracted or failed.
+5. Verify unsupported, empty, and oversized files remain client-side validation errors; retry a failed network upload and use Cancel upload while a request is in flight.
+
 | Status | Item |
 | --- | --- |
 | Done | Vite, React, TypeScript, and Tailwind foundation. |
