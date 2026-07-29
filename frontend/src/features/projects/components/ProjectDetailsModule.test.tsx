@@ -24,7 +24,7 @@ describe('ProjectDetailsContent', () => {
     expect(screen.getByRole('list', { name: 'Required skills' })).toHaveTextContent('React')
     expect(screen.getByText('Accessibility')).toBeInTheDocument()
     expect(screen.getByText('Project metadata')).toBeInTheDocument()
-    expect(screen.getByLabelText('Documents: coming next')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Documents' })).toBeInTheDocument()
   })
 
   it('renders an accessible empty skills state', () => {

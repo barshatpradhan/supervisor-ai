@@ -14,12 +14,29 @@ export function getProjectDocument(projectId: string, documentId: string) {
   )
 }
 
-export function uploadProjectDocument(projectId: string, file: File) {
+interface UploadProjectDocumentOptions {
+  onProgress?: (progress: number) => void
+  signal?: AbortSignal
+}
+
+export function uploadProjectDocument(
+  projectId: string,
+  file: File,
+  options?: UploadProjectDocumentOptions,
+) {
   const formData = new FormData()
   formData.append('file', file)
 
   return postFormData<BackendProjectDocumentUploadResponse>(
     `/projects/${projectId}/documents`,
     formData,
+    {
+      onUploadProgress: (event) => {
+        if (event.total && options?.onProgress) {
+          options.onProgress(Math.round((event.loaded / event.total) * 100))
+        }
+      },
+      signal: options?.signal,
+    },
   )
 }

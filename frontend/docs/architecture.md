@@ -37,6 +37,10 @@ The frontend route guards reflect the backend roles: `platform_admin` for platfo
 
 ## Authentication and invitation onboarding
 
+## Project document upload
+
+The active Documents tab at `/projects/:projectId?tab=documents` calls `GET /projects/:projectId/documents` and uploads through `POST /projects/:projectId/documents` with a single `file` multipart field. The document-list key is `['documents', organizationId, projectId]`. PDF, DOCX, and TXT MIME types are allowed up to 10 MB. Axios reports actual upload progress and an in-flight upload can be cancelled. The list polls every three seconds only while the backend reports at least one `pending` extraction; polling stops when all documents are `extracted` or `failed`. There is no backend document deletion endpoint, and document analysis content is intentionally not presented here.
+
 Public owner registration uses `POST /auth/register`; public employee provisioning is intentionally not exposed because the backend legacy `/auth/signup` endpoint is disabled by default. Sessions are restored by validating the stored bearer token with `GET /auth/me`, never by treating local storage as authentication proof. A 401 response clears the session and React Query cache centrally.
 
 The invitation link route is `/invitations/accept?token=…`. The token stays only in the URL during the flow: the client inspects it with `GET /invitations/:token`, creates a new invitee account using `POST /invitations/:token/register`, or accepts it for an authenticated matching user using `POST /invitations/:token/accept`. It is never persisted or used to derive access locally.
