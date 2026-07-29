@@ -18,6 +18,16 @@ export const api = axios.create({
   },
 })
 
+export function isPublicRoute(pathname: string) {
+  return (
+    pathname === '/' ||
+    pathname === '/login' ||
+    pathname === '/register' ||
+    pathname === '/signup' ||
+    pathname.startsWith('/invitations/')
+  )
+}
+
 api.interceptors.request.use((config) => {
   const token = getStoredAccessToken()
   const activeOrganizationId = getActiveOrganizationId()
@@ -47,7 +57,10 @@ api.interceptors.response.use(
       clearAuthTokens()
       notifyAuthSessionExpired()
 
-      if (!window.location.pathname.startsWith('/login')) {
+      // A stale token can be present while a visitor opens a public route. The
+      // auth provider will clear it and settle as unauthenticated; redirecting
+      // here would incorrectly replace the public landing page with login.
+      if (!isPublicRoute(window.location.pathname)) {
         window.location.assign('/login')
       }
     }
