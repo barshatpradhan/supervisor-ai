@@ -28,10 +28,11 @@ function createInitialGenerationState(): RecommendationGenerationState {
 }
 
 export function useAiRecommendationManager() {
-  const { activeRole } = useOrganization()
+  const { activeMembershipRole } = useOrganization()
   const notifications = useNotifications()
   const canManageRecommendations =
-    activeRole === 'organization_admin' || activeRole === 'supervisor'
+    activeMembershipRole === 'organization_admin' ||
+    activeMembershipRole === 'supervisor'
   const projectsQuery = useRecommendationProjects(canManageRecommendations)
   const [selectedProjectIdState, setSelectedProjectIdState] = useState<string | null>(null)
   const [generationState, setGenerationState] = useState<RecommendationGenerationState>(

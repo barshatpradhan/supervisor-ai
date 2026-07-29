@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { ErrorState } from '../../../components/shared/ErrorState'
 import { Button } from '../../../components/ui/Button'
+import { getPostAuthDestination } from '../../invitations/utils/invitationNavigation'
 import { useAuth } from '../hooks/useAuth'
 
 export function LoginForm() {
+  const location = useLocation()
   const navigate = useNavigate()
   const { login } = useAuth()
   const [email, setEmail] = useState('')
@@ -20,7 +22,7 @@ export function LoginForm() {
 
     try {
       await login({ email, password })
-      navigate('/dashboard')
+      navigate(getPostAuthDestination(location.search), { replace: true })
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Unable to log in.')
     } finally {

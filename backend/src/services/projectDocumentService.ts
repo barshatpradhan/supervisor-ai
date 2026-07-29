@@ -18,6 +18,7 @@ import { analyzeProjectDocument } from "./aiService.js";
 import { extractDocumentText } from "./documentExtractionService.js";
 import { ensureProjectExistsInOrganization } from "./projectService.js";
 import { getAppUserByAuthId } from "./userService.js";
+import { incrementMetric } from "../middleware/observabilityMiddleware.js";
 
 const DOCUMENT_SELECT = `
   id,
@@ -68,6 +69,15 @@ function assertSupportedFile(file: UploadedProjectDocumentFile) {
   ) {
     throw new AppError("Unsupported document type.", 400);
   }
+
+  const header = file.buffer.subarray(0, 8);
+  const isPdf = header.subarray(0, 5).toString("ascii") === "%PDF-";
+  const isZip = header[0] === 0x50 && header[1] === 0x4b;
+  const isText = !header.some((byte) => byte === 0);
+  const validContent = file.mimeType === "application/pdf" ? isPdf
+    : file.mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ? isZip
+      : isText;
+  if (!validContent) throw new AppError("Uploaded file content does not match its declared type.", 400);
 }
 
 function sanitizeFileName(fileName: string) {
@@ -84,6 +94,41 @@ function sanitizeFileName(fileName: string) {
 function buildStoragePath(projectId: string, fileName: string) {
   const uniqueId = crypto.randomUUID();
   return `${projectId}/${uniqueId}-${sanitizeFileName(fileName)}`;
+}
+
+async function removeIncompleteDocument(documentId: string, storagePath: string) {
+  const [documentResult, storageResult] = await Promise.allSettled([
+    supabase.from("project_documents").delete().eq("id", documentId),
+    supabase.storage.from(PROJECT_DOCUMENT_BUCKET).remove([storagePath]),
+  ]);
+
+  const documentCleanupFailed =
+    documentResult.status === "rejected" ||
+    (documentResult.status === "fulfilled" && Boolean(documentResult.value.error));
+  const storageCleanupFailed =
+    storageResult.status === "rejected" ||
+    (storageResult.status === "fulfilled" && Boolean(storageResult.value.error));
+
+  if (documentCleanupFailed || storageCleanupFailed) {
+    console.error(
+      JSON.stringify({
+        scope: "document_analysis",
+        event: "incomplete_upload_cleanup_failed",
+        documentId,
+      })
+    );
+  }
+}
+
+async function removeStoredDocument(storagePath: string) {
+  try {
+    const { error } = await supabase.storage.from(PROJECT_DOCUMENT_BUCKET).remove([storagePath]);
+    if (error) {
+      console.error(JSON.stringify({ scope: "document_analysis", event: "storage_cleanup_failed" }));
+    }
+  } catch {
+    console.error(JSON.stringify({ scope: "document_analysis", event: "storage_cleanup_failed" }));
+  }
 }
 
 async function getDocumentAnalysesByDocumentIds(documentIds: string[]) {
@@ -180,11 +225,22 @@ export async function uploadProjectDocument(
   projectId: string,
   file: UploadedProjectDocumentFile
 ): Promise<ProjectDocumentUploadResult> {
+  const startedAt = Date.now();
   const appUser = await getAppUserByAuthId(authUserId);
   await ensureProjectExistsInOrganization(projectId, organizationId);
   assertSupportedFile(file);
 
   const storagePath = buildStoragePath(projectId, file.originalName);
+  console.info(
+    JSON.stringify({
+      scope: "document_analysis",
+      event: "upload_started",
+      projectId,
+      mimeType: file.mimeType,
+      sizeBytes: file.size,
+    })
+  );
+  incrementMetric("document_uploads_total");
   const { error: uploadError } = await supabase.storage
     .from(PROJECT_DOCUMENT_BUCKET)
     .upload(storagePath, file.buffer, {
@@ -196,11 +252,36 @@ export async function uploadProjectDocument(
     throw new AppError("Unable to store project document.", 500);
   }
 
-  const extraction = await extractDocumentText({
-    originalName: file.originalName,
-    mimeType: file.mimeType,
-    buffer: file.buffer,
-  });
+  let extraction;
+  try {
+    extraction = await extractDocumentText({
+      originalName: file.originalName,
+      mimeType: file.mimeType,
+      buffer: file.buffer,
+    });
+    console.info(
+      JSON.stringify({
+        scope: "document_analysis",
+        event: "extraction_completed",
+        projectId,
+        pageCount: extraction.pageCount,
+        textLength: extraction.text.length,
+        durationMs: Date.now() - startedAt,
+      })
+    );
+  } catch (error) {
+    await removeStoredDocument(storagePath);
+    console.error(
+      JSON.stringify({
+        scope: "document_analysis",
+        event: "extraction_failed",
+        projectId,
+        durationMs: Date.now() - startedAt,
+        error: error instanceof Error ? error.message : "unknown",
+      })
+    );
+    throw error;
+  }
 
   const { data: document, error: documentError } = await supabase
     .from("project_documents")
@@ -220,15 +301,30 @@ export async function uploadProjectDocument(
     .single<ProjectDocumentUploadResult["document"]>();
 
   if (documentError || !document) {
-    await supabase.storage.from(PROJECT_DOCUMENT_BUCKET).remove([storagePath]);
+    await removeStoredDocument(storagePath);
     throw new AppError("Unable to save project document metadata.", 500);
   }
 
-  const analysisResult = await analyzeProjectDocument({
-    text: extraction.text,
-    fileName: file.originalName,
-    mimeType: file.mimeType,
-  });
+  let analysisResult;
+  try {
+    analysisResult = await analyzeProjectDocument({
+      text: extraction.text,
+      mimeType: file.mimeType,
+    });
+  } catch (error) {
+    await removeIncompleteDocument(document.id, storagePath);
+    console.error(
+      JSON.stringify({
+        scope: "document_analysis",
+        event: "analysis_failed",
+        projectId,
+        documentId: document.id,
+        durationMs: Date.now() - startedAt,
+        error: error instanceof Error ? error.message : "unknown",
+      })
+    );
+    throw error;
+  }
 
   const { data: analysis, error: analysisError } = await supabase
     .from("project_document_analyses")
@@ -250,8 +346,29 @@ export async function uploadProjectDocument(
     .single<ProjectDocumentUploadResult["analysis"]>();
 
   if (analysisError || !analysis) {
+    await removeIncompleteDocument(document.id, storagePath);
+    console.error(
+      JSON.stringify({
+        scope: "document_analysis",
+        event: "analysis_save_failed",
+        projectId,
+        documentId: document.id,
+        durationMs: Date.now() - startedAt,
+      })
+    );
     throw new AppError("Unable to save project document analysis.", 500);
   }
+
+  console.info(
+    JSON.stringify({
+      scope: "document_analysis",
+      event: "analysis_saved",
+      projectId,
+      documentId: document.id,
+      durationMs: Date.now() - startedAt,
+    })
+  );
+  incrementMetric("document_upload_duration_ms_total", {}, Date.now() - startedAt);
 
   return {
     document,

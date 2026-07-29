@@ -1,6 +1,7 @@
 import { supabase } from "../config/supabase.js";
 import type {
   AuthenticatedAppUser,
+  AuthOnboardingState,
   LegacyUserRole,
   PlatformRole,
 } from "../types/auth.js";
@@ -14,14 +15,24 @@ interface AppUserRow {
   platform_role: PlatformRole | null;
 }
 
+function mapLegacyCompatibilityRole(row: AppUserRow): LegacyUserRole | null {
+  if (row.role === "admin" && row.platform_role === null) {
+    return null;
+  }
+
+  return row.role;
+}
+
 function mapAppUser(row: AppUserRow): AuthenticatedAppUser {
+  const legacyRole = mapLegacyCompatibilityRole(row);
+
   return {
     id: row.id,
     authUserId: row.auth_user_id,
     email: row.email ?? "",
     platformRole: row.platform_role,
-    legacyRole: row.role,
-    role: row.role,
+    legacyRole,
+    role: legacyRole,
   };
 }
 
@@ -37,6 +48,37 @@ export async function getAppUserByAuthId(authUserId: string) {
   }
 
   return mapAppUser(data);
+}
+
+interface OrganizationMembershipStatusRow {
+  status: "invited" | "active" | "suspended";
+}
+
+export async function getAuthOnboardingStateForAppUser(
+  appUserId: string
+): Promise<AuthOnboardingState> {
+  const { data, error } = await supabase
+    .from("organization_members")
+    .select("status")
+    .eq("user_id", appUserId)
+    .returns<OrganizationMembershipStatusRow[]>();
+
+  if (error) {
+    throw new AppError("Unable to resolve onboarding state.", 500);
+  }
+
+  const hasActiveOrganization = (data ?? []).some(
+    (membership) => membership.status === "active"
+  );
+  const hasPendingInvitations = (data ?? []).some(
+    (membership) => membership.status === "invited"
+  );
+
+  return {
+    hasActiveOrganization,
+    requiresOrganizationCreation: !hasActiveOrganization && !hasPendingInvitations,
+    hasPendingInvitations,
+  };
 }
 
 export function assertPlatformRole(

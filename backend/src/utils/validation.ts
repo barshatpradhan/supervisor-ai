@@ -43,6 +43,25 @@ export function optionalString(body: Record<string, unknown>, field: string) {
   return value.trim();
 }
 
+export function optionalDate(body: Record<string, unknown>, field: string) {
+  const value = optionalString(body, field);
+
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new AppError(`${field} must be a valid YYYY-MM-DD date.`, 400);
+  }
+
+  const parsedDate = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== value) {
+    throw new AppError(`${field} must be a valid YYYY-MM-DD date.`, 400);
+  }
+
+  return value;
+}
+
 export function optionalNullableString(
   body: Record<string, unknown>,
   field: string

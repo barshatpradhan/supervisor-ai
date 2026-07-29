@@ -22,6 +22,8 @@ export interface DocumentExtractionResult {
   text: string;
   status: DocumentExtractionStatus;
   error?: string;
+  pageCount?: number;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ProjectDocumentUploadResult {

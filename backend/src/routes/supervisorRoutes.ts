@@ -7,6 +7,7 @@ import {
   updateMySupervisorProfile,
   updateEmployeeWorkSettingsHandler,
 } from "../controllers/supervisorController.js";
+import { getSupervisorDashboardHandler } from "../controllers/dashboardController.js";
 import {
   requireOrganizationRole,
   resolveOrganizationContext,
@@ -14,6 +15,14 @@ import {
 import { requireRole } from "../middleware/roleMiddleware.js";
 
 const router = Router();
+
+router.get(
+  "/dashboard",
+  authenticateUser,
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
+  getSupervisorDashboardHandler
+);
 
 router.get(
   "/me",

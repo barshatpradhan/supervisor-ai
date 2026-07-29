@@ -5,6 +5,7 @@ import {
 } from "../services/dashboardService.js";
 import { AppError } from "../utils/appError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
+import { logActivity } from "../services/activityLogService.js";
 
 export async function getSupervisorDashboardHandler(
   req: Request,
@@ -21,6 +22,7 @@ export async function getSupervisorDashboardHandler(
     }
 
     const dashboard = await getSupervisorDashboard(req.user.id, req.organization.id);
+    await logActivity({ organizationId: req.organization.id, actorUserId: req.appUser?.id ?? req.user.id, eventType: "supervisor_dashboard_viewed" });
 
     return sendSuccess(
       res,
@@ -48,6 +50,7 @@ export async function getEmployeeDashboardHandler(
     }
 
     const dashboard = await getEmployeeDashboard(req.user.id, req.organization.id);
+    await logActivity({ organizationId: req.organization.id, actorUserId: req.appUser?.id ?? req.user.id, eventType: "employee_dashboard_viewed" });
 
     return sendSuccess(
       res,

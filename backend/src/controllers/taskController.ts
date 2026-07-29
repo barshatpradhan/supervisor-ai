@@ -13,6 +13,7 @@ import { AppError } from "../utils/appError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 import {
   optionalEnum,
+  optionalDate,
   optionalNumber,
   optionalString,
   optionalUuid,
@@ -98,6 +99,7 @@ export async function createTaskHandler(
       priority: optionalEnum(body, "priority", PRIORITIES),
       estimatedHours: optionalNumber(body, "estimatedHours", { min: 0.25 }),
       assignedEmployeeId: optionalUuid(body, "assignedEmployeeId", "Employee id"),
+      dueDate: optionalDate(body, "dueDate"),
     });
 
     return sendSuccess(res, 201, "Task created successfully.", task);
@@ -128,6 +130,7 @@ export async function updateTaskHandler(
       status: optionalEnum(body, "status", TASK_STATUSES),
       priority: optionalEnum(body, "priority", PRIORITIES),
       estimatedHours: optionalNumber(body, "estimatedHours", { min: 0.25 }),
+      dueDate: optionalDate(body, "dueDate"),
     });
 
     return sendSuccess(res, 200, "Task updated successfully.", task);
@@ -186,13 +189,18 @@ export async function createTaskProgressHandler(
       throw new AppError("progressPercentage is required.", 400);
     }
 
-    const progress = await createTaskProgress(req.user.id, req.organization.id, taskId, {
-      progressPercentage,
-      status: optionalEnum(body, "status", TASK_STATUSES),
-      notes: optionalString(body, "notes"),
-    });
+    if (!req.membership) {
+      throw new AppError("Organization context is required.", 500);
+    }
+    const progress = await createTaskProgress(
+      req.user.id,
+      req.organization.id,
+      taskId,
+      { progressPercentage, notes: optionalString(body, "notes") },
+      req.membership.role
+    );
 
-    return sendSuccess(res, 201, "Task progress updated successfully.", progress);
+    return sendSuccess(res, 200, "Task progress updated successfully.", progress);
   } catch (error) {
     return next(error);
   }

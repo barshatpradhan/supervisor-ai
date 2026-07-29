@@ -5,6 +5,7 @@ import {
   updateEmployeeProfile,
 } from "../services/employeeService.js";
 import { listApprovedSkillsForOrganization } from "../services/skillService.js";
+import { listEmployeeTasks } from "../services/taskService.js";
 import { AppError } from "../utils/appError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 import {
@@ -13,11 +14,47 @@ import {
   optionalNumber,
   optionalString,
   optionalStringArray,
+  optionalEnumValue,
+  optionalNumberValue,
+  optionalStringValue,
   requireBody,
   requireString,
+  requireUuid,
 } from "../utils/validation.js";
+import type { PriorityLevel } from "../types/project.js";
+import type { TaskStatus } from "../types/task.js";
 
 const EMPLOYMENT_TYPES = ["full_time", "part_time"] as const;
+const TASK_STATUSES: readonly TaskStatus[] = ["todo", "in_progress", "blocked", "review", "completed", "cancelled"];
+const PRIORITIES: readonly PriorityLevel[] = ["low", "medium", "high", "urgent"];
+
+export async function getMyTasks(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) return next(new AppError("Unauthorized.", 401));
+  try {
+    if (!req.organization) throw new AppError("Organization context is required.", 500);
+    const page = optionalNumberValue(req.query.page, "page", { min: 1 }) ?? 1;
+    const limit = optionalNumberValue(req.query.limit, "limit", { min: 1, max: 100 }) ?? 20;
+    if (!Number.isInteger(page) || !Number.isInteger(limit)) throw new AppError("page and limit must be integers.", 400);
+    const dueBefore = optionalStringValue(req.query.dueBefore, "dueBefore");
+    const dueAfter = optionalStringValue(req.query.dueAfter, "dueAfter");
+    for (const [label, value] of [["dueBefore", dueBefore], ["dueAfter", dueAfter]] as const) {
+      if (value !== undefined && (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(new Date(`${value}T00:00:00Z`).getTime()))) throw new AppError(`${label} must be a valid YYYY-MM-DD date.`, 400);
+    }
+    const projectId = optionalStringValue(req.query.projectId, "projectId");
+    if (projectId !== undefined) requireUuid(projectId, "projectId");
+    const tasks = await listEmployeeTasks(req.user.id, req.organization.id, {
+      status: optionalEnumValue(req.query.status, "status", TASK_STATUSES),
+      priority: optionalEnumValue(req.query.priority, "priority", PRIORITIES),
+      projectId,
+      dueBefore,
+      dueAfter,
+      page,
+      limit,
+      sort: optionalEnumValue(req.query.sort, "sort", ["assignedAt", "dueDate", "priority", "progress"] as const) ?? "assignedAt",
+    });
+    return sendSuccess(res, 200, "Employee tasks fetched successfully.", tasks);
+  } catch (error) { return next(error); }
+}
 
 export async function getApprovedSkills(
   req: Request,

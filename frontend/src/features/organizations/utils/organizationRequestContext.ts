@@ -47,5 +47,9 @@ export function shouldSkipOrganizationHeader(
     return true
   }
 
+  if (path.startsWith('/invitations/')) {
+    return true
+  }
+
   return path === '/organizations' || path === '/organizations/invitations/accept'
 }

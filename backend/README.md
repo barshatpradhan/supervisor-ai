@@ -161,7 +161,27 @@ Legacy compatibility notes:
 - only legacy `admin` values are backfilled into `users.platform_role = 'platform_admin'`
 - legacy `employee` and `supervisor` values must not be treated as platform authorization
 
-Public signup always creates an `employee` application user. Tenant-scoped business routes must use verified organization membership rather than `users.role`.
+Current onboarding model:
+
+- `POST /api/v1/auth/register` creates account identity only
+- `POST /api/v1/organizations` bootstraps the caller's first organization and active `organization_admin` membership
+- employees and supervisors join only through organization invitations
+- `POST /api/v1/auth/signup` is deprecated legacy employee provisioning and should remain disabled unless temporary compatibility is required
+
+Onboarding state:
+
+- auth session responses and `GET /api/v1/auth/me` include `onboarding`
+- `onboarding.hasActiveOrganization` reflects active memberships
+- `onboarding.hasPendingInvitations` reflects invited memberships
+- `onboarding.requiresOrganizationCreation` is true only when the user has neither an active organization nor a pending invitation
+
+Compatibility flag:
+
+- `AUTH_LEGACY_EMPLOYEE_SIGNUP_ENABLED=true` temporarily re-enables legacy public employee signup
+- when omitted or set to any other value, `/api/v1/auth/signup` returns `410 Gone`
+- if a target database still enforces `users.role not null`, identity-only registration temporarily persists the legacy compatibility value `admin` with `platform_role = null`; auth responses still expose `legacyRole` and `role` as `null` for that case
+
+Tenant-scoped business routes must use verified organization membership rather than `users.role`.
 
 ## Supabase Integration
 
@@ -258,9 +278,21 @@ Current behavior:
 Invitation lifecycle:
 
 1. An active `organization_admin` creates an invitation in a verified organization context.
-2. The backend creates or reuses the app user, stores an `invited` membership, and persists invitation metadata.
-3. `GET /api/v1/organizations` exposes the invited membership to the invited user.
-4. `POST /api/v1/organizations/invitations/accept` activates the membership and provisions the organization-scoped profile.
+2. The backend generates a high-entropy raw token, stores only its hash, persists invitation metadata, and creates or reuses the invited app user plus `invited` membership.
+3. The backend builds a frontend acceptance URL and sends the invitation through the current Supabase invite or generate-link flow.
+4. `GET /api/v1/organizations` exposes invited memberships for state rendering.
+5. `GET /api/v1/invitations/:token` returns safe invitation-inspection metadata without requiring `X-Organization-Id`.
+6. `POST /api/v1/invitations/:token/accept` verifies token, identity, expiry, status, and membership ownership, then activates the membership and provisions the organization-scoped profile.
+7. `POST /api/v1/organizations/:organizationId/invitations/:invitationId/resend` rotates the token, refreshes expiry, and invalidates the previous acceptance URL.
+8. `POST /api/v1/organizations/:organizationId/invitations/:invitationId/revoke` marks the invitation revoked and keeps the pending membership suspended as revoked metadata.
+
+Invitation compatibility and deprecation notes:
+
+- the legacy organization-context acceptance route `POST /api/v1/organizations/invitations/accept` remains temporarily for frontend compatibility and is deprecated
+- the secure token-based lifecycle is the canonical flow for new frontend work
+- the repository now includes a forward migration for dedicated invitation-token columns
+- until that migration is applied in every environment, the runtime also persists invitation token metadata in a reserved `profile.__invitation_meta` envelope so the secure flow keeps working safely on pre-migration databases
+- once the migration is applied everywhere, this compatibility layer can be removed in a later cleanup phase
 
 Current tenant isolation guarantees:
 
@@ -316,6 +348,7 @@ Migration strategy:
 - new tenant code must read authorization from `organization_members.role`
 - `users.role` remains deprecated compatibility data until remaining contracts no longer depend on it
 - never store tenant membership roles in `platform_role`
+- public account registration must not assign employee or supervisor meaning to `users.role`
 
 ## API Reference
 
@@ -332,9 +365,17 @@ All API routes are mounted under `/api/v1`.
 
 | Method | Path | Access | Description |
 | --- | --- | --- | --- |
-| `POST` | `/api/v1/auth/signup` | Public | Creates a Supabase Auth user, creates an app user with `employee` role, and returns a session. |
+| `POST` | `/api/v1/auth/register` | Public | Creates account identity only, signs in, and returns onboarding state requiring organization creation when no membership exists. |
+| `POST` | `/api/v1/auth/signup` | Public | Deprecated legacy employee provisioning endpoint. Returns `410 Gone` unless `AUTH_LEGACY_EMPLOYEE_SIGNUP_ENABLED=true`. |
 | `POST` | `/api/v1/auth/login` | Public | Signs in with email and password and returns a session including `user.platformRole`. |
-| `GET` | `/api/v1/auth/me` | Authenticated | Returns the current application user including `platformRole` and deprecated legacy-role compatibility fields. |
+| `GET` | `/api/v1/auth/me` | Authenticated | Returns the current application user including `platformRole`, deprecated legacy-role compatibility fields, and onboarding state. |
+
+### Invitations
+
+| Method | Path | Access | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/invitations/:token` | Public or authenticated | Returns safe invitation-inspection metadata for the supplied token. |
+| `POST` | `/api/v1/invitations/:token/accept` | Authenticated | Accepts the invitation token for the authenticated email and provisions the tenant profile. |
 
 ### Admin
 
@@ -353,6 +394,8 @@ All API routes are mounted under `/api/v1`.
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/employees/skills` | Authenticated | Lists approved skills. |
 | `GET` | `/api/v1/employees/me` | Authenticated employee | Returns the current employee profile. |
+| `GET` | `/api/v1/employees/me/tasks` | Authenticated employee | Lists only the caller's assigned tasks; supports status, priority, projectId, dueBefore, dueAfter, page, limit, and sort. |
+| `GET` | `/api/v1/employees/me/dashboard` | Authenticated employee | Returns workload, assignments, recent progress, and attention items. |
 | `POST` | `/api/v1/employees/profile` | Authenticated employee | Creates the current employee profile. |
 | `PATCH` | `/api/v1/employees/me` | Authenticated employee | Updates the current employee profile and skills. |
 
@@ -361,6 +404,7 @@ All API routes are mounted under `/api/v1`.
 | Method | Path | Access | Description |
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/supervisors/me` | Authenticated | Returns the current supervisor profile. |
+| `GET` | `/api/v1/supervisors/dashboard` | Admin, supervisor | Returns organization project, task, employee workload, and project-progress summaries. |
 | `POST` | `/api/v1/supervisors/profile` | Authenticated supervisor | Creates the current supervisor profile. |
 | `PATCH` | `/api/v1/supervisors/employees/:employeeId/work-settings` | Admin, supervisor | Updates employee employment type or weekly capacity. |
 
@@ -376,14 +420,29 @@ All API routes are mounted under `/api/v1`.
 | `POST` | `/api/v1/projects/:projectId/recommendations` | Admin, supervisor | Generates and persists employee recommendations. |
 | `GET` | `/api/v1/projects/:projectId/recommendations` | Admin, supervisor | Returns the latest recommendation run for a project. |
 
+### Organizations
+
+| Method | Path | Access | Description |
+| --- | --- | --- | --- |
+| `GET` | `/api/v1/organizations` | Authenticated | Lists the current user's active, invited, and suspended organization memberships. |
+| `POST` | `/api/v1/organizations` | Authenticated | Creates the caller's first organization and active `organization_admin` membership. |
+| `GET` | `/api/v1/organizations/:organizationId` | Organization member | Returns organization details in verified context. |
+| `GET` | `/api/v1/organizations/:organizationId/members` | Organization admin, supervisor | Lists organization members. |
+| `GET` | `/api/v1/organizations/:organizationId/invitations` | Organization admin | Lists organization invitations. |
+| `POST` | `/api/v1/organizations/:organizationId/invitations` | Organization admin | Creates an employee or supervisor invitation. |
+| `POST` | `/api/v1/organizations/:organizationId/invitations/:invitationId/resend` | Organization admin | Rotates the invitation token, extends expiry, and resends the acceptance link. |
+| `POST` | `/api/v1/organizations/:organizationId/invitations/:invitationId/revoke` | Organization admin | Revokes an open invitation and suspends the pending membership metadata. |
+| `POST` | `/api/v1/organizations/invitations/accept` | Authenticated | Deprecated legacy organization-context acceptance route. |
+
 ### Tasks
 
 | Method | Path | Access | Description |
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/tasks` | Authenticated | Lists all tasks for admins/supervisors, or assigned tasks for employees. |
+| `GET` | `/api/v1/tasks/:taskId` | Organization member | Employees are limited to their assigned task; supervisors/admins may access organization tasks. Includes immutable progress history. |
 | `POST` | `/api/v1/tasks` | Admin, supervisor | Creates a task. |
 | `PATCH` | `/api/v1/tasks/:taskId/assign` | Admin, supervisor | Assigns or unassigns a task. |
-| `POST` | `/api/v1/tasks/:taskId/progress` | Employee | Creates a progress update for the assigned employee. |
+| `PATCH` | `/api/v1/tasks/:taskId/progress` | Assigned employee, admin, supervisor | Appends an immutable progress update and derives task status. `POST` remains a temporary compatibility alias. |
 
 ## Validation
 
@@ -438,14 +497,12 @@ Extraction status:
 | Type | Current Behavior |
 | --- | --- |
 | TXT | Extracts UTF-8 text. |
-| PDF | Marks extraction as `pending`; PDF extraction is planned. |
-| DOCX | Marks extraction as `pending`; DOCX extraction is planned. |
+| PDF | Extracts text and page count with `pdf-parse`. |
+| DOCX | Extracts raw text with `mammoth`. |
 
 ## AI Analysis Architecture
 
-`aiService` analyzes extracted document text with Gemini when `GEMINI_API_KEY` is configured and text is available. Gemini responses are parsed and normalized into a constrained shape.
-
-If Gemini is unavailable, fails, or there is no extracted text, the service returns a local fallback analysis with `provider: "placeholder"`.
+`aiService` delegates to the Gemini SDK when `GEMINI_API_KEY` is configured. Responses must match the constrained JSON shape and are retried once if Gemini returns an invalid result. Failed extraction or analysis returns a structured API error and cleans up incomplete uploads; there is no placeholder analysis.
 
 ## Recommendation Engine Architecture
 
@@ -465,12 +522,14 @@ Scoring signals:
 
 | Signal | Weight |
 | --- | --- |
-| Skill match | 50% |
-| Availability | 25% |
-| Performance | 15% |
-| Workload | 10% |
+| Required skill match | 50% |
+| Preferred skill match | 15% |
+| Availability | 15% |
+| Performance | 10% |
+| Matching-skill proficiency | 5% |
+| Matching-skill experience | 5% |
 
-Recommendations include rank, match score, confidence score, matched skills, missing skills, score breakdown, and summary.
+Recommendations include rank, match score, confidence score, matched skills, missing skills, score breakdown, and summary. They also separate required and preferred skill matches, include workload, availability, performance, weekly capacity, estimated project hours, suitability, and human-readable reasons. Recommendations are advisory only; generating a run never assigns an employee to a task.
 
 ## Workload and Performance Calculation
 
@@ -479,6 +538,26 @@ Workload is recalculated from active task estimated hours divided by weekly capa
 Availability is `100 - workload_percentage`, clamped between 0 and 100.
 
 Performance is recalculated from assigned tasks and latest progress records. Completed tasks score 100, review tasks score at least 85, blocked tasks score at most 60, cancelled tasks are ignored, and task scores are weighted by estimated hours.
+
+## Task Execution and Progress Tracking
+
+Each progress write is append-only in `task_progress`; prior entries are never updated. A value of `0` maps to the existing `todo` (pending) status, `1–99` maps to `in_progress`, and `100` maps to `completed`. `completed_at` is set only for the first transition to completion.
+
+Project progress is persisted after every task progress, creation, or task edit using:
+
+`completed estimated hours / total estimated hours * 100`
+
+The value is clamped from 0 to 100. Completing a task removes its estimated hours from the active-task workload calculation, then persists updated workload and availability. Activity logs record progress, completion, project-progress updates, and dashboard views without retaining progress notes or other sensitive content.
+
+Example progress update (supply the selected tenant header):
+
+```bash
+curl -X PATCH "$API_URL/api/v1/tasks/$TASK_ID/progress" \
+  -H "Authorization: Bearer $EMPLOYEE_TOKEN" \
+  -H "X-Organization-Id: $ORGANIZATION_ID" \
+  -H "Content-Type: application/json" \
+  -d '{"progressPercentage":65,"notes":"Completed API implementation."}'
+```
 
 ## Environment Variables
 
@@ -489,7 +568,10 @@ Only variable names are documented. Do not commit real values.
 | `PORT` | No | HTTP server port; defaults to `5000`. |
 | `SUPABASE_URL` | Yes | Supabase project URL. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Backend-only Supabase service role key. |
-| `GEMINI_API_KEY` | No | Enables Gemini document analysis. |
+| `AUTH_LEGACY_EMPLOYEE_SIGNUP_ENABLED` | No | Set to `true` only for temporary compatibility with the deprecated public employee signup flow. |
+| `FRONTEND_APP_URL` | Yes in production | Base frontend URL used to build invitation acceptance links. |
+| `INVITATION_DEBUG_RETURN_URL` | No | Development-only flag that returns the acceptance URL in create or resend responses for local verification. |
+| `GEMINI_API_KEY` | Yes for document analysis | Gemini API key; never expose it to clients. |
 | `GEMINI_MODEL` | No | Overrides the Gemini model; defaults in code when omitted. |
 
 ## Build and Development Commands
@@ -499,8 +581,11 @@ Only variable names are documented. Do not commit real values.
 | `npm run dev` | Run the API with `tsx watch src/server.ts`. |
 | `npm run build` | Compile TypeScript into `dist`. |
 | `npm start` | Run `dist/server.js`. |
+| `npm run verify:onboarding` | Exercise public registration, organization bootstrap, invitation-only activation, and legacy-signup deprecation checks. |
+| `npm run verify:invitations` | Exercise secure invitation creation, inspection, acceptance, resend, revoke, and profile provisioning checks. |
 | `npm run verify:tenant-seed` | Seed or refresh the dedicated two-organization verification dataset. |
 | `npm run verify:tenant-isolation` | Seed the dataset and run automated multi-tenant API isolation checks against a running backend. |
+| `npm run verify:task-progress` | Creates and assigns a verification task, updates and completes it, then verifies persisted progress and the employee dashboard. Requires the `TASK_PROGRESS_*` token, organization, and employee environment variables. |
 
 ## Tenant Verification Procedure
 
@@ -510,7 +595,31 @@ Recommended flow:
 
 1. Start the backend with the target test environment variables.
 2. Run `npm run build`.
-3. Run `npm run verify:tenant-isolation`.
+3. Run `npm run verify:onboarding`.
+4. Run `npm run verify:invitations`.
+5. Run `npm run verify:tenant-isolation`.
+
+The onboarding verification currently covers:
+
+- identity-only public registration
+- onboarding state before and after first-organization bootstrap
+- organization-admin bootstrap membership creation
+- first-organization-only MVP restriction
+- invitation-only employee and supervisor activation
+- legacy public employee signup deprecation when the compatibility flag is off
+
+The invitation verification currently covers:
+
+- organization-admin invitation creation for employees and supervisors
+- safe public inspection of invitation state
+- authenticated email matching during acceptance
+- expired, revoked, and already-used invitation denial
+- resend token rotation and old-token invalidation
+- employee and supervisor profile provisioning during acceptance
+- pending-membership denial before acceptance
+- post-acceptance tenant access
+- cross-organization resend and revoke denial
+- hashed-token storage verification
 
 The verification dataset includes:
 
@@ -539,6 +648,7 @@ The automated checks currently cover:
 - Provide all required Supabase environment variables.
 - Keep `SUPABASE_SERVICE_ROLE_KEY` backend-only.
 - Ensure the Supabase schema, storage bucket, and skills repair migration are applied before enabling profile skills or recommendations.
+- Apply the secure invitation migration before removing the runtime compatibility envelope for pre-migration invitation rows.
 - Configure CORS explicitly for production; the current implementation uses default `cors()` behavior.
 - If the Supabase CLI is available, validate replay later with `supabase db reset`.
 

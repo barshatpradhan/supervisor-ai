@@ -50,6 +50,7 @@ interface EmployeeDashboardTaskRow {
   priority: PriorityLevel;
   estimated_hours: number;
   assigned_at: string | null;
+  due_date: string | null;
   updated_at: string;
 }
 
@@ -83,6 +84,8 @@ interface DashboardTaskRow {
   priority: PriorityLevel;
   assigned_employee_id: string | null;
   estimated_hours: number;
+  due_date: string | null;
+  assigned_at: string | null;
   updated_at: string;
 }
 
@@ -194,7 +197,7 @@ async function listTasksForDashboard(projectIds: string[]) {
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, project_id, title, status, priority, assigned_employee_id, estimated_hours, updated_at"
+      "id, project_id, title, status, priority, assigned_employee_id, estimated_hours, due_date, assigned_at, updated_at"
     )
     .in("project_id", projectIds)
     .is("deleted_at", null)
@@ -414,7 +417,7 @@ async function listEmployeeTasksForDashboard(employeeId: string) {
   const { data, error } = await supabase
     .from("tasks")
     .select(
-      "id, project_id, title, description, status, priority, estimated_hours, assigned_at, updated_at"
+      "id, project_id, title, description, status, priority, estimated_hours, assigned_at, due_date, updated_at"
     )
     .eq("assigned_employee_id", employeeId)
     .is("deleted_at", null)
@@ -578,19 +581,23 @@ function buildProjectProgress(
 ) {
   const taskCountsByProjectId = new Map<
     string,
-    { completedTaskCount: number; totalTaskCount: number }
+    { completedTaskCount: number; totalTaskCount: number; completedHours: number; totalHours: number }
   >();
 
   for (const task of tasks) {
     const currentCounts = taskCountsByProjectId.get(task.project_id) ?? {
       completedTaskCount: 0,
       totalTaskCount: 0,
+      completedHours: 0,
+      totalHours: 0,
     };
 
     currentCounts.totalTaskCount += 1;
+    currentCounts.totalHours += Number(task.estimated_hours);
 
     if (task.status === "completed") {
       currentCounts.completedTaskCount += 1;
+      currentCounts.completedHours += Number(task.estimated_hours);
     }
 
     taskCountsByProjectId.set(task.project_id, currentCounts);
@@ -601,11 +608,13 @@ function buildProjectProgress(
       const counts = taskCountsByProjectId.get(project.id) ?? {
         completedTaskCount: 0,
         totalTaskCount: 0,
+        completedHours: 0,
+        totalHours: 0,
       };
       const progressPercentage =
-        counts.totalTaskCount === 0
+        counts.totalHours === 0
           ? 0
-          : Math.round((counts.completedTaskCount / counts.totalTaskCount) * 100);
+          : Math.max(0, Math.min(100, Math.round((counts.completedHours / counts.totalHours) * 10000) / 100));
 
       return {
         project_id: project.id,
@@ -656,6 +665,8 @@ export async function getSupervisorDashboard(
   const taskStatusCounts = createTaskStatusCounts();
   let unassignedTasks = 0;
   let assignedTasks = 0;
+  let overdueTasks = 0;
+  const today = new Date().toISOString().slice(0, 10);
 
   for (const task of tasks) {
     taskStatusCounts[task.status] += 1;
@@ -665,6 +676,7 @@ export async function getSupervisorDashboard(
     } else {
       unassignedTasks += 1;
     }
+    if (task.due_date && task.due_date < today && ACTIVE_TASK_STATUS_SET.has(task.status)) overdueTasks += 1;
   }
 
   const totalEmployees = employeeWorkloads.length;
@@ -729,12 +741,27 @@ export async function getSupervisorDashboard(
       in_progress_tasks: taskStatusCounts.in_progress,
       blocked_tasks: taskStatusCounts.blocked,
       completed_tasks: taskStatusCounts.completed,
+      overdue_tasks: overdueTasks,
       by_status: taskStatusCounts,
       recent_tasks: [...tasks]
         .sort(
           (left, right) =>
             new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime()
         )
+        .slice(0, RECENT_ITEM_LIMIT)
+        .map((task) => ({
+          id: task.id,
+          project_id: task.project_id,
+          project_title: projectById.get(task.project_id)?.title ?? "",
+          title: task.title,
+          status: task.status,
+          priority: task.priority,
+          assigned_employee_id: task.assigned_employee_id,
+          updated_at: task.updated_at,
+        })),
+      recent_assignments: [...tasks]
+        .filter((task) => task.assigned_employee_id && task.assigned_at)
+        .sort((left, right) => new Date(right.assigned_at as string).getTime() - new Date(left.assigned_at as string).getTime())
         .slice(0, RECENT_ITEM_LIMIT)
         .map((task) => ({
           id: task.id,
@@ -800,6 +827,10 @@ export async function getEmployeeDashboard(
   const inProgressTasks = tasks.filter((task) => task.status === "in_progress").length;
   const blockedTasks = tasks.filter((task) => task.status === "blocked").length;
   const completedTasks = tasks.filter((task) => task.status === "completed").length;
+  const today = new Date().toISOString().slice(0, 10);
+  const overdueTasks = tasks.filter(
+    (task) => task.due_date && task.due_date < today && ACTIVE_TASK_STATUS_SET.has(task.status)
+  ).length;
 
   const assignedHours = calculateAssignedHours(tasks);
   const weeklyCapacityHours = normalizeNumericValue(profile.weekly_capacity_hours);
@@ -886,6 +917,7 @@ export async function getEmployeeDashboard(
       in_progress_tasks: inProgressTasks,
       blocked_tasks: blockedTasks,
       completed_tasks: completedTasks,
+      overdue_tasks: overdueTasks,
       workload_percentage: workloadPercentage,
       availability_percentage: availabilityPercentage,
       weekly_capacity_hours: weeklyCapacityHours,

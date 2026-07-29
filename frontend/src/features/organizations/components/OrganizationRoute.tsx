@@ -4,17 +4,17 @@ import { LoadingState } from '../../../components/shared/LoadingState'
 import { useOrganization } from '../hooks/useOrganization'
 import type { OrganizationMembershipRole } from '../types/organization'
 import { getActiveOrganizations } from '../utils/organizationPresentation'
-import { OrganizationAccessState } from './OrganizationAccessState'
 
 interface OrganizationRouteProps {
   allowedRoles?: OrganizationMembershipRole[]
 }
 
 export function OrganizationRoute({ allowedRoles }: OrganizationRouteProps) {
+  const { onboarding } = useAuth()
   const {
     activeMembership,
     activeOrganization,
-    activeRole,
+    activeMembershipRole,
     error,
     isLoading,
     organizations,
@@ -40,20 +40,23 @@ export function OrganizationRoute({ allowedRoles }: OrganizationRouteProps) {
 
   const activeOrganizations = getActiveOrganizations(organizations)
 
-  if (activeOrganizations.length === 0 || !activeOrganization || !activeMembership || !activeRole) {
-    return (
-      <OrganizationAccessState
-        activeOrganizationId={activeOrganization?.id ?? null}
-        organizations={organizations}
-        onRefresh={refreshOrganizations}
-        onSelectOrganization={selectOrganization}
-      />
-    )
+  if (activeOrganizations.length === 0) {
+    return <OrganizationAccessState activeOrganizationId={activeOrganization?.id ?? null} canCreateOrganization={Boolean(onboarding?.requiresOrganizationCreation && !onboarding.hasPendingInvitations)} organizations={organizations} onRefresh={refreshOrganizations} onSelectOrganization={selectOrganization} />
   }
 
-  if (allowedRoles && !allowedRoles.includes(activeRole)) {
+  if (
+    !activeOrganization ||
+    !activeMembership ||
+    !activeMembershipRole
+  ) {
+    return <Navigate replace to="/select-organization" />
+  }
+
+  if (allowedRoles && !allowedRoles.includes(activeMembershipRole)) {
     return <Navigate replace to="/forbidden" />
   }
 
   return <Outlet key={activeOrganization.id} />
 }
+import { useAuth } from '../../auth/hooks/useAuth'
+import { OrganizationAccessState } from './OrganizationAccessState'

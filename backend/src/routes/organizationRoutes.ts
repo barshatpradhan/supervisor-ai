@@ -7,6 +7,8 @@ import {
   listCurrentUserOrganizationsHandler,
   listOrganizationInvitationsHandler,
   listOrganizationMembersHandler,
+  resendOrganizationInvitationHandler,
+  revokeOrganizationInvitationHandler,
 } from "../controllers/organizationController.js";
 import { authenticateUser } from "../middleware/authMiddleware.js";
 import {
@@ -53,6 +55,22 @@ router.post(
   resolveOrganizationContext,
   requireOrganizationRole("organization_admin"),
   createOrganizationInvitationHandler
+);
+
+router.post(
+  "/:organizationId/invitations/:invitationId/resend",
+  authenticateUser,
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin"),
+  resendOrganizationInvitationHandler
+);
+
+router.post(
+  "/:organizationId/invitations/:invitationId/revoke",
+  authenticateUser,
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin"),
+  revokeOrganizationInvitationHandler
 );
 
 export default router;

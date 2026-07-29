@@ -1,15 +1,15 @@
 :root {
-  /* monday/Vibe-inspired core palette */
-  --primary-50: #f5f4ff;
-  --primary-100: #ecebff;
-  --primary-200: #d8d6ff;
-  --primary-300: #b8b3ff;
-  --primary-400: #8e89ff;
-  --primary-500: #6161ff;
-  --primary-600: #4b4de6;
-  --primary-700: #393cc2;
-  --primary-800: #2f3198;
-  --primary-900: #23255f;
+  /* Calm ink and a single restrained indigo accent. */
+  --primary-50: #f5f7ff;
+  --primary-100: #ebefff;
+  --primary-200: #d9e0ff;
+  --primary-300: #bcc8ff;
+  --primary-400: #8fa0ef;
+  --primary-500: #586dc9;
+  --primary-600: #4157ad;
+  --primary-700: #34478f;
+  --primary-800: #293a72;
+  --primary-900: #202d56;
 
   --accent-lime-100: #eef9d9;
   --accent-lime-500: #9cd326;
@@ -34,17 +34,17 @@
   --accent-lilac-700: #784bd1;
 
   --neutral-0: #ffffff;
-  --neutral-25: #f9faff;
-  --neutral-50: #f6f7fb;
-  --neutral-100: #f3f5fb;
-  --neutral-200: #e4e6f1;
-  --neutral-300: #d0d4e4;
-  --neutral-400: #cacbcd;
-  --neutral-500: #7c7b7b;
-  --neutral-600: #676879;
-  --neutral-700: #535768;
-  --neutral-800: #323338;
-  --neutral-900: #181b34;
+  --neutral-25: #fcfcfb;
+  --neutral-50: #f7f7f4;
+  --neutral-100: #f1f1ed;
+  --neutral-200: #e5e5df;
+  --neutral-300: #d6d6ce;
+  --neutral-400: #aaa9a0;
+  --neutral-500: #77766f;
+  --neutral-600: #5d5c56;
+  --neutral-700: #45443f;
+  --neutral-800: #292925;
+  --neutral-900: #171714;
 
   /* Purpose aliases */
   --success-bg: var(--accent-green-100);
@@ -81,12 +81,12 @@
   --text-on-primary: #ffffff;
   --text-link: var(--primary-600);
 
-  --border-default: #dcdfec;
+  --border-default: #e0e0d8;
   --border-strong: var(--neutral-300);
   --border-primary: var(--primary-200);
 
-  --elevation-card: 0 6px 24px rgb(24 27 52 / 7%);
-  --elevation-shell: 0 20px 44px rgb(24 27 52 / 10%);
+  --elevation-card: 0 2px 8px rgb(23 23 20 / 5%);
+  --elevation-shell: 0 18px 44px rgb(23 23 20 / 12%);
 
   /* Tailwind-exposed aliases */
   --color-primary-50: var(--primary-50);

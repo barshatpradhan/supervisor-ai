@@ -124,6 +124,10 @@ It exposes:
 
 On app load, the provider checks for a stored access token and calls `/auth/me`. If the backend validates the token, the user is restored. If validation fails, tokens and auth state are cleared.
 
+Public registration uses `POST /auth/register` to create an organization owner account. Public employee and supervisor signup is intentionally unavailable; those accounts are created through organization invitations. Invitation links use `/invitations/accept?token=…`, inspect with `GET /invitations/:token`, register a new invitee with `POST /invitations/:token/register`, or accept an existing account with `POST /invitations/:token/accept`.
+
+After authentication, the organization provider refreshes `GET /organizations`. It restores only an active saved organization, auto-selects a single active membership, and sends multi-organization users to `/select-organization`.
+
 ```mermaid
 sequenceDiagram
   participant User
@@ -297,6 +301,13 @@ Preview a production build:
 ```bash
 npm run preview
 ```
+
+## Manual authentication verification
+
+1. Owner: open `/signup`, register with email/password, create an organization from `/select-organization`, and confirm the workspace opens at `/dashboard`.
+2. New invitee: create an employee or supervisor invitation through the organization invitation flow, open its `/invitations/accept?token=…` link, create a password, and confirm the active membership and dashboard.
+3. Existing invitee: open the same link, sign in with the invited email, accept it, and confirm the newly active organization is selected.
+4. Restoration: refresh a protected page, confirm `/auth/me` restores the session, sign out, and confirm protected URLs redirect to `/login` with private cached data removed.
 
 ## Frontend Roadmap
 

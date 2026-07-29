@@ -1,7 +1,8 @@
 import type {
+  BackendAuthUserContext,
   BackendAuthSession,
-  BackendAuthUser,
   LoginRequest,
+  RegisterRequest,
   SignupRequest,
 } from '../../types/backend'
 import { getJson, postJson } from '../../lib/api'
@@ -14,6 +15,22 @@ export function signup(credentials: SignupRequest) {
   return postJson<BackendAuthSession, SignupRequest>('/auth/signup', credentials)
 }
 
+export function register(credentials: RegisterRequest) {
+  return postJson<BackendAuthSession, RegisterRequest>('/auth/register', credentials, {
+    skipOrganizationContext: true,
+  })
+}
+
+export function registerInvitation(token: string, password: string) {
+  return postJson<BackendAuthSession, { password: string }>(
+    `/invitations/${encodeURIComponent(token)}/register`,
+    { password },
+    { skipOrganizationContext: true },
+  )
+}
+
 export function getCurrentUser() {
-  return getJson<BackendAuthUser>('/auth/me')
+  return getJson<BackendAuthUserContext>('/auth/me', {
+    skipOrganizationContext: true,
+  })
 }
