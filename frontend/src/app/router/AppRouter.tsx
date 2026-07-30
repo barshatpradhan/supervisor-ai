@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import { RoleGuard } from '../../features/auth/components/RoleGuard'
 import { ProtectedRoute } from '../../features/auth/components/ProtectedRoute'
 import { OrganizationRoute } from '../../features/organizations/components/OrganizationRoute'
@@ -11,6 +11,7 @@ import { ForbiddenPage } from '../../pages/ForbiddenPage'
 import { InvitationAcceptPage } from '../../pages/InvitationAcceptPage'
 import { LoginPage } from '../../pages/LoginPage'
 import { LandingPage } from '../../pages/LandingPage'
+import { NotFoundPage } from '../../pages/NotFoundPage'
 import { OrganizationInvitationsPage } from '../../pages/OrganizationInvitationsPage'
 import { ProfilePage } from '../../pages/ProfilePage'
 import { SelectOrganizationPage } from '../../pages/SelectOrganizationPage'
@@ -32,7 +33,6 @@ export function AppRouter() {
         <Route element={<AppLayout />}>
           <Route element={<ForbiddenPage />} path="/forbidden" />
           <Route element={<SelectOrganizationPage />} path="/select-organization" />
-          <Route element={<Navigate replace to="/dashboard" />} index />
           <Route element={<OrganizationRoute />}>
             <Route element={<DashboardPage />} path="/dashboard" />
             <Route element={<TasksPage />} path="/tasks" />
@@ -52,7 +52,7 @@ export function AppRouter() {
           </Route>
         </Route>
       </Route>
-      <Route element={<Navigate replace to="/dashboard" />} path="*" />
+      <Route element={<NotFoundPage />} path="*" />
     </Routes>
   )
 }
