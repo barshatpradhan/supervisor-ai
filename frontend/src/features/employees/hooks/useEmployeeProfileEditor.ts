@@ -12,13 +12,15 @@ import {
   buildEmployeeProfileFormValues,
   buildOptimisticEmployeeProfile,
   categorizeEmployeeSkills,
-  dedupeSkillNames,
+  dedupeProfileSkills,
   normalizeSkillName,
 } from '../utils/profileForm'
 import type { EmployeeProfileFormValues } from '../utils/profileForm'
 
 interface EmployeeProfileValidationErrors {
   bio?: string
+  jobTitle?: string
+  department?: string
   fullName?: string
   skillInput?: string
 }
@@ -30,7 +32,7 @@ function buildUpdateRequest(
   const request: BackendUpdateEmployeeProfileRequest = {}
   const normalizedFullName = values.fullName.trim()
   const normalizedBio = values.bio.trim()
-  const normalizedSkills = dedupeSkillNames(values.skills)
+  const normalizedSkills = dedupeProfileSkills(values.skills)
 
   if (normalizedFullName !== currentProfile.full_name) {
     request.full_name = normalizedFullName
@@ -40,16 +42,34 @@ function buildUpdateRequest(
     request.bio = normalizedBio
   }
 
-  const currentSkills = dedupeSkillNames(currentProfile.skills.map((skill) => skill.name))
+  if (values.jobTitle.trim() !== (currentProfile.job_title ?? '').trim()) {
+    request.job_title = values.jobTitle.trim() || null
+  }
+
+  if (values.department.trim() !== (currentProfile.department ?? '').trim()) {
+    request.department = values.department.trim() || null
+  }
+
+  const currentSkills = currentProfile.skills.map((skill) => ({
+    name: skill.name,
+    proficiencyLevel: skill.proficiencyLevel,
+    yearsOfExperience: skill.yearsOfExperience === null ? '' : String(skill.yearsOfExperience),
+  }))
   const haveSkillsChanged =
     normalizedSkills.length !== currentSkills.length ||
     normalizedSkills.some(
       (skill, index) =>
-        normalizeSkillName(skill) !== normalizeSkillName(currentSkills[index] ?? ''),
+        normalizeSkillName(skill.name) !== normalizeSkillName(currentSkills[index]?.name ?? '') ||
+        skill.proficiencyLevel !== currentSkills[index]?.proficiencyLevel ||
+        skill.yearsOfExperience.trim() !== currentSkills[index]?.yearsOfExperience.trim(),
     )
 
   if (haveSkillsChanged) {
-    request.skills = normalizedSkills
+    request.skills = normalizedSkills.map((skill) => ({
+      name: skill.name,
+      proficiency_level: skill.proficiencyLevel,
+      years_of_experience: skill.yearsOfExperience.trim() ? Number(skill.yearsOfExperience) : null,
+    }))
   }
 
   return request
@@ -68,6 +88,18 @@ function validateProfileForm(
   if ((currentProfile.bio ?? '').trim().length > 0 && values.bio.trim().length === 0) {
     errors.bio =
       'Clearing the bio is not supported by the current backend. Replace it with updated text instead.'
+  }
+
+  for (const skill of values.skills) {
+    if (!Number.isInteger(skill.proficiencyLevel) || skill.proficiencyLevel < 1 || skill.proficiencyLevel > 5) {
+      errors.skillInput = 'Skill proficiency must be between 1 and 5.'
+    }
+    if (skill.yearsOfExperience.trim()) {
+      const years = Number(skill.yearsOfExperience)
+      if (!Number.isFinite(years) || years < 0 || years > 80) {
+        errors.skillInput = 'Years of experience must be between 0 and 80.'
+      }
+    }
   }
 
   return errors
@@ -124,7 +156,7 @@ export function useEmployeeProfileEditor() {
 
   const availableSkillSuggestions = useMemo(() => {
     const selectedSkills = new Set(
-      (draft?.skills ?? []).map((skill) => normalizeSkillName(skill)),
+      (draft?.skills ?? []).map((skill) => normalizeSkillName(skill.name)),
     )
 
     return approvedSkillsList
@@ -210,6 +242,14 @@ export function useEmployeeProfileEditor() {
     setValidationErrors((current) => ({ ...current, bio: undefined }))
   }
 
+  function setJobTitle(value: string) {
+    updateDraft((current) => ({ ...current, jobTitle: value }))
+  }
+
+  function setDepartment(value: string) {
+    updateDraft((current) => ({ ...current, department: value }))
+  }
+
   function addSkill() {
     const normalizedInput = skillInput.trim()
 
@@ -223,7 +263,7 @@ export function useEmployeeProfileEditor() {
 
     updateDraft((current) => ({
         ...current,
-        skills: dedupeSkillNames([...current.skills, normalizedInput]),
+        skills: dedupeProfileSkills([...current.skills, { name: normalizedInput, proficiencyLevel: 3, yearsOfExperience: '' }]),
       }))
     setSkillInput('')
     setValidationErrors((current) => ({ ...current, skillInput: undefined }))
@@ -235,9 +275,17 @@ export function useEmployeeProfileEditor() {
     updateDraft((current) => ({
         ...current,
         skills: current.skills.filter(
-          (skill) => normalizeSkillName(skill) !== normalizedSkill,
+          (skill) => normalizeSkillName(skill.name) !== normalizedSkill,
         ),
       }))
+  }
+
+  function updateSkill(skillName: string, updates: Partial<{ proficiencyLevel: number; yearsOfExperience: string }>) {
+    const normalizedSkill = normalizeSkillName(skillName)
+    updateDraft((current) => ({
+      ...current,
+      skills: current.skills.map((skill) => normalizeSkillName(skill.name) === normalizedSkill ? { ...skill, ...updates } : skill),
+    }))
   }
 
   function resetForm() {
@@ -270,8 +318,11 @@ export function useEmployeeProfileEditor() {
     resetForm,
     saveProfile,
     setBio,
+    setJobTitle,
+    setDepartment,
     setFullName,
     setSkillInput,
+    updateSkill,
     skillInput,
     submitError,
     validationErrors,

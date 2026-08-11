@@ -29,6 +29,7 @@ function createInitialValues(): InviteMemberFormValues {
     email: '',
     employmentType: '',
     fullName: '',
+    jobTitle: '',
     role: 'employee',
     weeklyCapacityHours: '',
   }
@@ -76,6 +77,8 @@ function buildRequest(values: InviteMemberFormValues): CreateOrganizationInvitat
       role: 'employee',
       profile: {
         full_name: values.fullName.trim(),
+        ...(values.jobTitle.trim() ? { job_title: values.jobTitle.trim() } : {}),
+        ...(values.department.trim() ? { department: values.department.trim() } : {}),
         ...(values.bio.trim() ? { bio: values.bio.trim() } : {}),
         ...(values.employmentType ? { employment_type: values.employmentType } : {}),
         ...(values.weeklyCapacityHours.trim()
@@ -244,6 +247,31 @@ export function InviteMemberDialog({
             <span className="text-xs text-danger-700">{fieldErrors.fullName}</span>
           ) : null}
         </label>
+
+        {values.role === 'employee' ? (
+          <>
+            <label className="grid gap-2 text-sm font-semibold text-ink-800">
+              Job title
+              <input
+                className={inputClassName}
+                onChange={(event) => updateValue('jobTitle', event.target.value)}
+                placeholder="Senior Frontend Engineer"
+                type="text"
+                value={values.jobTitle}
+              />
+            </label>
+            <label className="grid gap-2 text-sm font-semibold text-ink-800">
+              Department
+              <input
+                className={inputClassName}
+                onChange={(event) => updateValue('department', event.target.value)}
+                placeholder="Product Engineering"
+                type="text"
+                value={values.department}
+              />
+            </label>
+          </>
+        ) : null}
 
         <label className="grid gap-2 text-sm font-semibold text-ink-800 md:col-span-2">
           Bio

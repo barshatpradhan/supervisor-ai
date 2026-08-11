@@ -5,8 +5,16 @@ import type {
 
 export interface EmployeeProfileFormValues {
   fullName: string
+  jobTitle: string
+  department: string
   bio: string
-  skills: string[]
+  skills: EmployeeProfileSkillFormValue[]
+}
+
+export interface EmployeeProfileSkillFormValue {
+  name: string
+  proficiencyLevel: number
+  yearsOfExperience: string
 }
 
 export interface EmployeeSkillDisplayItem {
@@ -46,13 +54,34 @@ export function dedupeSkillNames(skills: string[]) {
   return uniqueSkills
 }
 
+export function dedupeProfileSkills(skills: EmployeeProfileSkillFormValue[]) {
+  const seen = new Set<string>()
+  return skills.flatMap((skill) => {
+    const name = normalizeWhitespace(skill.name)
+    const normalizedName = normalizeSkillName(name)
+    if (!name || !normalizedName || seen.has(normalizedName)) return []
+    seen.add(normalizedName)
+    return [{
+      name,
+      proficiencyLevel: Math.min(5, Math.max(1, Math.round(skill.proficiencyLevel) || 3)),
+      yearsOfExperience: skill.yearsOfExperience,
+    }]
+  })
+}
+
 export function buildEmployeeProfileFormValues(
   profile: BackendEmployeeProfile,
 ): EmployeeProfileFormValues {
   return {
     bio: profile.bio ?? '',
+    jobTitle: profile.job_title ?? '',
+    department: profile.department ?? '',
     fullName: profile.full_name,
-    skills: dedupeSkillNames(profile.skills.map((skill) => skill.name)),
+    skills: dedupeProfileSkills(profile.skills.map((skill) => ({
+      name: skill.name,
+      proficiencyLevel: skill.proficiencyLevel,
+      yearsOfExperience: skill.yearsOfExperience === null ? '' : String(skill.yearsOfExperience),
+    }))),
   }
 }
 
@@ -68,18 +97,25 @@ export function areEmployeeProfileFormValuesEqual(
     return false
   }
 
-  const leftSkills = dedupeSkillNames(left.skills)
-  const rightSkills = dedupeSkillNames(right.skills)
+  if (normalizeWhitespace(left.jobTitle) !== normalizeWhitespace(right.jobTitle)) return false
+  if (normalizeWhitespace(left.department) !== normalizeWhitespace(right.department)) return false
+
+  const leftSkills = dedupeProfileSkills(left.skills)
+  const rightSkills = dedupeProfileSkills(right.skills)
 
   if (leftSkills.length !== rightSkills.length) {
     return false
   }
 
-  return leftSkills.every((skill, index) => normalizeSkillName(skill) === normalizeSkillName(rightSkills[index] ?? ''))
+  return leftSkills.every((skill, index) => {
+    const other = rightSkills[index]
+    return other !== undefined && normalizeSkillName(skill.name) === normalizeSkillName(other.name) &&
+      skill.proficiencyLevel === other.proficiencyLevel && skill.yearsOfExperience.trim() === other.yearsOfExperience.trim()
+  })
 }
 
 export function categorizeEmployeeSkills(
-  skills: string[],
+  skills: EmployeeProfileSkillFormValue[],
   approvedSkills: BackendApprovedSkill[],
 ): CategorizedEmployeeSkills {
   const approvedSkillNames = new Set(
@@ -90,9 +126,9 @@ export function categorizeEmployeeSkills(
     pending: [],
   }
 
-  for (const skill of dedupeSkillNames(skills)) {
-    const normalizedName = normalizeSkillName(skill)
-    const item = { name: skill, normalizedName }
+  for (const skill of dedupeProfileSkills(skills)) {
+    const normalizedName = normalizeSkillName(skill.name)
+    const item = { name: skill.name, normalizedName }
 
     if (approvedSkillNames.has(normalizedName)) {
       categorized.approved.push(item)
@@ -126,8 +162,11 @@ export function buildOptimisticEmployeeProfile(
   return {
     ...profile,
     bio: normalizeWhitespace(values.bio) || null,
+    job_title: normalizeWhitespace(values.jobTitle) || null,
+    department: normalizeWhitespace(values.department) || null,
     full_name: normalizeWhitespace(values.fullName),
-    skills: dedupeSkillNames(values.skills).map((skillName) => {
+    skills: dedupeProfileSkills(values.skills).map((skillValue) => {
+      const skillName = skillValue.name
       const normalizedName = normalizeSkillName(skillName)
       const existingSkill = existingSkillsByNormalizedName.get(normalizedName)
       const approvedSkill = approvedSkillNames.get(normalizedName)
@@ -138,8 +177,8 @@ export function buildOptimisticEmployeeProfile(
         isApproved: approvedSkill?.isApproved ?? existingSkill?.isApproved ?? false,
         name: skillName,
         normalizedName,
-        proficiencyLevel: existingSkill?.proficiencyLevel ?? 3,
-        yearsOfExperience: existingSkill?.yearsOfExperience ?? null,
+        proficiencyLevel: skillValue.proficiencyLevel,
+        yearsOfExperience: skillValue.yearsOfExperience.trim() ? Number(skillValue.yearsOfExperience) : null,
       }
     }),
   }

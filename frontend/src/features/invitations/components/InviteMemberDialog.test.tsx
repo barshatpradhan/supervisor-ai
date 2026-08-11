@@ -42,11 +42,13 @@ describe('InviteMemberDialog', () => {
 
     expect(screen.getByLabelText(/employment type/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/weekly capacity hours/i)).toBeInTheDocument()
-    expect(screen.queryByLabelText(/department/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/^department$/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/job title/i)).toBeInTheDocument()
 
     await userEvent.selectOptions(screen.getByLabelText(/^role$/i), 'supervisor')
 
     expect(screen.getByLabelText(/department/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/job title/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/employment type/i)).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/weekly capacity hours/i)).not.toBeInTheDocument()
   })

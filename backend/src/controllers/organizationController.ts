@@ -71,15 +71,13 @@ function parseOrganizationInvitationInput(
   const profile = requireBody(body.profile);
 
   if (role === "employee") {
-    if (profile.department !== undefined) {
-      throw new AppError("profile.department is not supported for employee invitations.", 400);
-    }
-
     return {
       email: requireEmail(body, "email"),
       role,
       profile: {
         full_name: requireString(profile, "full_name", "Full name"),
+        job_title: optionalString(profile, "job_title"),
+        department: optionalString(profile, "department"),
         bio: optionalString(profile, "bio"),
         employment_type: optionalEnum(profile, "employment_type", EMPLOYMENT_TYPES),
         weekly_capacity_hours: optionalNumber(profile, "weekly_capacity_hours", {

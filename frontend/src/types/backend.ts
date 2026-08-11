@@ -64,6 +64,14 @@ export interface LoginRequest {
 
 export type RegisterRequest = LoginRequest
 
+export interface PasswordResetRequest {
+  email: string
+}
+
+export interface PasswordResetConfirmationRequest {
+  password: string
+}
+
 export interface BackendProvisioningSkillInput {
   name: string
   proficiency_level?: number
@@ -147,6 +155,8 @@ export interface BackendProvisionedAdminUserResponse {
 export interface BackendEmployeeProfile {
   id: string
   full_name: string
+  job_title: string | null
+  department: string | null
   employment_type: 'full_time' | 'part_time'
   weekly_capacity_hours: number
   availability_percentage: number
@@ -168,8 +178,10 @@ export interface BackendCreateEmployeeProfileRequest {
 
 export interface BackendUpdateEmployeeProfileRequest {
   full_name?: string
+  job_title?: string | null
+  department?: string | null
   bio?: string
-  skills?: string[]
+  skills?: BackendProvisioningSkillInput[]
 }
 
 export interface BackendUpdateEmployeeWorkSettingsRequest {
@@ -729,6 +741,8 @@ export interface BackendCreateOrganizationInvitationRequest {
   profile:
     | {
         full_name: string
+        job_title?: string
+        department?: string
         bio?: string
         employment_type?: 'full_time' | 'part_time'
         weekly_capacity_hours?: number

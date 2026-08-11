@@ -17,16 +17,35 @@ import {
   optionalEnumValue,
   optionalNumberValue,
   optionalStringValue,
+  isRecord,
   requireBody,
   requireString,
   requireUuid,
 } from "../utils/validation.js";
 import type { PriorityLevel } from "../types/project.js";
 import type { TaskStatus } from "../types/task.js";
+import type { EmployeeSkillInput } from "../services/skillService.js";
 
 const EMPLOYMENT_TYPES = ["full_time", "part_time"] as const;
 const TASK_STATUSES: readonly TaskStatus[] = ["todo", "in_progress", "blocked", "review", "completed", "cancelled"];
 const PRIORITIES: readonly PriorityLevel[] = ["low", "medium", "high", "urgent"];
+
+function optionalEmployeeSkills(body: Record<string, unknown>): EmployeeSkillInput[] | undefined {
+  if (body.skills === undefined) return undefined;
+  if (!Array.isArray(body.skills)) throw new AppError("skills must be an array.", 400);
+  return body.skills.map((skill) => {
+    if (typeof skill === "string") return { name: skill };
+    if (!isRecord(skill)) throw new AppError("skills must contain objects.", 400);
+    return {
+      name: requireString(skill, "name", "Skill name"),
+      proficiency_level: optionalNumber(skill, "proficiency_level", { min: 1, max: 5 }),
+      years_of_experience:
+        skill.years_of_experience === null
+          ? null
+          : optionalNumber(skill, "years_of_experience", { min: 0, max: 80 }),
+    };
+  });
+}
 
 export async function getMyTasks(req: Request, res: Response, next: NextFunction) {
   if (!req.user) return next(new AppError("Unauthorized.", 401));
@@ -122,7 +141,7 @@ export async function createMyEmployeeProfile(
         min: 1,
         max: 168,
       }),
-      skills: optionalStringArray(body, "skills"),
+      skills: optionalStringArray(body, "skills")?.map((name) => ({ name })),
     });
 
     return sendSuccess(res, 201, "Employee profile created successfully.", employee);
@@ -148,8 +167,10 @@ export async function updateMyEmployeeProfile(
     const body = requireBody(req.body);
     const employee = await updateEmployeeProfile(req.user.id, req.organization.id, {
       full_name: optionalString(body, "full_name"),
+      job_title: optionalNullableString(body, "job_title"),
+      department: optionalNullableString(body, "department"),
       bio: optionalNullableString(body, "bio"),
-      skills: optionalStringArray(body, "skills"),
+      skills: optionalEmployeeSkills(body),
     });
 
     return sendSuccess(res, 200, "Employee profile updated successfully.", employee);

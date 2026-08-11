@@ -20,6 +20,7 @@ export interface InviteMemberFormValues {
   email: string
   role: InvitationRole
   fullName: string
+  jobTitle: string
   bio: string
   employmentType: '' | 'full_time' | 'part_time'
   weeklyCapacityHours: string

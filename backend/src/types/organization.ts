@@ -44,6 +44,8 @@ export interface OrganizationInvitationSkillInput {
 
 export interface EmployeeInvitationProfileInput {
   full_name: string;
+  job_title?: string;
+  department?: string;
   bio?: string;
   employment_type?: "full_time" | "part_time";
   weekly_capacity_hours?: number;

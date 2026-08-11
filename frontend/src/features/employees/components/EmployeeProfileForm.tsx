@@ -31,10 +31,13 @@ export function EmployeeProfileForm({
     resetForm,
     saveProfile,
     setBio,
+    setDepartment,
     setFullName,
+    setJobTitle,
     setSkillInput,
     skillInput,
     submitError,
+    updateSkill,
     validationErrors,
   } = editor
 
@@ -93,6 +96,30 @@ export function EmployeeProfileForm({
                   {validationErrors.fullName}
                 </span>
               ) : null}
+            </label>
+
+            <label className="grid gap-2 text-sm font-semibold text-ink-800">
+              Job title
+              <input
+                className={inputClassName}
+                maxLength={120}
+                onChange={(event) => setJobTitle(event.target.value)}
+                placeholder="Senior Frontend Engineer"
+                type="text"
+                value={draft.jobTitle}
+              />
+            </label>
+
+            <label className="grid gap-2 text-sm font-semibold text-ink-800">
+              Department
+              <input
+                className={inputClassName}
+                maxLength={120}
+                onChange={(event) => setDepartment(event.target.value)}
+                placeholder="Product Engineering"
+                type="text"
+                value={draft.department}
+              />
             </label>
 
             <label className="grid gap-2 text-sm font-semibold text-ink-800">
@@ -161,7 +188,7 @@ export function EmployeeProfileForm({
                 title="No skills added yet"
               />
             ) : (
-              <div className="grid gap-4 xl:grid-cols-2">
+              <div className="grid gap-4">
                 <EmployeeSkillList
                   emptyMessage="No approved skills are currently attached to your profile."
                   items={categorizedSkills.approved.map((skill) => skill.name)}
@@ -176,6 +203,24 @@ export function EmployeeProfileForm({
                   title="Pending skills"
                   tone="pending"
                 />
+                <div className="grid gap-3 rounded-lg border border-border-subtle bg-surface-card-alt p-4">
+                  <p className="text-sm font-semibold text-ink-900">Skill experience</p>
+                  {draft.skills.map((skill) => (
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem_10rem] sm:items-end" key={skill.name}>
+                      <p className="min-h-11 py-3 text-sm font-medium text-ink-800">{skill.name}</p>
+                      <label className="grid gap-1 text-xs font-semibold text-ink-600">
+                        Proficiency (1–5)
+                        <select className={inputClassName} onChange={(event) => updateSkill(skill.name, { proficiencyLevel: Number(event.target.value) })} value={skill.proficiencyLevel}>
+                          {[1, 2, 3, 4, 5].map((level) => <option key={level} value={level}>{level}</option>)}
+                        </select>
+                      </label>
+                      <label className="grid gap-1 text-xs font-semibold text-ink-600">
+                        Years experience
+                        <input className={inputClassName} max={80} min={0} onChange={(event) => updateSkill(skill.name, { yearsOfExperience: event.target.value })} placeholder="Optional" step="0.5" type="number" value={skill.yearsOfExperience} />
+                      </label>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

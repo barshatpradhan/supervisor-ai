@@ -4,7 +4,7 @@ import { enrichEmployeesWithCapacityMetrics } from "./employeeMetricsService.js"
 import { getAppUserByAuthId } from "./userService.js";
 import {
   getEmployeeSkills,
-  syncEmployeeSkills,
+  replaceEmployeeSkillsWithDetails,
   type EmployeeSkillInput,
 } from "./skillService.js";
 
@@ -12,18 +12,24 @@ type EmploymentType = "full_time" | "part_time";
 
 interface EmployeeProfileInput {
   full_name?: string;
+  job_title?: string | null;
+  department?: string | null;
   bio?: string | null;
-  skills?: string[];
+  skills?: EmployeeSkillInput[];
 }
 
 interface CreateEmployeeProfileInput extends EmployeeProfileInput {
   full_name: string;
+  job_title?: string | null;
+  department?: string | null;
   employment_type?: EmploymentType;
   weekly_capacity_hours?: number;
 }
 
 export interface CreateEmployeeProfileRecordInput {
   full_name: string;
+  job_title?: string | null;
+  department?: string | null;
   bio?: string | null;
   employment_type?: EmploymentType;
   organization_id?: string;
@@ -77,6 +83,8 @@ async function withSkills<T extends { id: string }>(employee: T) {
 async function insertEmployeeProfileRecord(input: {
   userId: string;
   full_name: string;
+  job_title?: string | null;
+  department?: string | null;
   bio?: string | null;
   employment_type?: EmploymentType;
   organization_id?: string;
@@ -87,6 +95,8 @@ async function insertEmployeeProfileRecord(input: {
     .insert({
       user_id: input.userId,
       full_name: input.full_name,
+      job_title: input.job_title ?? null,
+      department: input.department ?? null,
       bio: input.bio ?? null,
       employment_type: input.employment_type ?? "full_time",
       weekly_capacity_hours: input.weekly_capacity_hours ?? 40,
@@ -115,6 +125,8 @@ export async function createEmployeeProfileRecordForUser(
   return insertEmployeeProfileRecord({
     userId: appUser.id,
     full_name: profileData.full_name,
+    job_title: profileData.job_title,
+    department: profileData.department,
     bio: profileData.bio,
     employment_type: profileData.employment_type,
     organization_id: profileData.organization_id,
@@ -125,6 +137,8 @@ export async function createEmployeeProfileRecordForUser(
 export async function createEmployeeProfileRecordForOrganization(input: {
   userId: string;
   full_name: string;
+  job_title?: string | null;
+  department?: string | null;
   bio?: string | null;
   employment_type?: EmploymentType;
   organization_id: string;
@@ -202,6 +216,8 @@ export async function getEmployeeProfileByAuthId(
       id,
       organization_id,
       full_name,
+      job_title,
+      department,
       employment_type,
       weekly_capacity_hours,
       availability_percentage,
@@ -253,6 +269,8 @@ export async function createEmployeeProfile(
   const data = await createEmployeeProfileRecordForOrganization({
     userId: appUser.id,
     full_name: profileData.full_name,
+    job_title: profileData.job_title,
+    department: profileData.department,
     bio: profileData.bio,
     employment_type: profileData.employment_type,
     organization_id: effectiveOrganizationId,
@@ -260,7 +278,7 @@ export async function createEmployeeProfile(
   });
 
   if (profileData.skills !== undefined) {
-    await syncEmployeeSkills(
+    await replaceEmployeeSkillsWithDetails(
       data.id,
       appUser.id,
       profileData.skills,
@@ -283,6 +301,9 @@ export async function updateEmployeeProfile(
   if (profileData.full_name !== undefined) {
     updates.full_name = profileData.full_name;
   }
+
+  if (profileData.job_title !== undefined) updates.job_title = profileData.job_title;
+  if (profileData.department !== undefined) updates.department = profileData.department;
 
   if (profileData.bio !== undefined) {
     updates.bio = profileData.bio;
@@ -310,7 +331,7 @@ export async function updateEmployeeProfile(
     }
 
     if (hasSkillUpdates) {
-      await syncEmployeeSkills(
+      await replaceEmployeeSkillsWithDetails(
         data.id,
         appUser.id,
         profileData.skills ?? [],
@@ -322,7 +343,7 @@ export async function updateEmployeeProfile(
     return withSkills(employee);
   }
 
-  await syncEmployeeSkills(
+  await replaceEmployeeSkillsWithDetails(
     currentEmployee.id,
     appUser.id,
     profileData.skills ?? [],

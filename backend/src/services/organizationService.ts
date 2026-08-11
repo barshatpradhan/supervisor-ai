@@ -25,6 +25,7 @@ import { createEmployeeProfileRecordForOrganization } from "./employeeService.js
 import { replaceEmployeeSkillsWithDetails } from "./skillService.js";
 import { createSupervisorProfileRecordForOrganization } from "./supervisorService.js";
 import { createEmailService } from "./email/emailService.js";
+import { buildOrganizationInvitationAcceptanceUrl } from "./email/invitationUrl.js";
 import { getAppUserByAuthId, getAuthOnboardingStateForAppUser } from "./userService.js";
 
 interface OrganizationRow {
@@ -157,7 +158,6 @@ const INVITATION_EXPIRY_DAYS = 7;
 const INVITATION_TOKEN_BYTES = 32;
 const INVITATION_RESEND_COOLDOWN_MS = 60 * 1000;
 const INVITATION_PROFILE_META_KEY = "__invitation_meta";
-const LOCAL_FRONTEND_APP_URL = "http://127.0.0.1:5173";
 
 interface InvitationProfileCompatibilityMetadata {
   token_hash?: string | null;
@@ -180,32 +180,6 @@ function logOrganizationEvent(
   );
 }
 
-function normalizeFrontendAppUrl(value: string) {
-  return value.endsWith("/") ? value.slice(0, -1) : value;
-}
-
-function requireFrontendAppUrl() {
-  const frontendAppUrl = process.env.FRONTEND_APP_URL?.trim();
-
-  if (frontendAppUrl) {
-    return normalizeFrontendAppUrl(frontendAppUrl);
-  }
-
-  if (process.env.NODE_ENV !== "production") {
-    logOrganizationEvent("organization_invitation_frontend_url_fallback", {
-      fallbackUrl: LOCAL_FRONTEND_APP_URL,
-    });
-
-    return LOCAL_FRONTEND_APP_URL;
-  }
-
-  if (!frontendAppUrl) {
-    throw new AppError("Invitation delivery is not configured.", 500);
-  }
-
-  return normalizeFrontendAppUrl(frontendAppUrl);
-}
-
 function generateInvitationToken() {
   return crypto.randomBytes(INVITATION_TOKEN_BYTES).toString("base64url");
 }
@@ -226,8 +200,7 @@ function invitationTokenHashesMatch(left: string, right: string) {
 }
 
 function buildInvitationAcceptanceUrl(token: string) {
-  const frontendAppUrl = requireFrontendAppUrl();
-  return `${frontendAppUrl}/invitations/accept?token=${encodeURIComponent(token)}`;
+  return buildOrganizationInvitationAcceptanceUrl(token);
 }
 
 function buildInvitationExpiryDate(now = new Date()) {
@@ -593,6 +566,8 @@ function parseEmployeeInvitationProfile(
   profile: Record<string, unknown>
 ): EmployeeInvitationProfileInput {
   const full_name = profile.full_name;
+  const job_title = profile.job_title;
+  const department = profile.department;
   const employment_type = profile.employment_type;
   const weekly_capacity_hours = profile.weekly_capacity_hours;
   const bio = profile.bio;
@@ -619,6 +594,8 @@ function parseEmployeeInvitationProfile(
 
   return {
     full_name: full_name.trim(),
+    job_title: typeof job_title === "string" ? job_title : undefined,
+    department: typeof department === "string" ? department : undefined,
     bio: typeof bio === "string" ? bio : undefined,
     employment_type,
     weekly_capacity_hours,
@@ -680,6 +657,8 @@ function buildStoredInvitationProfile(
 
     return {
       full_name: employeeProfile.full_name,
+      job_title: employeeProfile.job_title ?? null,
+      department: employeeProfile.department ?? null,
       bio: employeeProfile.bio ?? null,
       employment_type: employeeProfile.employment_type ?? "full_time",
       weekly_capacity_hours: employeeProfile.weekly_capacity_hours ?? 40,
@@ -739,6 +718,8 @@ async function provisionInvitationProfile(
       const createdEmployee = await createEmployeeProfileRecordForOrganization({
         userId: appUserId,
         full_name: employeeProfile.full_name,
+        job_title: employeeProfile.job_title,
+        department: employeeProfile.department,
         bio: employeeProfile.bio ?? null,
         employment_type: employeeProfile.employment_type,
         organization_id: organizationId,
@@ -1279,6 +1260,8 @@ export async function createOrganizationInvitation(
       invitedRole: input.role,
       acceptanceUrl,
       expiresAt,
+      invitationId: invitation.id,
+      organizationId,
     });
   } catch (error) {
     await supabase.from("organization_invitations").delete().eq("id", invitation.id);
@@ -1591,6 +1574,8 @@ export async function resendOrganizationInvitation(
     invitedRole: invitation.role,
     acceptanceUrl,
     expiresAt,
+    invitationId: invitation.id,
+    organizationId,
   });
 
   const { data: updatedInvitation, error: updateError } = await supabase
@@ -1779,6 +1764,8 @@ export async function acceptOrganizationInvitation(
       (await createEmployeeProfileRecordForOrganization({
         userId: context.appUser.id,
         full_name: employeeProfile.full_name,
+        job_title: employeeProfile.job_title,
+        department: employeeProfile.department,
         bio: employeeProfile.bio ?? null,
         employment_type: employeeProfile.employment_type,
         organization_id: organizationId,
