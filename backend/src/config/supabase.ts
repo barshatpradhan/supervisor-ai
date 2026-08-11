@@ -1,10 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
+import ws from "ws";
 import { env } from "./environment.js";
 
 export const supabase = createClient(
   env.supabaseUrl,
   env.supabaseServiceRoleKey,
   {
+    // Supabase Realtime requires an explicit WebSocket implementation on
+    // Node.js versions before 22 (including Render's current Node 20 service).
+    realtime: { transport: ws as any },
     auth: {
       autoRefreshToken: false,
       persistSession: false,
@@ -18,6 +22,7 @@ export const supabaseAuth = createClient(
   env.supabaseUrl,
   env.supabaseServiceRoleKey,
   {
+    realtime: { transport: ws as any },
     auth: {
       autoRefreshToken: false,
       persistSession: false,
