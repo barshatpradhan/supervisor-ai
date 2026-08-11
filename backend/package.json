@@ -8,14 +8,16 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/services/taskProgressMetrics.test.ts",
+    "test": "tsx --test src/services/taskProgressMetrics.test.ts src/services/email/emailService.test.ts src/scripts/developmentDatabaseReset.test.ts",
     "test:coverage": "tsx --test --experimental-test-coverage src/services/taskProgressMetrics.test.ts",
     "start": "node dist/server.js",
     "verify:onboarding": "tsx src/scripts/onboardingVerification.ts",
     "verify:invitations": "tsx src/scripts/invitationVerification.ts",
     "verify:tenant-seed": "tsx src/scripts/tenantIsolationDataset.ts",
     "verify:tenant-isolation": "tsx src/scripts/tenantIsolationVerification.ts",
-    "verify:task-progress": "tsx src/scripts/taskProgressVerification.ts"
+    "verify:task-progress": "tsx src/scripts/taskProgressVerification.ts",
+    "bootstrap:first-platform-admin": "tsx src/scripts/bootstrapFirstPlatformAdmin.ts",
+    "db:reset": "tsx src/scripts/resetDevelopmentDatabase.ts"
   },
   "keywords": [],
   "author": "",

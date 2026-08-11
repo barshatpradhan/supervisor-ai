@@ -566,13 +566,49 @@ Only variable names are documented. Do not commit real values.
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `PORT` | No | HTTP server port; defaults to `5000`. |
+| `APP_ENV` | Required for database reset | Must be `development` for `db:reset`. |
+| `ALLOW_DATABASE_RESET` | Required for database reset | Must be exactly `true` for `db:reset`. |
 | `SUPABASE_URL` | Yes | Supabase project URL. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes | Backend-only Supabase service role key. |
+| `PLATFORM_ADMIN_BOOTSTRAP_EMAIL` | Only for one-time bootstrap | Existing, confirmed application-user email to promote. |
+| `PLATFORM_ADMIN_BOOTSTRAP_CONFIRM` | Only for one-time bootstrap | Must be exactly `grant-first-platform-admin`. |
 | `AUTH_LEGACY_EMPLOYEE_SIGNUP_ENABLED` | No | Set to `true` only for temporary compatibility with the deprecated public employee signup flow. |
-| `FRONTEND_APP_URL` | Yes in production | Base frontend URL used to build invitation acceptance links. |
+| `FRONTEND_APP_URL` | Yes for invitations | Base frontend URL used to build invitation acceptance links; use `http://localhost:5173` locally. |
+| `TRANSACTIONAL_EMAIL_PROVIDER` | Yes for invitations | Set to `resend` for real delivery or explicitly to `console` for offline development/tests. |
+| `RESEND_API_KEY` | When provider is `resend` | Backend-only Resend API key. |
+| `INVITATION_EMAIL_FROM` | When provider is `resend` | Verified sender address for organization invitations. |
 | `INVITATION_DEBUG_RETURN_URL` | No | Development-only flag that returns the acceptance URL in create or resend responses for local verification. |
 | `GEMINI_API_KEY` | Yes for document analysis | Gemini API key; never expose it to clients. |
 | `GEMINI_MODEL` | No | Overrides the Gemini model; defaults in code when omitted. |
+
+## First Platform-Admin Bootstrap
+
+This is a development/operations-only procedure. It is not exposed by public registration,
+organization routes, or the frontend.
+
+1. Apply the Supabase migrations, including `202608040002_add_first_platform_admin_bootstrap.sql`.
+2. Register the intended operator through the normal customer registration flow so an application
+   user and confirmed Supabase Auth identity exist.
+3. In a trusted backend shell only, set `PLATFORM_ADMIN_BOOTSTRAP_EMAIL` to that exact email and
+   `PLATFORM_ADMIN_BOOTSTRAP_CONFIRM` to `grant-first-platform-admin`.
+4. Run `npm run bootstrap:first-platform-admin`.
+5. Remove the two bootstrap environment variables immediately afterward.
+
+The command refuses to run if a platform admin already exists, if the target is not a confirmed
+Auth user, or if the explicit confirmation is absent. The database function serializes the
+one-time promotion and is executable only by Supabase `service_role`.
+
+## Development Database Reset
+
+`npm run db:reset -- --confirm` is backend-shell-only and is deliberately not exposed as an API
+or frontend action. It refuses to run when `NODE_ENV=production`, unless `APP_ENV=development`,
+unless `ALLOW_DATABASE_RESET=true`, and unless `--confirm` is supplied. It deletes only
+application-linked Auth users and the application data documented by the reset script, while
+preserving schema, migrations, RLS policies, functions, triggers, enums, and storage buckets.
+
+The command removes any platform-admin account. Bootstrap a replacement afterward using the
+first-platform-admin procedure above. Do not run this command against a shared or production
+Supabase project.
 
 ## Build and Development Commands
 
@@ -580,6 +616,8 @@ Only variable names are documented. Do not commit real values.
 | --- | --- |
 | `npm run dev` | Run the API with `tsx watch src/server.ts`. |
 | `npm run build` | Compile TypeScript into `dist`. |
+| `npm run bootstrap:first-platform-admin` | One-time trusted-shell bootstrap of the first confirmed application user as `platform_admin`. |
+| `npm run db:reset -- --confirm` | Guarded, development-only removal of application data and linked Auth users. |
 | `npm start` | Run `dist/server.js`. |
 | `npm run verify:onboarding` | Exercise public registration, organization bootstrap, invitation-only activation, and legacy-signup deprecation checks. |
 | `npm run verify:invitations` | Exercise secure invitation creation, inspection, acceptance, resend, revoke, and profile provisioning checks. |
