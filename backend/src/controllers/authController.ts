@@ -3,6 +3,8 @@ import {
   getCurrentAppUser,
   login,
   register,
+  requestPasswordReset,
+  resetPassword,
   signup,
 } from "../services/authService.js";
 import type { LoginInput, RegisterInput } from "../types/auth.js";
@@ -69,6 +71,28 @@ export async function getCurrentUser(req: Request, res: Response, next: NextFunc
     const data = await getCurrentAppUser(req.user.id);
 
     return sendSuccess(res, 200, "Current user fetched successfully.", data);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function requestPasswordResetEmail(req: Request, res: Response, next: NextFunction) {
+  try {
+    await requestPasswordReset({ email: req.body.email });
+    return sendSuccess(res, 200, "If an account exists for that email, a reset link has been sent.");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function updatePassword(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return next(new AppError("Unauthorized.", 401));
+  }
+
+  try {
+    await resetPassword(req.user.id, { password: req.body.password });
+    return sendSuccess(res, 200, "Password reset successfully.");
   } catch (error) {
     return next(error);
   }

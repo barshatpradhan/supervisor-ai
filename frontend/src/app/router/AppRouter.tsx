@@ -10,6 +10,8 @@ import { EmployeesPage } from '../../pages/EmployeesPage'
 import { ForbiddenPage } from '../../pages/ForbiddenPage'
 import { InvitationAcceptPage } from '../../pages/InvitationAcceptPage'
 import { LoginPage } from '../../pages/LoginPage'
+import { ForgotPasswordPage } from '../../pages/ForgotPasswordPage'
+import { ResetPasswordPage } from '../../pages/ResetPasswordPage'
 import { LandingPage } from '../../pages/LandingPage'
 import { NotFoundPage } from '../../pages/NotFoundPage'
 import { OrganizationInvitationsPage } from '../../pages/OrganizationInvitationsPage'
@@ -27,6 +29,8 @@ export function AppRouter() {
       <Route element={<LandingPage />} path="/" />
       <Route element={<InvitationAcceptPage />} path="/invitations/accept" />
       <Route element={<LoginPage />} path="/login" />
+      <Route element={<ForgotPasswordPage />} path="/forgot-password" />
+      <Route element={<ResetPasswordPage />} path="/reset-password" />
       <Route element={<RegisterOrganizerPage />} path="/register" />
       <Route element={<SignupPage />} path="/signup" />
       <Route element={<ProtectedRoute />}>

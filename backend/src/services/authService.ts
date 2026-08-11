@@ -1,8 +1,11 @@
 import { supabaseAuth } from "../config/supabase.js";
+import { env } from "../config/environment.js";
 import type {
   AuthUserContextResponse,
   AuthSessionResponse,
   LoginInput,
+  PasswordResetInput,
+  PasswordResetRequestInput,
   RegisterInput,
 } from "../types/auth.js";
 import type { PublicEmployeeSignupInput } from "../types/provisioning.js";
@@ -79,6 +82,28 @@ export async function login(input: LoginInput) {
     data.session.refresh_token,
     data.session.expires_at
   );
+}
+
+export async function requestPasswordReset(input: PasswordResetRequestInput) {
+  const { error } = await supabaseAuth.auth.resetPasswordForEmail(input.email, {
+    redirectTo: `${env.frontendAppUrl}/reset-password`,
+  });
+
+  // Keep this endpoint non-enumerating: callers receive the same response whether
+  // or not the email belongs to a registered account.
+  if (error) {
+    console.warn("Password reset email could not be requested.", { code: error.code });
+  }
+}
+
+export async function resetPassword(authUserId: string, input: PasswordResetInput) {
+  const { error } = await supabaseAuth.auth.admin.updateUserById(authUserId, {
+    password: input.password,
+  });
+
+  if (error) {
+    throw new AppError("Unable to reset password. Please request a new reset link.", 400);
+  }
 }
 
 export async function getCurrentAppUser(authUserId: string) {

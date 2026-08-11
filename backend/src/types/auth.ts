@@ -22,6 +22,14 @@ export interface RegisterInput {
   password: string;
 }
 
+export interface PasswordResetRequestInput {
+  email: string;
+}
+
+export interface PasswordResetInput {
+  password: string;
+}
+
 export interface AuthenticatedAppUser {
   id: string;
   authUserId: string;

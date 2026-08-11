@@ -158,6 +158,34 @@ export function validateLoginRequest(
   }
 }
 
+export function validatePasswordResetRequest(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const body = requireBody(req.body);
+    requireEmail(body, "email");
+    next();
+  } catch {
+    next(new AppError("A valid email is required.", 400));
+  }
+}
+
+export function validatePasswordReset(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const body = requireBody(req.body);
+    requirePassword(body, "password");
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
+
 export function validateAdminCreateUserRequest(
   req: Request,
   res: Response,

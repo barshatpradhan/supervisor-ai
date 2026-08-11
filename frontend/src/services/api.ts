@@ -29,7 +29,7 @@ api.interceptors.request.use((config) => {
         config.skipOrganizationContext === true,
     )
 
-  if (token) {
+  if (token && !config.headers.Authorization) {
     config.headers.Authorization = `Bearer ${token}`
   }
 

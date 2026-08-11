@@ -20,6 +20,7 @@ const nodeEnv = process.env.NODE_ENV ?? "development";
 const isProduction = nodeEnv === "production";
 const corsOrigins = (process.env.CORS_ORIGINS ?? process.env.FRONTEND_APP_URL ?? "http://localhost:5173")
   .split(",").map((origin) => origin.trim()).filter(Boolean);
+const frontendAppUrl = process.env.FRONTEND_APP_URL?.trim() || corsOrigins[0];
 
 if (isProduction && corsOrigins.some((origin) => origin === "*" || origin.startsWith("http://localhost"))) {
   throw new Error("CORS_ORIGINS must contain explicit production origins.");
@@ -35,6 +36,7 @@ export const env = Object.freeze({
   supabaseServiceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
   geminiConfigured: Boolean(process.env.GEMINI_API_KEY?.trim()),
   corsOrigins,
+  frontendAppUrl,
   jsonLimit: process.env.JSON_BODY_LIMIT?.trim() || "1mb",
   rateLimitWindowMs: integer("RATE_LIMIT_WINDOW_MS", 60_000),
   rateLimitMax: integer("RATE_LIMIT_MAX", 120),

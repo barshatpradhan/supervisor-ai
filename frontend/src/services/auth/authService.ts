@@ -2,6 +2,8 @@ import type {
   BackendAuthUserContext,
   BackendAuthSession,
   LoginRequest,
+  PasswordResetConfirmationRequest,
+  PasswordResetRequest,
   RegisterRequest,
   SignupRequest,
 } from '../../types/backend'
@@ -9,6 +11,19 @@ import { getJson, postJson } from '../../lib/api'
 
 export function login(credentials: LoginRequest) {
   return postJson<BackendAuthSession, LoginRequest>('/auth/login', credentials)
+}
+
+export function requestPasswordReset(credentials: PasswordResetRequest) {
+  return postJson<void, PasswordResetRequest>('/auth/password-reset', credentials, {
+    skipOrganizationContext: true,
+  })
+}
+
+export function confirmPasswordReset(accessToken: string, credentials: PasswordResetConfirmationRequest) {
+  return postJson<void, PasswordResetConfirmationRequest>('/auth/password-reset/confirm', credentials, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    skipOrganizationContext: true,
+  })
 }
 
 export function signup(credentials: SignupRequest) {

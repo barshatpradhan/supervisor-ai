@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ErrorState } from '../../../components/shared/ErrorState'
 import { Button } from '../../../components/ui/Button'
 import { getPostAuthDestination } from '../../invitations/utils/invitationNavigation'
@@ -59,6 +59,13 @@ export function LoginForm() {
           value={password}
         />
       </label>
+
+      <Link
+        className="-mt-1 w-fit text-sm font-semibold text-primary-600 underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary-300"
+        to="/forgot-password"
+      >
+        Forgot password?
+      </Link>
 
       <Button className="mt-2" disabled={isSubmitting} type="submit">
         {isSubmitting ? 'Signing in...' : 'Sign in'}
