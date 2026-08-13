@@ -192,6 +192,41 @@ Migrations under `supabase/migrations` define core application tables and docume
 
 ## Local Development Setup
 
+## Git Workflow
+
+The repository uses a simple promotion path:
+
+```text
+main
+  ↑
+develop
+  ↑
+feature/*
+```
+
+- `main` contains stable, release-ready code. Do not develop directly on it.
+- `develop` is the active integration branch. Small, low-risk fixes such as copy changes,
+  minor styling, documentation, or narrowly scoped bug fixes may be committed directly here.
+- `feature/*` branches are for substantial features, new pages, or larger refactors. Open a
+  pull request from the feature branch into `develop`.
+
+Start substantial work from the latest `develop` branch:
+
+```bash
+git switch develop
+git pull origin develop
+git switch -c feature/employee-profile
+```
+
+After the feature is merged into `develop`, update your local branch and prune its merged branch:
+
+```bash
+git switch develop
+git pull origin develop
+git branch -d feature/employee-profile
+git fetch --prune
+```
+
 Prerequisites:
 
 - Node.js 20 or newer.
