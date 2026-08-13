@@ -1,6 +1,9 @@
 export const queryKeys = {
   auth: { currentUser: ['auth', 'current-user'] as const },
   organizations: { all: ['organizations'] as const },
+  team: {
+    list: (organizationId: string) => ['team', organizationId] as const,
+  },
   projects: {
     all: ['projects'] as const,
     list: (organizationId: string) => ['projects', organizationId] as const,

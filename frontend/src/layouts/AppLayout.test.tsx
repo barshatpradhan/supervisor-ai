@@ -53,6 +53,8 @@ describe('AppLayout', () => {
       'href',
       '/organization/invitations',
     )
+    expect(screen.getByRole('link', { name: 'Team' })).toHaveAttribute('href', '/team')
+    expect(screen.queryByRole('link', { name: 'Employees' })).not.toBeInTheDocument()
   })
 
   it('hides the invitation sidebar item for supervisors', () => {
@@ -75,5 +77,7 @@ describe('AppLayout', () => {
     )
 
     expect(screen.queryByRole('link', { name: 'Invitations' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Employees' })).toHaveAttribute('href', '/employees')
+    expect(screen.queryByRole('link', { name: 'Team' })).not.toBeInTheDocument()
   })
 })

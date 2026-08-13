@@ -14,6 +14,12 @@ Data-connected dashboards, project management screens, task workflows, employee 
 
 The frontend uses route containers, shared layout primitives, feature-owned business logic, and one shared Axios API client.
 
+### Organization directories
+
+- Organization administrators use `/team`, backed by `GET /organizations/:organizationId/members` and the React Query key `['team', organizationId]`. It displays active employee and supervisor memberships together.
+- Supervisors use `/employees`, backed by `GET /supervisors/employees`. This remains employee-only because it is also used for task assignment.
+- The Team query is intentionally separate from employee-directory and recommendation queries, so supervisors never enter employee assignment or recommendation candidate data.
+
 ```mermaid
 flowchart TD
   Main[main.tsx] --> App[App.tsx]

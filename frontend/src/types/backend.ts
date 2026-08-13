@@ -622,6 +622,20 @@ export interface BackendCurrentUserOrganizationListItem {
   invitation: BackendCurrentUserOrganizationInvitationSummary | null
 }
 
+export interface BackendOrganizationMemberSummary {
+  membership_id: string
+  user_id: string
+  email: string | null
+  role: BackendOrganizationMembershipRole
+  status: BackendOrganizationMembershipStatus
+  invited_at: string | null
+  joined_at: string | null
+  employee_profile_id: string | null
+  employee_full_name: string | null
+  supervisor_profile_id: string | null
+  supervisor_full_name: string | null
+}
+
 export interface BackendCreateOrganizationRequest {
   name: string
   slug: string

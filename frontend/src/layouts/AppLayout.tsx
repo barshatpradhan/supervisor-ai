@@ -17,6 +17,7 @@ const routeTitles: Record<string, string> = {
   '/profile': 'Profile',
   '/projects': 'Projects',
   '/tasks': 'Tasks',
+  '/team': 'Team',
 }
 
 function getEyebrow(

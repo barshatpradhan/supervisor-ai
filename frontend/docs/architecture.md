@@ -67,3 +67,8 @@ The public route `/` uses a standalone marketing layout with anchored sections f
 After organization creation, the organization provider refreshes memberships and selects the returned organization. The user enters the existing dashboard; a dismissible administrator welcome panel provides navigational next steps without fabricating checklist completion. Registration errors preserve only non-sensitive form values and never retain or log passwords. Existing invitation registration continues to use its dedicated `/signup` and invitation routes.
 
 Unsupported public capabilities intentionally omitted: employee or supervisor self-registration, social login, pricing, contact-sales, organization settings, and persistent onboarding completion data.
+## Organization team directory
+
+Organization administrators use the Team route (`/team`) to view active employee and supervisor memberships from `GET /organizations/:organizationId/members`. The query key is `['team', organizationId]`, so an organization switch cannot reuse a previous organization's team data.
+
+Supervisors continue to use `/employees`, which calls `GET /supervisors/employees` and returns employee profiles only. This separation protects task assignment and recommendation flows from including supervisors as employee candidates.

@@ -23,6 +23,7 @@ import { ProjectDetailsPage } from '../../pages/ProjectDetailsPage'
 import { SignupPage } from '../../pages/SignupPage'
 import { RegisterOrganizerPage } from '../../pages/RegisterOrganizerPage'
 import { TasksPage } from '../../pages/TasksPage'
+import { TeamPage } from '../../pages/TeamPage'
 import { DashboardEntryRoute } from '../../features/dashboard/components/DashboardEntryRoute'
 
 export function AppRouter() {
@@ -55,8 +56,13 @@ export function AppRouter() {
           <Route element={<OrganizationRoute allowedRoles={['organization_admin', 'supervisor']} />}>
             <Route element={<ProjectsPage />} path="/projects" />
             <Route element={<ProjectDetailsPage />} path="/projects/:projectId" />
-            <Route element={<EmployeesPage />} path="/employees" />
             <Route element={<AiRecommendationsPage />} path="/ai-recommendations" />
+          </Route>
+          <Route element={<OrganizationRoute allowedRoles={['supervisor']} />}>
+            <Route element={<EmployeesPage />} path="/employees" />
+          </Route>
+          <Route element={<OrganizationRoute allowedRoles={['organization_admin']} />}>
+            <Route element={<TeamPage />} path="/team" />
           </Route>
           <Route element={<OrganizationRoute allowedRoles={['organization_admin']} />}>
             <Route element={<OrganizationInvitationsPage />} path="/organization/invitations" />
