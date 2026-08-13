@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useNotifications } from '../../../hooks/useNotifications'
 import { useSupervisorProfile } from '../../../hooks/useSupervisorProfile'
-import { updateSupervisorProfile } from '../../../services/supervisors/supervisorService'
+import {
+  createSupervisorProfile,
+  updateSupervisorProfile,
+} from '../../../services/supervisors/supervisorService'
 import type {
   BackendSupervisorProfile,
   BackendUpdateSupervisorProfileRequest,
@@ -64,7 +67,7 @@ export function useSupervisorProfileEditor() {
     () => (currentProfile ? buildDraft(currentProfile) : null),
     [currentProfile],
   )
-  const draft = draftState ?? initialValues
+  const draft = draftState ?? initialValues ?? { bio: '', department: '', fullName: '' }
   const isDirty =
     Boolean(draft) &&
     Boolean(initialValues) &&
@@ -83,18 +86,44 @@ export function useSupervisorProfileEditor() {
   }
 
   async function saveProfile() {
-    if (!currentProfile || !draft) {
-      return
-    }
-
     if (!draft.fullName.trim()) {
       setValidationErrors({ fullName: 'Full name is required.' })
       return
     }
 
-    const request = buildUpdateRequest(currentProfile, draft)
     setValidationErrors({})
     setSubmitError(null)
+
+    if (!currentProfile) {
+      setIsSaving(true)
+
+      try {
+        const createdProfile = await createSupervisorProfile({
+          full_name: draft.fullName.trim(),
+          department: draft.department.trim() || undefined,
+          bio: draft.bio.trim() || undefined,
+        })
+        setProfileOverride(createdProfile)
+        setDraftState(buildDraft(createdProfile))
+        notifications.success({
+          message: 'Your supervisor profile is ready to use in this organization.',
+          title: 'Profile created',
+        })
+      } catch (caughtError) {
+        const message =
+          caughtError instanceof Error
+            ? caughtError.message
+            : 'Unable to create the supervisor profile.'
+        setSubmitError(message)
+        notifications.error({ message, title: 'Profile creation failed' })
+      } finally {
+        setIsSaving(false)
+      }
+
+      return
+    }
+
+    const request = buildUpdateRequest(currentProfile, draft)
 
     if (Object.keys(request).length === 0) {
       notifications.info({
@@ -143,10 +172,10 @@ export function useSupervisorProfileEditor() {
   return {
     currentProfile,
     draft,
-    error,
+    error: currentProfile ? null : error,
     isDirty,
     isLoading,
-    isMissingProfile: error?.statusCode === 404,
+    isMissingProfile: !currentProfile && error?.statusCode === 404,
     isRefreshing,
     isSaving,
     refetch,

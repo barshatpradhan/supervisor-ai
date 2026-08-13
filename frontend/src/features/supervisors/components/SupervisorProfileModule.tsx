@@ -1,7 +1,6 @@
 import type { FormEvent } from 'react'
 import { Card } from '../../../components/ui/Card'
 import { Button } from '../../../components/ui/Button'
-import { EmptyState } from '../../../components/shared/EmptyState'
 import { ErrorState } from '../../../components/shared/ErrorState'
 import { useAuth } from '../../auth/hooks/useAuth'
 import { useSupervisorProfileEditor } from '../hooks/useSupervisorProfileEditor'
@@ -35,12 +34,7 @@ export function SupervisorProfileModule() {
   }
 
   if (editor.isMissingProfile) {
-    return (
-      <EmptyState
-        description="This organization membership does not have a supervisor profile yet."
-        title="Supervisor profile not available"
-      />
-    )
+    return <SupervisorProfileCreation editor={editor} />
   }
 
   if (editor.error || !editor.currentProfile || !editor.draft) {
@@ -193,6 +187,78 @@ export function SupervisorProfileModule() {
           </form>
         </Card>
       </div>
+    </div>
+  )
+}
+
+function SupervisorProfileCreation({
+  editor,
+}: {
+  editor: ReturnType<typeof useSupervisorProfileEditor>
+}) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await editor.saveProfile()
+  }
+
+  return (
+    <div className="grid gap-6">
+      <section className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
+          Supervisor workspace
+        </p>
+        <h1 className="text-3xl font-bold tracking-normal text-ink-900">Create your profile</h1>
+        <p className="max-w-2xl text-sm leading-6 text-ink-600">
+          Add the organization-facing details your team will see. This profile belongs only to the
+          active organization.
+        </p>
+      </section>
+
+      <Card className="max-w-2xl">
+        <form className="grid gap-5" onSubmit={handleSubmit}>
+          {editor.submitError ? (
+            <ErrorState message={editor.submitError} title="Unable to create supervisor profile" />
+          ) : null}
+          <label className="grid gap-2 text-sm font-semibold text-ink-800">
+            Full name
+            <input
+              className={inputClassName}
+              onChange={(event) => editor.setFullName(event.target.value)}
+              placeholder="Supervisor name"
+              required
+              type="text"
+              value={editor.draft?.fullName ?? ''}
+            />
+            {editor.validationErrors.fullName ? (
+              <span className="text-sm font-medium text-danger-700">
+                {editor.validationErrors.fullName}
+              </span>
+            ) : null}
+          </label>
+          <label className="grid gap-2 text-sm font-semibold text-ink-800">
+            Department
+            <input
+              className={inputClassName}
+              onChange={(event) => editor.setDepartment(event.target.value)}
+              placeholder="Engineering"
+              type="text"
+              value={editor.draft?.department ?? ''}
+            />
+          </label>
+          <label className="grid gap-2 text-sm font-semibold text-ink-800">
+            Bio
+            <textarea
+              className={textAreaClassName}
+              onChange={(event) => editor.setBio(event.target.value)}
+              placeholder="How should this organization know you?"
+              value={editor.draft?.bio ?? ''}
+            />
+          </label>
+          <Button disabled={editor.isSaving} type="submit">
+            {editor.isSaving ? 'Creating profile...' : 'Create supervisor profile'}
+          </Button>
+        </form>
+      </Card>
     </div>
   )
 }
