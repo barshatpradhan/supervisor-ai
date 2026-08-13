@@ -12,6 +12,8 @@ const reloadMock = vi.fn()
 const clearOrganizationMock = vi.fn()
 const refreshOrganizationsMock = vi.fn()
 const selectOrganizationMock = vi.fn()
+const registerInvitationMock = vi.fn()
+const refreshAuthMock = vi.fn()
 const logoutMock = vi.fn()
 const notificationSuccessMock = vi.fn()
 const notificationErrorMock = vi.fn()
@@ -49,16 +51,25 @@ vi.mock('../../../hooks/useNotifications', () => ({
 }))
 
 const pendingInvitation: InvitationInspection = {
+  account_exists: false,
   authentication_required: true,
   current_user_email_matches: null,
   expires_at: '2026-07-23T10:00:00.000Z',
   invited_email_masked: 'in****@example.com',
+  invited_email: 'invitee@example.com',
   organization: {
     id: 'org-1',
     name: 'Acme Corporation',
     slug: 'acme-corporation',
   },
   role: 'employee',
+  profile: {
+    full_name: 'Invitee Example',
+    job_title: 'Senior Frontend Engineer',
+    department: 'Product Engineering',
+    employment_type: 'full_time',
+    weekly_capacity_hours: 40,
+  },
   status: 'pending',
 }
 
@@ -101,6 +112,8 @@ describe('InvitationAcceptancePage', () => {
     clearOrganizationMock.mockReset()
     refreshOrganizationsMock.mockReset()
     selectOrganizationMock.mockReset()
+    registerInvitationMock.mockReset()
+    refreshAuthMock.mockReset()
     logoutMock.mockReset()
     notificationSuccessMock.mockReset()
     notificationErrorMock.mockReset()
@@ -117,6 +130,8 @@ describe('InvitationAcceptancePage', () => {
     useAuthMock.mockReturnValue({
       isAuthenticated: false,
       logout: logoutMock,
+      refreshAuth: refreshAuthMock,
+      registerInvitation: registerInvitationMock,
       user: null,
     })
 
@@ -127,23 +142,48 @@ describe('InvitationAcceptancePage', () => {
     })
   })
 
-  it('renders a valid pending invitation with sign-in handoff links', () => {
+  it('renders a valid new-user invitation with a read-only email and profile details', () => {
     renderPage()
 
-    expect(screen.getByText(/join acme corporation/i)).toBeInTheDocument()
-    expect(screen.getByText(/in\*{4}@example\.com/i)).toBeInTheDocument()
-    for (const link of screen.getAllByRole('link', { name: /^sign in$/i })) {
-      expect(link).toHaveAttribute(
-        'href',
-        `/login?returnTo=${encodeURIComponent('/invitations/accept?token=secure-token')}`,
-      )
-    }
-    for (const link of screen.getAllByRole('link', { name: /create account/i })) {
-      expect(link).toHaveAttribute(
-        'href',
-        `/signup?returnTo=${encodeURIComponent('/invitations/accept?token=secure-token')}`,
-      )
-    }
+    expect(screen.getByRole('heading', { name: 'Join Acme Corporation' })).toBeInTheDocument()
+    expect(screen.getByText(/senior frontend engineer/i)).toBeInTheDocument()
+    expect(screen.getByText(/product engineering/i)).toBeInTheDocument()
+    expect(screen.getByDisplayValue('invitee@example.com')).toHaveAttribute('readonly')
+    expect(screen.getByRole('button', { name: /create account & join organization/i })).toBeInTheDocument()
+  })
+
+  it('validates password confirmation before invitation registration', async () => {
+    renderPage()
+    const inputs = screen.getAllByLabelText(/password/i)
+    await userEvent.type(inputs[0]!, 'password-one')
+    await userEvent.type(inputs[1]!, 'password-two')
+    await userEvent.click(screen.getByRole('button', { name: /create account & join organization/i }))
+    expect(await screen.findByText(/passwords must match/i)).toBeInTheDocument()
+    expect(registerInvitationMock).not.toHaveBeenCalled()
+  })
+
+  it('registers a new invitee with only the invitation token and password, then selects the organization', async () => {
+    registerInvitationMock.mockResolvedValue(undefined)
+    refreshAuthMock.mockResolvedValue(undefined)
+    refreshOrganizationsMock.mockResolvedValue([{ organization: pendingInvitation.organization, membership: { id: 'membership-1', role: 'employee', status: 'active' }, invitation: null }])
+    renderPage()
+    const inputs = screen.getAllByLabelText(/password/i)
+    await userEvent.type(inputs[0]!, 'password-one')
+    await userEvent.type(inputs[1]!, 'password-one')
+    await userEvent.click(screen.getByRole('button', { name: /create account & join organization/i }))
+    await waitFor(() => {
+      expect(registerInvitationMock).toHaveBeenCalledWith('secure-token', 'password-one')
+      expect(refreshAuthMock).toHaveBeenCalled()
+      expect(selectOrganizationMock).toHaveBeenCalledWith('org-1')
+      expect(navigateMock).toHaveBeenCalledWith('/dashboard', { replace: true })
+    })
+  })
+
+  it('shows sign-in only for an invitation whose email already has an account', () => {
+    useInvitationFlowMock.mockReturnValue({ accept: acceptMock, error: null, invitation: { ...pendingInvitation, account_exists: true }, isAccepting: false, isLoading: false, reload: reloadMock })
+    renderPage()
+    expect(screen.getByRole('link', { name: /sign in to accept/i })).toHaveAttribute('href', `/login?returnTo=${encodeURIComponent('/invitations/accept?token=secure-token')}`)
+    expect(screen.queryByRole('button', { name: /create account & join/i })).not.toBeInTheDocument()
   })
 
   it('renders expired, revoked, and already accepted states', () => {
@@ -195,6 +235,8 @@ describe('InvitationAcceptancePage', () => {
     useAuthMock.mockReturnValue({
       isAuthenticated: true,
       logout: logoutMock,
+      refreshAuth: refreshAuthMock,
+      registerInvitation: registerInvitationMock,
       user: { email: 'wrong@example.com' },
     })
     useInvitationFlowMock.mockReturnValue({
@@ -216,6 +258,8 @@ describe('InvitationAcceptancePage', () => {
     useAuthMock.mockReturnValue({
       isAuthenticated: true,
       logout: logoutMock,
+      refreshAuth: refreshAuthMock,
+      registerInvitation: registerInvitationMock,
       user: { email: 'invitee@example.com' },
     })
     useInvitationFlowMock.mockReturnValue({
@@ -255,6 +299,8 @@ describe('InvitationAcceptancePage', () => {
     useAuthMock.mockReturnValue({
       isAuthenticated: true,
       logout: logoutMock,
+      refreshAuth: refreshAuthMock,
+      registerInvitation: registerInvitationMock,
       user: { email: 'invitee@example.com' },
     })
     useInvitationFlowMock.mockReturnValue({

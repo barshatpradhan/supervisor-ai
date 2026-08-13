@@ -51,8 +51,13 @@ export function InvitationSummaryCard({ invitation }: InvitationSummaryCardProps
           <dt className="text-xs font-semibold uppercase tracking-normal text-ink-500">
             Invited email
           </dt>
-          <dd className="mt-1 text-sm text-ink-700">{invitation.invited_email_masked}</dd>
+          <dd className="mt-1 text-sm text-ink-700">{invitation.invited_email}</dd>
         </div>
+        {invitation.profile.full_name ? <div><dt className="text-xs font-semibold uppercase tracking-normal text-ink-500">Full name</dt><dd className="mt-1 text-sm text-ink-700">{invitation.profile.full_name}</dd></div> : null}
+        {invitation.profile.job_title ? <div><dt className="text-xs font-semibold uppercase tracking-normal text-ink-500">Job title</dt><dd className="mt-1 text-sm text-ink-700">{invitation.profile.job_title}</dd></div> : null}
+        {invitation.profile.department ? <div><dt className="text-xs font-semibold uppercase tracking-normal text-ink-500">Department</dt><dd className="mt-1 text-sm text-ink-700">{invitation.profile.department}</dd></div> : null}
+        {invitation.profile.employment_type ? <div><dt className="text-xs font-semibold uppercase tracking-normal text-ink-500">Employment type</dt><dd className="mt-1 text-sm text-ink-700">{invitation.profile.employment_type === 'full_time' ? 'Full time' : 'Part time'}</dd></div> : null}
+        {invitation.profile.weekly_capacity_hours !== null ? <div><dt className="text-xs font-semibold uppercase tracking-normal text-ink-500">Weekly capacity</dt><dd className="mt-1 text-sm text-ink-700">{invitation.profile.weekly_capacity_hours} hours</dd></div> : null}
         <div>
           <dt className="text-xs font-semibold uppercase tracking-normal text-ink-500">
             Expires

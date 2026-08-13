@@ -18,6 +18,7 @@ function createAuthValue(isAuthenticated: boolean): AuthContextValue {
     platformRole: null,
     register: async () => {},
     registerInvitation: async () => {},
+    refreshAuth: async () => {},
     role: null,
     signup: async () => {},
     user: null,

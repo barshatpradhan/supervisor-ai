@@ -656,9 +656,18 @@ export interface BackendInvitationInspectionResponse {
     slug: string
   }
   invited_email_masked: string
+  invited_email: string
   role: Extract<BackendOrganizationMembershipRole, 'employee' | 'supervisor'>
+  profile: {
+    full_name: string | null
+    job_title: string | null
+    department: string | null
+    employment_type: 'full_time' | 'part_time' | null
+    weekly_capacity_hours: number | null
+  }
   expires_at: string
   status: BackendInvitationPublicStatus
+  account_exists: boolean
   authentication_required: boolean
   current_user_email_matches: boolean | null
 }

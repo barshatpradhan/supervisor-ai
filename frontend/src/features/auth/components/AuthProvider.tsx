@@ -102,6 +102,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setError(null)
   }, [])
 
+  const refreshAuth = useCallback(async () => {
+    const currentUser = await getCurrentUser()
+    setUser(currentUser.user)
+    setOnboarding(currentUser.onboarding)
+    setError(null)
+  }, [])
+
   const login = useCallback(
     async (credentials: LoginCredentials) => {
       try {
@@ -178,11 +185,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       platformRole: user?.platformRole ?? null,
       register,
       registerInvitation,
+      refreshAuth,
       role: user?.role ?? null,
       signup,
       user,
     }),
-    [error, isLoading, login, logout, onboarding, register, registerInvitation, signup, user],
+    [error, isLoading, login, logout, onboarding, refreshAuth, register, registerInvitation, signup, user],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

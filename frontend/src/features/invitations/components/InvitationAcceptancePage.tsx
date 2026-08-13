@@ -1,236 +1,124 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ErrorState } from '../../../components/shared/ErrorState'
 import { LoadingState } from '../../../components/shared/LoadingState'
+import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { SupervisorLogo } from '../../../components/ui/SupervisorLogo'
 import { useNotifications } from '../../../hooks/useNotifications'
+import { ApiError } from '../../../lib/api'
 import { useAuth } from '../../auth/hooks/useAuth'
 import { useOrganization } from '../../organizations/hooks/useOrganization'
+import { getRoleDashboardPath } from '../../organizations/utils/roleRedirect'
+import { useInvitationFlow } from '../hooks/useInvitationFlow'
 import { InvitationActions } from './InvitationActions'
 import { InvitationStatusState } from './InvitationStatusState'
 import { InvitationSummaryCard } from './InvitationSummaryCard'
 import { WrongAccountState } from './WrongAccountState'
-import { useInvitationFlow } from '../hooks/useInvitationFlow'
-import { ApiError } from '../../../lib/api'
-import {
-  buildAuthPathWithReturnTo,
-  buildInvitationAcceptPath,
-} from '../utils/invitationNavigation'
-import { Button } from '../../../components/ui/Button'
+import { buildAuthPathWithReturnTo, buildInvitationAcceptPath } from '../utils/invitationNavigation'
+
+const inputClassName = 'min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition focus:border-primary-600 focus:ring-3 focus:ring-primary-200'
 
 export function InvitationAcceptancePage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const notifications = useNotifications()
-  const { isAuthenticated, logout, user } = useAuth()
+  const { isAuthenticated, logout, refreshAuth, registerInvitation, user } = useAuth()
   const { clearOrganization, refreshOrganizations, selectOrganization } = useOrganization()
   const token = searchParams.get('token')
   const returnTo = useMemo(() => (token ? buildInvitationAcceptPath(token) : null), [token])
   const loginPath = buildAuthPathWithReturnTo('/login', returnTo)
-  const registerPath = buildAuthPathWithReturnTo('/signup', returnTo)
   const statusFocusRef = useRef<HTMLDivElement | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
-  const {
-    accept,
-    error,
-    invitation,
-    isAccepting,
-    isLoading,
-    reload,
-  } = useInvitationFlow(token)
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [isRegistering, setIsRegistering] = useState(false)
+  const { accept, error, invitation, isAccepting, isLoading, reload } = useInvitationFlow(token)
 
   useEffect(() => {
-    if (!isLoading) {
-      statusFocusRef.current?.focus()
-    }
+    if (!isLoading) statusFocusRef.current?.focus()
   }, [actionError, error, invitation, isLoading])
+
+  async function activateOrganization(organizationId: string) {
+    clearOrganization()
+    const organizations = await refreshOrganizations()
+    const activatedOrganization = organizations.find(
+      (entry) => entry.organization.id === organizationId && entry.membership.status === 'active',
+    )
+    if (!activatedOrganization) throw new Error('The organization membership could not be activated locally.')
+    selectOrganization(activatedOrganization.organization.id)
+    return activatedOrganization
+  }
 
   async function handleAcceptInvitation() {
     setActionError(null)
-
     try {
       const acceptedInvitation = await accept()
-      clearOrganization()
-      const organizations = await refreshOrganizations()
-      const activatedOrganization = organizations.find(
-        (entry) =>
-          entry.organization.id === acceptedInvitation.organization.id &&
-          entry.membership.status === 'active',
-      )
-
-      if (!activatedOrganization) {
-        throw new Error('The accepted organization membership could not be activated locally.')
-      }
-
-      selectOrganization(activatedOrganization.organization.id)
-      notifications.success({
-        message: 'Your organization membership is now active.',
-        title: 'Invitation accepted',
-      })
-      navigate('/dashboard', { replace: true })
+      const activeOrganization = await activateOrganization(acceptedInvitation.organization.id)
+      notifications.success({ message: 'Your organization membership is now active.', title: 'Invitation accepted' })
+      navigate(getRoleDashboardPath(activeOrganization.membership.role), { replace: true })
     } catch (caughtError) {
-      const message =
-        caughtError instanceof Error
-          ? caughtError.message
-          : 'Unable to accept this invitation.'
-
-      setActionError(message)
-
-      if (caughtError instanceof ApiError && (caughtError.statusCode === 409 || caughtError.statusCode === 410)) {
-        void reload().catch(() => undefined)
-      }
+      setActionError(caughtError instanceof Error ? caughtError.message : 'Unable to accept this invitation.')
+      if (caughtError instanceof ApiError && (caughtError.statusCode === 409 || caughtError.statusCode === 410)) void reload().catch(() => undefined)
     }
   }
 
-  function handleRetry() {
+  async function handleRegisterInvitation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!token || !invitation) return
+    if (password.length < 8) return setActionError('Password must be at least 8 characters.')
+    if (password !== confirmPassword) return setActionError('Passwords must match before you continue.')
+
     setActionError(null)
-    void reload().catch(() => undefined)
+    setIsRegistering(true)
+    try {
+      await registerInvitation(token, password)
+      await refreshAuth()
+      const activeOrganization = await activateOrganization(invitation.organization.id)
+      notifications.success({ message: 'Your account and organization membership are ready.', title: 'Welcome to Supervisor AI' })
+      navigate(getRoleDashboardPath(activeOrganization.membership.role), { replace: true })
+    } catch (caughtError) {
+      setActionError(caughtError instanceof Error ? caughtError.message : 'Unable to create your account.')
+    } finally {
+      setIsRegistering(false)
+    }
   }
 
-  function handleLogoutToInvitedEmail() {
-    logout({ redirectTo: loginPath })
-  }
+  function handleRetry() { setActionError(null); void reload().catch(() => undefined) }
+  function handleLogoutToInvitedEmail() { logout({ redirectTo: loginPath }) }
+  const isInvalidInvitation = error instanceof ApiError ? error.statusCode === 404 : !token && error instanceof Error
+  const isRecoverableError = error instanceof ApiError ? error.statusCode !== 404 : error !== null && token !== null
 
-  const isInvalidInvitation =
-    error instanceof ApiError ? error.statusCode === 404 : !token && error instanceof Error
-  const isRecoverableError =
-    error instanceof ApiError
-      ? error.statusCode !== 404
-      : error !== null && token !== null
-
-  return (
-    <main className="min-h-screen bg-surface-page px-4 py-8 text-ink-900 sm:px-6">
-      <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-4xl flex-col justify-center gap-8">
-        <div className="max-w-sm">
-          <SupervisorLogo />
-        </div>
-
-        <div className="grid gap-6" ref={statusFocusRef} tabIndex={-1}>
-          {isLoading ? <LoadingState label="Loading invitation details..." /> : null}
-
-          {!isLoading && actionError ? (
-            <ErrorState
-              message={actionError}
-              onRetry={handleRetry}
-              title="Unable to complete invitation acceptance"
-            />
-          ) : null}
-
-          {!isLoading && !token ? (
-            <InvitationStatusState returnTo={null} status="invalid" />
-          ) : null}
-
-          {!isLoading && token && isInvalidInvitation ? (
-            <InvitationStatusState onRetry={handleRetry} returnTo={returnTo} status="invalid" />
-          ) : null}
-
-          {!isLoading && token && isRecoverableError ? (
-            <ErrorState
-              message={error?.message ?? 'Unable to load invitation details.'}
-              onRetry={handleRetry}
-              title="Invitation details could not be loaded"
-            />
-          ) : null}
-
-          {!isLoading && invitation ? (
-            <>
-              <InvitationSummaryCard invitation={invitation} />
-
-              {invitation.status !== 'pending' ? (
-                <InvitationStatusState returnTo={returnTo} status={invitation.status} />
-              ) : null}
-
-              {invitation.status === 'pending' && !isAuthenticated ? (
-                <Card className="grid gap-5">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-                      Authentication required
-                    </p>
-                    <h2 className="mt-2 text-2xl font-bold text-ink-900">
-                      Sign in or create an account to continue
-                    </h2>
-                    <p className="mt-2 text-sm leading-6 text-ink-600">
-                      Use the invited email to sign in or create an account identity, then return
-                      here to accept the organization invitation.
-                    </p>
-                  </div>
-
-                  <InvitationActions
-                    loginPath={loginPath}
-                    registerPath={registerPath}
-                    showAuthActions
-                  />
-                </Card>
-              ) : null}
-
-              {invitation.status === 'pending' &&
-              isAuthenticated &&
-              invitation.current_user_email_matches === false ? (
-                <WrongAccountState
-                  currentEmail={user?.email ?? null}
-                  loginPath={loginPath}
-                  logoutToInvitedEmail={handleLogoutToInvitedEmail}
-                  maskedInvitedEmail={invitation.invited_email_masked}
-                />
-              ) : null}
-
-              {invitation.status === 'pending' &&
-              isAuthenticated &&
-              invitation.current_user_email_matches === true ? (
-                <Card className="grid gap-5">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-                      Ready to join
-                    </p>
-                    <h2 className="mt-2 text-2xl font-bold text-ink-900">
-                      Accept this organization invitation
-                    </h2>
-                    <p className="mt-2 text-sm leading-6 text-ink-600">
-                      Accepting this invitation activates your membership and sends you into the
-                      correct organization workspace using your verified membership role.
-                    </p>
-                  </div>
-
-                  <InvitationActions
-                    isAccepting={isAccepting}
-                    loginPath={loginPath}
-                    onAccept={() => {
-                      void handleAcceptInvitation()
-                    }}
-                    registerPath={registerPath}
-                    showAcceptAction
-                  />
-                </Card>
-              ) : null}
-            </>
-          ) : null}
-
-          <div className="flex flex-wrap items-center gap-3 text-sm text-ink-600">
-            <Link
-              className="font-semibold text-primary-600 underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary-300"
-              to={loginPath}
-            >
-              Sign in
-            </Link>
-            <span aria-hidden="true">·</span>
-            <Link
-              className="font-semibold text-primary-600 underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary-300"
-              to={registerPath}
-            >
-              Create account
-            </Link>
-            {isAuthenticated ? (
-              <>
-                <span aria-hidden="true">·</span>
-                <Button onClick={handleLogoutToInvitedEmail} type="button" variant="ghost">
-                  Sign out
-                </Button>
-              </>
-            ) : null}
-          </div>
-        </div>
+  return <main className="min-h-screen bg-surface-page px-4 py-8 text-ink-900 sm:px-6">
+    <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-4xl flex-col justify-center gap-8">
+      <div className="max-w-sm"><SupervisorLogo /></div>
+      <div className="grid gap-6" ref={statusFocusRef} tabIndex={-1}>
+        {isLoading ? <LoadingState label="Loading invitation details..." /> : null}
+        {!isLoading && actionError ? <ErrorState message={actionError} onRetry={handleRetry} title="Unable to complete invitation acceptance" /> : null}
+        {!isLoading && !token ? <InvitationStatusState returnTo={null} status="invalid" /> : null}
+        {!isLoading && token && isInvalidInvitation ? <InvitationStatusState onRetry={handleRetry} returnTo={returnTo} status="invalid" /> : null}
+        {!isLoading && token && isRecoverableError ? <ErrorState message={error?.message ?? 'Unable to load invitation details.'} onRetry={handleRetry} title="Invitation details could not be loaded" /> : null}
+        {!isLoading && invitation ? <>
+          <InvitationSummaryCard invitation={invitation} />
+          {invitation.status !== 'pending' ? <InvitationStatusState returnTo={returnTo} status={invitation.status} /> : null}
+          {invitation.status === 'pending' && !isAuthenticated && !invitation.account_exists ? <Card className="grid gap-5">
+            <div><p className="text-xs font-semibold uppercase tracking-normal text-primary-700">Create your account</p><h2 className="mt-2 text-2xl font-bold text-ink-900">Create an account to join {invitation.organization.name}</h2><p className="mt-2 text-sm leading-6 text-ink-600">Your invitation details will be applied automatically.</p></div>
+            <form className="grid gap-4" onSubmit={handleRegisterInvitation}>
+              <label className="grid gap-2 text-sm font-semibold text-ink-800">Invited email<input className={inputClassName} readOnly type="email" value={invitation.invited_email} /></label>
+              <label className="grid gap-2 text-sm font-semibold text-ink-800">Password<input autoComplete="new-password" className={inputClassName} minLength={8} onChange={(event) => setPassword(event.target.value)} required type="password" value={password} /></label>
+              <label className="grid gap-2 text-sm font-semibold text-ink-800">Confirm password<input autoComplete="new-password" className={inputClassName} minLength={8} onChange={(event) => setConfirmPassword(event.target.value)} required type="password" value={confirmPassword} /></label>
+              <Button disabled={isRegistering} type="submit">{isRegistering ? 'Creating account...' : 'Create Account & Join Organization'}</Button>
+            </form>
+          </Card> : null}
+          {invitation.status === 'pending' && !isAuthenticated && invitation.account_exists ? <Card className="grid gap-5">
+            <div><p className="text-xs font-semibold uppercase tracking-normal text-primary-700">Account found</p><h2 className="mt-2 text-2xl font-bold text-ink-900">Sign in to accept this invitation</h2><p className="mt-2 text-sm leading-6 text-ink-600">You already have a Supervisor AI account for this email.</p></div>
+            <Link className="inline-flex min-h-10 items-center justify-center rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-[var(--text-on-primary)] shadow-sm transition hover:bg-primary-700" to={loginPath}>Sign In to Accept</Link>
+          </Card> : null}
+          {invitation.status === 'pending' && isAuthenticated && invitation.current_user_email_matches === false ? <WrongAccountState currentEmail={user?.email ?? null} loginPath={loginPath} logoutToInvitedEmail={handleLogoutToInvitedEmail} maskedInvitedEmail={invitation.invited_email_masked} /> : null}
+          {invitation.status === 'pending' && isAuthenticated && invitation.current_user_email_matches === true ? <Card className="grid gap-5"><div><p className="text-xs font-semibold uppercase tracking-normal text-primary-700">Ready to join</p><h2 className="mt-2 text-2xl font-bold text-ink-900">Accept this organization invitation</h2><p className="mt-2 text-sm leading-6 text-ink-600">Accepting activates your membership and opens the correct workspace.</p></div><InvitationActions isAccepting={isAccepting} loginPath={loginPath} onAccept={() => { void handleAcceptInvitation() }} registerPath="/signup" showAcceptAction /></Card> : null}
+        </> : null}
       </div>
-    </main>
-  )
+    </div>
+  </main>
 }

@@ -1,9 +1,13 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { AuthContext } from '../../features/auth/hooks/authContext'
 import type { AuthContextValue } from '../../features/auth/hooks/authContext'
 import { AppRouter } from './AppRouter'
+
+vi.mock('../../pages/InvitationAcceptPage', () => ({
+  InvitationAcceptPage: () => <h1>Public invitation acceptance</h1>,
+}))
 
 function createAuthValue(isAuthenticated: boolean): AuthContextValue {
   return {
@@ -17,6 +21,7 @@ function createAuthValue(isAuthenticated: boolean): AuthContextValue {
     platformRole: null,
     register: async () => {},
     registerInvitation: async () => {},
+    refreshAuth: async () => {},
     role: null,
     signup: async () => {},
     user: null,
@@ -55,5 +60,10 @@ describe('AppRouter', () => {
     renderRouter('/')
 
     expect(screen.getByRole('heading', { name: /turn project requirements/i })).toBeInTheDocument()
+  })
+
+  it('keeps invitation acceptance public while unauthenticated', () => {
+    renderRouter('/invitations/accept?token=test-token')
+    expect(screen.getByRole('heading', { name: /public invitation acceptance/i })).toBeInTheDocument()
   })
 })

@@ -209,6 +209,25 @@ function buildInvitationDebugResponse(acceptanceUrl: string) {
   return { debug: { acceptance_url: acceptanceUrl } };
 }
 
+function getInvitationInspectionProfile(profile: Record<string, unknown>): InvitationInspectionResult["profile"] {
+  const employmentType = profile.employment_type;
+  const weeklyCapacityHours = profile.weekly_capacity_hours;
+
+  return {
+    full_name: typeof profile.full_name === "string" ? profile.full_name : null,
+    job_title: typeof profile.job_title === "string" ? profile.job_title : null,
+    department: typeof profile.department === "string" ? profile.department : null,
+    employment_type:
+      employmentType === "full_time" || employmentType === "part_time"
+        ? employmentType
+        : null,
+    weekly_capacity_hours:
+      typeof weeklyCapacityHours === "number" && Number.isFinite(weeklyCapacityHours)
+        ? weeklyCapacityHours
+        : null,
+  };
+}
+
 function buildInvitationExpiryDate(now = new Date()) {
   return new Date(now.getTime() + INVITATION_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 }
@@ -1308,6 +1327,17 @@ export async function inspectInvitationByToken(
 
   const organization = await getOrganizationById(invitation.organization_id);
   const status = getInvitationPublicStatus(invitation);
+  const { data: existingAccount, error: existingAccountError } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", invitation.email)
+    .maybeSingle<{ id: string }>();
+
+  if (existingAccountError) {
+    throw new AppError("Unable to inspect invitation account status.", 500, true, {
+      cause: existingAccountError,
+    });
+  }
 
   let currentUserEmailMatches = false;
   if (authUserId) {
@@ -1322,9 +1352,12 @@ export async function inspectInvitationByToken(
       slug: organization.slug,
     },
     invited_email_masked: maskInvitationEmail(invitation.email),
+    invited_email: invitation.email,
     role: invitation.role,
+    profile: getInvitationInspectionProfile(invitation.profile),
     expires_at: invitation.expires_at,
     status,
+    account_exists: Boolean(existingAccount),
     authentication_required: !authUserId,
     current_user_email_matches: authUserId ? currentUserEmailMatches : null,
   };
