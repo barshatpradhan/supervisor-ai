@@ -203,6 +203,12 @@ function buildInvitationAcceptanceUrl(token: string) {
   return buildOrganizationInvitationAcceptanceUrl(token);
 }
 
+function buildInvitationDebugResponse(acceptanceUrl: string) {
+  if (process.env.INVITATION_DEBUG_RETURN_URL !== "true") return {};
+
+  return { debug: { acceptance_url: acceptanceUrl } };
+}
+
 function buildInvitationExpiryDate(now = new Date()) {
   return new Date(now.getTime() + INVITATION_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 }
@@ -1278,6 +1284,7 @@ export async function createOrganizationInvitation(
   return {
     invitation: mapInvitation(hydrateInvitationRow(invitation)),
     membership: null,
+    ...buildInvitationDebugResponse(acceptanceUrl),
   };
 }
 
@@ -1622,6 +1629,7 @@ export async function resendOrganizationInvitation(
   return {
     invitation: mapInvitation(hydratedUpdatedInvitation),
     membership: membership ? mapMembership(membership) : null,
+    ...buildInvitationDebugResponse(acceptanceUrl),
   };
 }
 

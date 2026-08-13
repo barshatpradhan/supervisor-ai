@@ -165,4 +165,8 @@ export interface InvitationAcceptanceResult {
 export interface OrganizationInvitationMutationResult {
   invitation: OrganizationInvitation;
   membership: OrganizationMembership | null;
+  /** Development-only invitation link, enabled with INVITATION_DEBUG_RETURN_URL=true. */
+  debug?: {
+    acceptance_url: string;
+  };
 }
