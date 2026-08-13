@@ -29,7 +29,9 @@ describe('LoginForm', () => {
   })
 
   it('returns invited users to the invitation path after sign in', async () => {
-    loginMock.mockResolvedValue(undefined)
+    loginMock.mockResolvedValue({
+      user: { platformRole: null },
+    })
 
     render(
       <MemoryRouter
@@ -50,5 +52,23 @@ describe('LoginForm', () => {
     expect(navigateMock).toHaveBeenCalledWith('/invitations/accept?token=secure-token', {
       replace: true,
     })
+  })
+
+  it('sends platform administrators to platform administration by default', async () => {
+    loginMock.mockResolvedValue({
+      user: { platformRole: 'platform_admin' },
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/login']}>
+        <LoginForm />
+      </MemoryRouter>,
+    )
+
+    await userEvent.type(screen.getByLabelText(/email/i), 'admin@example.com')
+    await userEvent.type(screen.getByLabelText(/password/i), 'SecurePassword123!')
+    await userEvent.click(screen.getByRole('button', { name: /sign in/i }))
+
+    expect(navigateMock).toHaveBeenCalledWith('/platform-admin', { replace: true })
   })
 })

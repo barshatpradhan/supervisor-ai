@@ -1,4 +1,5 @@
 const DEFAULT_POST_AUTH_PATH = '/dashboard'
+const PLATFORM_ADMIN_DASHBOARD_PATH = '/platform-admin'
 const INVITATION_ACCEPT_PATH = '/invitations/accept'
 
 export function sanitizeInternalReturnTo(value: string | null | undefined) {
@@ -48,8 +49,14 @@ export function buildInvitationAcceptPath(token: string) {
   return `${INVITATION_ACCEPT_PATH}?token=${encodeURIComponent(token)}`
 }
 
-export function getPostAuthDestination(search: string) {
-  return getReturnToFromSearch(search) ?? DEFAULT_POST_AUTH_PATH
+export function getPostAuthDestination(
+  search: string,
+  platformRole?: 'platform_admin' | null,
+) {
+  return (
+    getReturnToFromSearch(search) ??
+    (platformRole === 'platform_admin' ? PLATFORM_ADMIN_DASHBOARD_PATH : DEFAULT_POST_AUTH_PATH)
+  )
 }
 
 export function isInvitationReturnToPath(path: string | null) {

@@ -6,6 +6,7 @@ import { AppLayout } from '../../layouts/AppLayout'
 import { AdminUserCreatePage } from '../../pages/AdminUserCreatePage'
 import { AiRecommendationsPage } from '../../pages/AiRecommendationsPage'
 import { DashboardPage } from '../../pages/DashboardPage'
+import { PlatformAdminDashboardPage } from '../../pages/PlatformAdminDashboardPage'
 import { EmployeesPage } from '../../pages/EmployeesPage'
 import { ForbiddenPage } from '../../pages/ForbiddenPage'
 import { InvitationAcceptPage } from '../../pages/InvitationAcceptPage'
@@ -22,6 +23,7 @@ import { ProjectDetailsPage } from '../../pages/ProjectDetailsPage'
 import { SignupPage } from '../../pages/SignupPage'
 import { RegisterOrganizerPage } from '../../pages/RegisterOrganizerPage'
 import { TasksPage } from '../../pages/TasksPage'
+import { DashboardEntryRoute } from '../../features/dashboard/components/DashboardEntryRoute'
 
 export function AppRouter() {
   return (
@@ -34,11 +36,19 @@ export function AppRouter() {
       <Route element={<RegisterOrganizerPage />} path="/register" />
       <Route element={<SignupPage />} path="/signup" />
       <Route element={<ProtectedRoute />}>
+        <Route element={<RoleGuard allowedRoles={['admin']} />}>
+          <Route element={<PlatformAdminDashboardPage />} path="/platform-admin" />
+          <Route element={<AdminUserCreatePage />} path="/admin/users/new" />
+        </Route>
         <Route element={<AppLayout />}>
           <Route element={<ForbiddenPage />} path="/forbidden" />
           <Route element={<SelectOrganizationPage />} path="/select-organization" />
+          <Route element={<DashboardEntryRoute />}>
+            <Route element={<OrganizationRoute />}>
+              <Route element={<DashboardPage />} path="/dashboard" />
+            </Route>
+          </Route>
           <Route element={<OrganizationRoute />}>
-            <Route element={<DashboardPage />} path="/dashboard" />
             <Route element={<TasksPage />} path="/tasks" />
             <Route element={<ProfilePage />} path="/profile" />
           </Route>
@@ -50,9 +60,6 @@ export function AppRouter() {
           </Route>
           <Route element={<OrganizationRoute allowedRoles={['organization_admin']} />}>
             <Route element={<OrganizationInvitationsPage />} path="/organization/invitations" />
-          </Route>
-          <Route element={<RoleGuard allowedRoles={['admin']} />}>
-            <Route element={<AdminUserCreatePage />} path="/admin/users/new" />
           </Route>
         </Route>
       </Route>

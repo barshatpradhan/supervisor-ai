@@ -114,6 +114,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       try {
         const session = await loginWithBackend(credentials)
         handleSession(session)
+        return session
       } catch (caughtError) {
         const message =
           caughtError instanceof Error ? caughtError.message : 'Unable to log in.'

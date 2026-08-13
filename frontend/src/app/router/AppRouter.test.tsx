@@ -15,7 +15,9 @@ function createAuthValue(isAuthenticated: boolean): AuthContextValue {
     isAuthenticated,
     isLoading: false,
     status: isAuthenticated ? 'authenticated' : 'unauthenticated',
-    login: async () => {},
+    login: async () => {
+      throw new Error('not used in this test')
+    },
     logout: () => {},
     onboarding: null,
     platformRole: null,

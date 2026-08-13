@@ -21,8 +21,8 @@ export function LoginForm() {
     setIsSubmitting(true)
 
     try {
-      await login({ email, password })
-      navigate(getPostAuthDestination(location.search), { replace: true })
+      const session = await login({ email, password })
+      navigate(getPostAuthDestination(location.search, session.user.platformRole), { replace: true })
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Unable to log in.')
     } finally {

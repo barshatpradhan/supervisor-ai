@@ -1,8 +1,8 @@
-import { PlaceholderScreen } from '../components/shared/PlaceholderScreen'
+import { EmptyState } from '../components/shared/EmptyState'
 
 export function ForbiddenPage() {
   return (
-    <PlaceholderScreen
+    <EmptyState
       description="Your account does not have access to this area."
       title="Access restricted"
     />

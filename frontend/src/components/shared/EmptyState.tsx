@@ -12,7 +12,7 @@ interface EmptyStateProps {
 
 const defaultCopy: Record<Exclude<EmptyStateKind, 'default'>, { description: string; title: string }> = {
   employees: {
-    description: 'Employee records will appear here once the directory is connected.',
+    description: 'Employee profiles appear here when members join this organization.',
     title: 'No employees yet',
   },
   projects: {
