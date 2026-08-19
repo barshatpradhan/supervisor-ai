@@ -179,6 +179,18 @@ describe('InvitationAcceptancePage', () => {
     })
   })
 
+  it('re-inspects the invitation when registration discovers an existing account', async () => {
+    registerInvitationMock.mockRejectedValue(new ApiError('An account already exists for this invitation email.', { statusCode: 409 }))
+    reloadMock.mockResolvedValue(undefined)
+    renderPage()
+    const inputs = screen.getAllByLabelText(/password/i)
+    await userEvent.type(inputs[0]!, 'password-one')
+    await userEvent.type(inputs[1]!, 'password-one')
+    await userEvent.click(screen.getByRole('button', { name: /create account & join organization/i }))
+
+    await waitFor(() => expect(reloadMock).toHaveBeenCalled())
+  })
+
   it('shows sign-in only for an invitation whose email already has an account', () => {
     useInvitationFlowMock.mockReturnValue({ accept: acceptMock, error: null, invitation: { ...pendingInvitation, account_exists: true }, isAccepting: false, isLoading: false, reload: reloadMock })
     renderPage()

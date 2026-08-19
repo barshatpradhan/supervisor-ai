@@ -8,7 +8,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/services/taskProgressMetrics.test.ts src/services/email/emailService.test.ts src/scripts/developmentDatabaseReset.test.ts",
+    "test": "tsx --test src/services/taskProgressMetrics.test.ts src/services/email/emailService.test.ts src/services/accountExistenceService.test.ts src/scripts/developmentDatabaseReset.test.ts",
     "test:coverage": "tsx --test --experimental-test-coverage src/services/taskProgressMetrics.test.ts",
     "start": "node dist/server.js",
     "verify:onboarding": "tsx src/scripts/onboardingVerification.ts",

@@ -80,6 +80,7 @@ export function InvitationAcceptancePage() {
       navigate(getRoleDashboardPath(activeOrganization.membership.role), { replace: true })
     } catch (caughtError) {
       setActionError(caughtError instanceof Error ? caughtError.message : 'Unable to create your account.')
+      if (caughtError instanceof ApiError && caughtError.statusCode === 409) void reload().catch(() => undefined)
     } finally {
       setIsRegistering(false)
     }
