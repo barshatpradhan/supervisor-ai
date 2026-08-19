@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError } from '../../../lib/api'
@@ -96,12 +97,20 @@ const acceptedResponse: InvitationAcceptance = {
   profileCreated: true,
 }
 
-function renderPage(entry = '/invitations/accept?token=secure-token') {
-  return render(
-    <MemoryRouter initialEntries={[entry]}>
-      <InvitationAcceptancePage />
-    </MemoryRouter>,
+function pageTree(entry = '/invitations/accept?token=secure-token') {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={[entry]}>
+        <InvitationAcceptancePage />
+      </MemoryRouter>
+    </QueryClientProvider>
   )
+}
+
+function renderPage(entry = '/invitations/accept?token=secure-token') {
+  return render(pageTree(entry))
 }
 
 describe('InvitationAcceptancePage', () => {
@@ -109,6 +118,7 @@ describe('InvitationAcceptancePage', () => {
     navigateMock.mockReset()
     acceptMock.mockReset()
     reloadMock.mockReset()
+    reloadMock.mockResolvedValue(undefined)
     clearOrganizationMock.mockReset()
     refreshOrganizationsMock.mockReset()
     selectOrganizationMock.mockReset()
@@ -187,47 +197,25 @@ describe('InvitationAcceptancePage', () => {
   })
 
   it('renders expired, revoked, and already accepted states', () => {
-    useInvitationFlowMock
-      .mockReturnValueOnce({
-        accept: acceptMock,
-        error: null,
-        invitation: { ...pendingInvitation, status: 'expired' },
-        isAccepting: false,
-        isLoading: false,
-        reload: reloadMock,
-      })
-      .mockReturnValueOnce({
-        accept: acceptMock,
-        error: null,
-        invitation: { ...pendingInvitation, status: 'revoked' },
-        isAccepting: false,
-        isLoading: false,
-        reload: reloadMock,
-      })
-      .mockReturnValueOnce({
-        accept: acceptMock,
-        error: null,
-        invitation: { ...pendingInvitation, status: 'accepted' },
-        isAccepting: false,
-        isLoading: false,
-        reload: reloadMock,
-      })
+    const flowForStatus = (status: InvitationInspection['status']) => ({
+      accept: acceptMock,
+      error: null,
+      invitation: { ...pendingInvitation, status },
+      isAccepting: false,
+      isLoading: false,
+      reload: reloadMock,
+    })
+    useInvitationFlowMock.mockReturnValue(flowForStatus('expired'))
 
     const { rerender } = renderPage()
     expect(screen.getByText(/invitation expired/i)).toBeInTheDocument()
 
-    rerender(
-      <MemoryRouter initialEntries={['/invitations/accept?token=secure-token']}>
-        <InvitationAcceptancePage />
-      </MemoryRouter>,
-    )
+    useInvitationFlowMock.mockReturnValue(flowForStatus('revoked'))
+    rerender(pageTree())
     expect(screen.getByText(/invitation revoked/i)).toBeInTheDocument()
 
-    rerender(
-      <MemoryRouter initialEntries={['/invitations/accept?token=secure-token']}>
-        <InvitationAcceptancePage />
-      </MemoryRouter>,
-    )
+    useInvitationFlowMock.mockReturnValue(flowForStatus('accepted'))
+    rerender(pageTree())
     expect(screen.getByText(/invitation already accepted/i)).toBeInTheDocument()
   })
 
@@ -252,6 +240,62 @@ describe('InvitationAcceptancePage', () => {
 
     expect(screen.getByText(/this invitation belongs to a different email/i)).toBeInTheDocument()
     expect(screen.getByText(/wrong@example.com/i)).toBeInTheDocument()
+  })
+
+  it('signs out to the same invitation URL instead of the generic login page', async () => {
+    useAuthMock.mockReturnValue({
+      isAuthenticated: true,
+      logout: logoutMock,
+      refreshAuth: refreshAuthMock,
+      registerInvitation: registerInvitationMock,
+      user: { email: 'wrong@example.com' },
+    })
+    useInvitationFlowMock.mockReturnValue({
+      accept: acceptMock,
+      error: null,
+      invitation: { ...pendingInvitation, current_user_email_matches: false },
+      isAccepting: false,
+      isLoading: false,
+      reload: reloadMock,
+    })
+
+    renderPage()
+    await userEvent.click(screen.getByRole('button', { name: /sign out and continue/i }))
+
+    expect(logoutMock).toHaveBeenCalledWith({
+      redirectTo: '/invitations/accept?token=secure-token',
+    })
+  })
+
+  it('re-inspects the invitation after an authenticated wrong account becomes signed out', () => {
+    useAuthMock.mockReturnValue({
+      isAuthenticated: true,
+      logout: logoutMock,
+      refreshAuth: refreshAuthMock,
+      registerInvitation: registerInvitationMock,
+      user: { email: 'wrong@example.com' },
+    })
+    useInvitationFlowMock.mockReturnValue({
+      accept: acceptMock,
+      error: null,
+      invitation: { ...pendingInvitation, current_user_email_matches: false },
+      isAccepting: false,
+      isLoading: false,
+      reload: reloadMock,
+    })
+
+    const { rerender } = renderPage()
+    reloadMock.mockClear()
+    useAuthMock.mockReturnValue({
+      isAuthenticated: false,
+      logout: logoutMock,
+      refreshAuth: refreshAuthMock,
+      registerInvitation: registerInvitationMock,
+      user: null,
+    })
+    rerender(pageTree())
+
+    expect(reloadMock).toHaveBeenCalledTimes(1)
   })
 
   it('prevents duplicate submit while invitation acceptance is in progress', () => {
@@ -336,32 +380,25 @@ describe('InvitationAcceptancePage', () => {
   })
 
   it('renders invalid and backend error states safely', () => {
-    useInvitationFlowMock
-      .mockReturnValueOnce({
-        accept: acceptMock,
-        error: new ApiError('Invitation not found.', { statusCode: 404 }),
-        invitation: null,
-        isAccepting: false,
-        isLoading: false,
-        reload: reloadMock,
-      })
-      .mockReturnValueOnce({
-        accept: acceptMock,
-        error: new ApiError('Temporary backend failure.', { statusCode: 500 }),
-        invitation: null,
-        isAccepting: false,
-        isLoading: false,
-        reload: reloadMock,
-      })
+    const flowForError = (error: ApiError) => ({
+      accept: acceptMock,
+      error,
+      invitation: null,
+      isAccepting: false,
+      isLoading: false,
+      reload: reloadMock,
+    })
+    useInvitationFlowMock.mockReturnValue(
+      flowForError(new ApiError('Invitation not found.', { statusCode: 404 })),
+    )
 
     const { rerender } = renderPage()
     expect(screen.getByText(/invitation not found/i)).toBeInTheDocument()
 
-    rerender(
-      <MemoryRouter initialEntries={['/invitations/accept?token=secure-token']}>
-        <InvitationAcceptancePage />
-      </MemoryRouter>,
+    useInvitationFlowMock.mockReturnValue(
+      flowForError(new ApiError('Temporary backend failure.', { statusCode: 500 })),
     )
+    rerender(pageTree())
     expect(screen.getByText(/invitation details could not be loaded/i)).toBeInTheDocument()
     expect(screen.getByText(/temporary backend failure/i)).toBeInTheDocument()
   })
