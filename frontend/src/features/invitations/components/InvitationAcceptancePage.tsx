@@ -1,6 +1,9 @@
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import { useForm } from 'react-hook-form'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { z } from 'zod'
 import { ErrorState } from '../../../components/shared/ErrorState'
 import { LoadingState } from '../../../components/shared/LoadingState'
 import { Button } from '../../../components/ui/Button'
@@ -20,25 +23,54 @@ import { buildAuthPathWithReturnTo, buildInvitationAcceptPath } from '../utils/i
 
 const inputClassName = 'min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition focus:border-primary-600 focus:ring-3 focus:ring-primary-200'
 
+const invitationRegistrationSchema = z
+  .object({
+    password: z.string().min(8, 'Password must be at least 8 characters.').max(72),
+    confirmPassword: z.string(),
+  })
+  .refine((values) => values.password === values.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'Passwords must match before you continue.',
+  })
+
+type InvitationRegistrationValues = z.infer<typeof invitationRegistrationSchema>
+
 export function InvitationAcceptancePage() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const notifications = useNotifications()
+  const queryClient = useQueryClient()
   const { isAuthenticated, logout, refreshAuth, registerInvitation, user } = useAuth()
   const { clearOrganization, refreshOrganizations, selectOrganization } = useOrganization()
   const token = searchParams.get('token')
   const returnTo = useMemo(() => (token ? buildInvitationAcceptPath(token) : null), [token])
   const loginPath = buildAuthPathWithReturnTo('/login', returnTo)
   const statusFocusRef = useRef<HTMLDivElement | null>(null)
+  const previousAuthenticationRef = useRef(isAuthenticated)
   const [actionError, setActionError] = useState<string | null>(null)
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [isRegistering, setIsRegistering] = useState(false)
   const { accept, error, invitation, isAccepting, isLoading, reload } = useInvitationFlow(token)
+  const {
+    handleSubmit,
+    register: registerField,
+    formState: { errors: registrationErrors, isSubmitting: isRegistering },
+  } = useForm<InvitationRegistrationValues>({
+    defaultValues: { password: '', confirmPassword: '' },
+    mode: 'onBlur',
+    resolver: zodResolver(invitationRegistrationSchema),
+  })
 
   useEffect(() => {
     if (!isLoading) statusFocusRef.current?.focus()
   }, [actionError, error, invitation, isLoading])
+
+  useEffect(() => {
+    const wasAuthenticated = previousAuthenticationRef.current
+    previousAuthenticationRef.current = isAuthenticated
+
+    if (wasAuthenticated && !isAuthenticated && token) {
+      void reload().catch(() => undefined)
+    }
+  }, [isAuthenticated, reload, token])
 
   async function activateOrganization(organizationId: string) {
     clearOrganization()
@@ -56,6 +88,7 @@ export function InvitationAcceptancePage() {
     try {
       const acceptedInvitation = await accept()
       const activeOrganization = await activateOrganization(acceptedInvitation.organization.id)
+      await queryClient.invalidateQueries()
       notifications.success({ message: 'Your organization membership is now active.', title: 'Invitation accepted' })
       navigate(getRoleDashboardPath(activeOrganization.membership.role), { replace: true })
     } catch (caughtError) {
@@ -64,29 +97,25 @@ export function InvitationAcceptancePage() {
     }
   }
 
-  async function handleRegisterInvitation(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function handleRegisterInvitation({ password }: InvitationRegistrationValues) {
     if (!token || !invitation) return
-    if (password.length < 8) return setActionError('Password must be at least 8 characters.')
-    if (password !== confirmPassword) return setActionError('Passwords must match before you continue.')
 
     setActionError(null)
-    setIsRegistering(true)
     try {
       await registerInvitation(token, password)
       await refreshAuth()
       const activeOrganization = await activateOrganization(invitation.organization.id)
+      await queryClient.invalidateQueries()
       notifications.success({ message: 'Your account and organization membership are ready.', title: 'Welcome to Supervisor AI' })
       navigate(getRoleDashboardPath(activeOrganization.membership.role), { replace: true })
     } catch (caughtError) {
       setActionError(caughtError instanceof Error ? caughtError.message : 'Unable to create your account.')
-    } finally {
-      setIsRegistering(false)
+      if (caughtError instanceof ApiError && caughtError.statusCode === 409) void reload().catch(() => undefined)
     }
   }
 
   function handleRetry() { setActionError(null); void reload().catch(() => undefined) }
-  function handleLogoutToInvitedEmail() { logout({ redirectTo: loginPath }) }
+  function handleLogoutToInvitedEmail() { logout({ redirectTo: returnTo ?? '/invitations/accept' }) }
   const isInvalidInvitation = error instanceof ApiError ? error.statusCode === 404 : !token && error instanceof Error
   const isRecoverableError = error instanceof ApiError ? error.statusCode !== 404 : error !== null && token !== null
 
@@ -104,10 +133,10 @@ export function InvitationAcceptancePage() {
           {invitation.status !== 'pending' ? <InvitationStatusState returnTo={returnTo} status={invitation.status} /> : null}
           {invitation.status === 'pending' && !isAuthenticated && !invitation.account_exists ? <Card className="grid gap-5">
             <div><p className="text-xs font-semibold uppercase tracking-normal text-primary-700">Create your account</p><h2 className="mt-2 text-2xl font-bold text-ink-900">Create an account to join {invitation.organization.name}</h2><p className="mt-2 text-sm leading-6 text-ink-600">Your invitation details will be applied automatically.</p></div>
-            <form className="grid gap-4" onSubmit={handleRegisterInvitation}>
+            <form className="grid gap-4" noValidate onSubmit={handleSubmit(handleRegisterInvitation)}>
               <label className="grid gap-2 text-sm font-semibold text-ink-800">Invited email<input className={inputClassName} readOnly type="email" value={invitation.invited_email} /></label>
-              <label className="grid gap-2 text-sm font-semibold text-ink-800">Password<input autoComplete="new-password" className={inputClassName} minLength={8} onChange={(event) => setPassword(event.target.value)} required type="password" value={password} /></label>
-              <label className="grid gap-2 text-sm font-semibold text-ink-800">Confirm password<input autoComplete="new-password" className={inputClassName} minLength={8} onChange={(event) => setConfirmPassword(event.target.value)} required type="password" value={confirmPassword} /></label>
+              <label className="grid gap-2 text-sm font-semibold text-ink-800">Password<input autoComplete="new-password" className={inputClassName} type="password" {...registerField('password')} />{registrationErrors.password ? <span className="text-sm font-normal text-danger-700">{registrationErrors.password.message}</span> : null}</label>
+              <label className="grid gap-2 text-sm font-semibold text-ink-800">Confirm password<input autoComplete="new-password" className={inputClassName} type="password" {...registerField('confirmPassword')} />{registrationErrors.confirmPassword ? <span className="text-sm font-normal text-danger-700">{registrationErrors.confirmPassword.message}</span> : null}</label>
               <Button disabled={isRegistering} type="submit">{isRegistering ? 'Creating account...' : 'Create Account & Join Organization'}</Button>
             </form>
           </Card> : null}

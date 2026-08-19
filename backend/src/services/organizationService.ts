@@ -26,7 +26,9 @@ import { replaceEmployeeSkillsWithDetails } from "./skillService.js";
 import { createSupervisorProfileRecordForOrganization } from "./supervisorService.js";
 import { createEmailService } from "./email/emailService.js";
 import { buildOrganizationInvitationAcceptanceUrl } from "./email/invitationUrl.js";
+import { shouldReturnInvitationDebugUrl } from "./invitationDebug.js";
 import { getAppUserByAuthId, getAuthOnboardingStateForAppUser } from "./userService.js";
+import { accountExistsByEmail } from "./accountExistenceService.js";
 
 interface OrganizationRow {
   id: string;
@@ -204,7 +206,7 @@ function buildInvitationAcceptanceUrl(token: string) {
 }
 
 function buildInvitationDebugResponse(acceptanceUrl: string) {
-  if (process.env.INVITATION_DEBUG_RETURN_URL !== "true") return {};
+  if (!shouldReturnInvitationDebugUrl()) return {};
 
   return { debug: { acceptance_url: acceptanceUrl } };
 }
@@ -1327,17 +1329,7 @@ export async function inspectInvitationByToken(
 
   const organization = await getOrganizationById(invitation.organization_id);
   const status = getInvitationPublicStatus(invitation);
-  const { data: existingAccount, error: existingAccountError } = await supabase
-    .from("users")
-    .select("id")
-    .eq("email", invitation.email)
-    .maybeSingle<{ id: string }>();
-
-  if (existingAccountError) {
-    throw new AppError("Unable to inspect invitation account status.", 500, true, {
-      cause: existingAccountError,
-    });
-  }
+  const accountExists = await accountExistsByEmail(invitation.email);
 
   let currentUserEmailMatches = false;
   if (authUserId) {
@@ -1357,7 +1349,7 @@ export async function inspectInvitationByToken(
     profile: getInvitationInspectionProfile(invitation.profile),
     expires_at: invitation.expires_at,
     status,
-    account_exists: Boolean(existingAccount),
+    account_exists: accountExists,
     authentication_required: !authUserId,
     current_user_email_matches: authUserId ? currentUserEmailMatches : null,
   };
@@ -1534,6 +1526,10 @@ export async function registerInvitationAccount(
     throw new AppError("This invitation is no longer valid.", 410);
   }
 
+  if (await accountExistsByEmail(invitation.email)) {
+    throw new AppError("An account already exists for this invitation email. Sign in to accept it.", 409);
+  }
+
   const { data: createdUser, error: createUserError } = await supabase.auth.admin.createUser({
     email: invitation.email,
     password,
@@ -1541,7 +1537,12 @@ export async function registerInvitationAccount(
   });
 
   if (createUserError || !createdUser.user) {
-    throw new AppError("An account already exists for this invitation email. Sign in to accept it.", 409);
+    if (await accountExistsByEmail(invitation.email)) {
+      throw new AppError("An account already exists for this invitation email. Sign in to accept it.", 409);
+    }
+    throw new AppError("Unable to create an account for this invitation.", 502, true, {
+      cause: createUserError,
+    });
   }
 
   try {
