@@ -1,18 +1,32 @@
 import type { ReactNode } from 'react'
+import { useState } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { EmptyState } from '../../../components/shared/EmptyState'
 import { ErrorState } from '../../../components/shared/ErrorState'
 import { parseApiError } from '../../../lib/api/errors'
+import { useNotifications } from '../../../hooks/useNotifications'
 import { useOrganization } from '../../organizations/hooks/useOrganization'
 import { useProject } from '../hooks/useProject'
-import type { Project } from '../types/project'
-import { formatProjectDate } from '../utils/projectPresentation'
+import { updateProject } from '../services/projectService'
+import type { Project, ProjectFormErrors, ProjectFormValues } from '../types/project'
+import { buildProjectFormValues, formatProjectDate, updateProjectRequestFromValues, validateProjectForm } from '../utils/projectPresentation'
+import { ProjectForm } from './ProjectForm'
 import { ProjectStatusBadge } from './ProjectStatusBadge'
 import { ProjectDocumentsSection } from './ProjectDocumentsSection'
 import { ProjectAnalysisSection } from './ProjectAnalysisSection'
 import { ProjectRecommendationsSection } from './ProjectRecommendationsSection'
+
+interface ProjectMutationState {
+  errors: ProjectFormErrors
+  formError: string | null
+  isSubmitting: boolean
+}
+
+function createInitialMutationState(): ProjectMutationState {
+  return { errors: {}, formError: null, isSubmitting: false }
+}
 
 const futureSections = ['Tasks', 'Activity']
 
@@ -36,6 +50,7 @@ function ProjectDetailsSkeleton() {
 
 export function ProjectDetailsContent({
   isRefreshing = false,
+  onEdit,
   onRefresh,
   organizationName,
   project,
@@ -47,6 +62,7 @@ export function ProjectDetailsContent({
 }: {
   activeTab?: 'overview' | 'documents' | 'analysis' | 'recommendations'
   isRefreshing?: boolean
+  onEdit?: () => void
   onRefresh?: () => void
   analysisDocumentId?: string | null
   onTabChange?: (tab: 'overview' | 'documents' | 'analysis' | 'recommendations') => void
@@ -66,9 +82,12 @@ export function ProjectDetailsContent({
             <ProjectStatusBadge kind="priority" value={project.priority} />
           </div>
         </div>
-        <Button aria-label="Refresh project details" className="shrink-0" disabled={isRefreshing} onClick={onRefresh} variant="secondary">
-          {isRefreshing ? 'Refreshing…' : 'Refresh'}
-        </Button>
+        <div className="flex shrink-0 gap-3">
+          {onEdit ? <Button onClick={onEdit} variant="secondary">Edit project</Button> : null}
+          <Button aria-label="Refresh project details" disabled={isRefreshing} onClick={onRefresh} variant="secondary">
+            {isRefreshing ? 'Refreshing…' : 'Refresh'}
+          </Button>
+        </div>
       </header>
 
       <nav aria-label="Project sections" className="overflow-x-auto border-b border-border-subtle">
@@ -124,7 +143,10 @@ export function ProjectDetailsModule() {
   const { projectId } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const { activeOrganization } = useOrganization()
+  const notifications = useNotifications()
   const projectQuery = useProject(activeOrganization?.id ?? null, projectId)
+  const [isEditing, setIsEditing] = useState(false)
+  const [mutationState, setMutationState] = useState<ProjectMutationState>(createInitialMutationState())
 
   if (projectQuery.isLoading) return <ProjectDetailsSkeleton />
   if (!projectId || !activeOrganization) return <EmptyState description="Select an organization before viewing project details." title="Project unavailable" />
@@ -135,6 +157,54 @@ export function ProjectDetailsModule() {
     return <ErrorState error={error} onRetry={() => { void projectQuery.refetch() }} title="Unable to load project details" />
   }
   if (!projectQuery.data) return <EmptyState description="This project is not currently available." title="Project unavailable" />
+
+  async function submitEditProject(values: ProjectFormValues) {
+    const currentProject = projectQuery.data as Project
+    const errors = validateProjectForm(values, currentProject)
+
+    if (Object.keys(errors).length > 0) {
+      setMutationState({ errors, formError: null, isSubmitting: false })
+      return
+    }
+
+    const request = updateProjectRequestFromValues(currentProject, values)
+
+    if (Object.keys(request).length === 0) {
+      notifications.info({ message: 'The project already matches the current values.', title: 'No changes to save' })
+      setIsEditing(false)
+      setMutationState(createInitialMutationState())
+      return
+    }
+
+    setMutationState({ errors: {}, formError: null, isSubmitting: true })
+
+    try {
+      await updateProject(currentProject.id, request)
+      await projectQuery.refetch()
+      setIsEditing(false)
+      setMutationState(createInitialMutationState())
+      notifications.success({ message: 'The project details were updated successfully.', title: 'Project updated' })
+    } catch (caughtError) {
+      const message = caughtError instanceof Error ? caughtError.message : 'Unable to update the project.'
+      setMutationState({ errors: {}, formError: message, isSubmitting: false })
+      notifications.error({ message, title: 'Project update failed' })
+    }
+  }
+
+  if (isEditing) {
+    return (
+      <ProjectForm
+        formError={mutationState.formError}
+        initialValues={buildProjectFormValues(projectQuery.data)}
+        isSubmitting={mutationState.isSubmitting}
+        mode="edit"
+        onCancel={() => { setIsEditing(false); setMutationState(createInitialMutationState()) }}
+        onSubmit={submitEditProject}
+        project={projectQuery.data}
+        validationErrors={mutationState.errors}
+      />
+    )
+  }
 
   const activeTab = searchParams.get('tab') === 'documents'
     ? 'documents'
@@ -163,6 +233,7 @@ export function ProjectDetailsModule() {
     activeTab={activeTab}
     analysisDocumentId={searchParams.get('documentId')}
     isRefreshing={projectQuery.isFetching}
+    onEdit={() => setIsEditing(true)}
     onTabChange={changeTab}
     onAnalysisDocumentChange={changeAnalysisDocument}
     onRefresh={() => { void projectQuery.refetch() }}
