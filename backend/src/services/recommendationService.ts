@@ -320,7 +320,6 @@ async function getEmployeeSkills(employeeIds: string[]) {
   const { data: skills, error: skillsError } = await supabase
     .from("skills")
     .select("id, name, normalized_name")
-    .eq("is_approved", true)
     .in("id", skillIds)
     .returns<SkillRow[]>();
   if (skillsError) throw new AppError("Unable to fetch skills.", 500);
