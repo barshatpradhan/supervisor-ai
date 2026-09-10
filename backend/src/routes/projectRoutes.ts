@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createProjectHandler,
+  deleteProjectHandler,
   getProject,
   getProjects,
   updateProjectHandler,
@@ -95,6 +96,13 @@ router.patch(
   resolveOrganizationContext,
   requireOrganizationRole("organization_admin", "supervisor"),
   updateProjectHandler
+);
+router.delete(
+  "/:projectId",
+  authenticateUser,
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
+  deleteProjectHandler
 );
 
 export default router;

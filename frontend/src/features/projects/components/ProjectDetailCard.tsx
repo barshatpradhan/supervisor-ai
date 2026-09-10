@@ -5,11 +5,12 @@ import { formatProjectDate } from '../utils/projectPresentation'
 import { ProjectStatusBadge } from './ProjectStatusBadge'
 
 interface ProjectDetailCardProps {
+  onDelete: () => void
   onEdit: () => void
   project: Project
 }
 
-export function ProjectDetailCard({ onEdit, project }: ProjectDetailCardProps) {
+export function ProjectDetailCard({ onDelete, onEdit, project }: ProjectDetailCardProps) {
   return (
     <div className="space-y-6">
       <Card>
@@ -25,9 +26,14 @@ export function ProjectDetailCard({ onEdit, project }: ProjectDetailCardProps) {
                 <ProjectStatusBadge kind="priority" value={project.priority} />
               </div>
             </div>
-            <Button onClick={onEdit} variant="secondary">
-              Edit project
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button onClick={onEdit} variant="secondary">
+                Edit project
+              </Button>
+              <Button onClick={onDelete} variant="danger">
+                Delete project
+              </Button>
+            </div>
           </div>
 
           <div className="rounded-lg border border-border-subtle bg-surface-card-alt p-4">

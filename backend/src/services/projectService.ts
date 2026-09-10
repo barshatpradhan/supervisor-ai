@@ -151,6 +151,29 @@ export async function updateProject(
   return data;
 }
 
+export async function deleteProject(
+  authUserId: string,
+  organizationId: string,
+  projectId: string
+) {
+  await getAppUserByAuthId(authUserId);
+
+  const { data, error } = await supabase
+    .from("projects")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("organization_id", organizationId)
+    .eq("id", projectId)
+    .is("deleted_at", null)
+    .select(PROJECT_SELECT)
+    .single();
+
+  if (error || !data) {
+    throw new AppError("Project not found.", 404);
+  }
+
+  return data;
+}
+
 export async function ensureProjectExistsInOrganization(
   projectId: string,
   organizationId: string

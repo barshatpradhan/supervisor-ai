@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNotifications } from '../../../hooks/useNotifications'
 import { useOrganization } from '../../organizations/hooks/useOrganization'
-import { createProject, updateProject } from '../services/projectService'
+import { createProject, deleteProject, updateProject } from '../services/projectService'
 import { useProjectDocumentManager } from './useProjectDocumentManager'
 import { useProject } from './useProject'
 import { useProjects } from './useProjects'
@@ -42,6 +42,9 @@ export function useProjectManager() {
   const [mutationState, setMutationState] = useState<ProjectMutationState>(
     createInitialMutationState(),
   )
+  const [projectPendingDeletion, setProjectPendingDeletion] = useState<Project | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const {
     data: selectedProject,
     error: projectError,
@@ -209,6 +212,55 @@ export function useProjectManager() {
     clearMutationState()
   }
 
+  function requestDeleteProject(project: Project) {
+    setDeleteError(null)
+    setProjectPendingDeletion(project)
+  }
+
+  function cancelDeleteProject() {
+    if (isDeleting) {
+      return
+    }
+
+    setProjectPendingDeletion(null)
+    setDeleteError(null)
+  }
+
+  async function confirmDeleteProject() {
+    if (!projectPendingDeletion) {
+      return
+    }
+
+    setIsDeleting(true)
+    setDeleteError(null)
+
+    try {
+      await deleteProject(projectPendingDeletion.id)
+      await refetchProjects()
+
+      if (selectedProjectIdState === projectPendingDeletion.id) {
+        setSelectedProjectId(null)
+      }
+
+      setPanelMode('view')
+      setProjectPendingDeletion(null)
+      notifications.success({
+        message: `${projectPendingDeletion.title} has been deleted.`,
+        title: 'Project deleted',
+      })
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error ? caughtError.message : 'Unable to delete the project.'
+      setDeleteError(message)
+      notifications.error({
+        message,
+        title: 'Project deletion failed',
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   function retryList() {
     void refetchProjects()
   }
@@ -222,10 +274,14 @@ export function useProjectManager() {
   }
 
   return {
+    cancelDeleteProject,
     cancelPanel,
+    confirmDeleteProject,
+    deleteError,
     getProjectFormValues,
     hasProjects,
     isCreateMode,
+    isDeleting,
     isDetailLoading,
     isEditMode,
     isListLoading,
@@ -236,7 +292,9 @@ export function useProjectManager() {
     panelMode,
     projectError,
     projectList,
+    projectPendingDeletion,
     documentManager,
+    requestDeleteProject,
     retryList,
     retrySelectedProject,
     selectProject,

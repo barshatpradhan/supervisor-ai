@@ -1,17 +1,20 @@
 import type { ReactNode } from 'react'
 import { useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { EmptyState } from '../../../components/shared/EmptyState'
 import { ErrorState } from '../../../components/shared/ErrorState'
 import { parseApiError } from '../../../lib/api/errors'
+import { queryKeys } from '../../../lib/api/queryKeys'
 import { useNotifications } from '../../../hooks/useNotifications'
 import { useOrganization } from '../../organizations/hooks/useOrganization'
 import { useProject } from '../hooks/useProject'
-import { updateProject } from '../services/projectService'
+import { deleteProject, updateProject } from '../services/projectService'
 import type { Project, ProjectFormErrors, ProjectFormValues } from '../types/project'
 import { buildProjectFormValues, formatProjectDate, updateProjectRequestFromValues, validateProjectForm } from '../utils/projectPresentation'
+import { DeleteProjectDialog } from './DeleteProjectDialog'
 import { ProjectForm } from './ProjectForm'
 import { ProjectStatusBadge } from './ProjectStatusBadge'
 import { ProjectDocumentsSection } from './ProjectDocumentsSection'
@@ -50,6 +53,7 @@ function ProjectDetailsSkeleton() {
 
 export function ProjectDetailsContent({
   isRefreshing = false,
+  onDelete,
   onEdit,
   onRefresh,
   organizationName,
@@ -62,6 +66,7 @@ export function ProjectDetailsContent({
 }: {
   activeTab?: 'overview' | 'documents' | 'analysis' | 'recommendations'
   isRefreshing?: boolean
+  onDelete?: () => void
   onEdit?: () => void
   onRefresh?: () => void
   analysisDocumentId?: string | null
@@ -87,6 +92,7 @@ export function ProjectDetailsContent({
           <Button aria-label="Refresh project details" disabled={isRefreshing} onClick={onRefresh} variant="secondary">
             {isRefreshing ? 'Refreshing…' : 'Refresh'}
           </Button>
+          {onDelete ? <Button onClick={onDelete} variant="danger">Delete project</Button> : null}
         </div>
       </header>
 
@@ -144,9 +150,14 @@ export function ProjectDetailsModule() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { activeOrganization } = useOrganization()
   const notifications = useNotifications()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const projectQuery = useProject(activeOrganization?.id ?? null, projectId)
   const [isEditing, setIsEditing] = useState(false)
   const [mutationState, setMutationState] = useState<ProjectMutationState>(createInitialMutationState())
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   if (projectQuery.isLoading) return <ProjectDetailsSkeleton />
   if (!projectId || !activeOrganization) return <EmptyState description="Select an organization before viewing project details." title="Project unavailable" />
@@ -191,6 +202,33 @@ export function ProjectDetailsModule() {
     }
   }
 
+  async function confirmDeleteProject() {
+    const currentProject = projectQuery.data as Project
+    setIsDeleting(true)
+    setDeleteError(null)
+
+    try {
+      await deleteProject(currentProject.id)
+      if (activeOrganization) {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: queryKeys.projects.list(activeOrganization.id) }),
+          queryClient.removeQueries({
+            queryKey: queryKeys.projects.detail(activeOrganization.id, currentProject.id),
+          }),
+        ])
+      }
+      notifications.success({ message: `${currentProject.title} has been deleted.`, title: 'Project deleted' })
+      setIsDeleteDialogOpen(false)
+      navigate('/projects')
+    } catch (caughtError) {
+      const message = caughtError instanceof Error ? caughtError.message : 'Unable to delete the project.'
+      setDeleteError(message)
+      notifications.error({ message, title: 'Project deletion failed' })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   if (isEditing) {
     return (
       <ProjectForm
@@ -229,16 +267,27 @@ export function ProjectDetailsModule() {
     setSearchParams(nextParams, { replace: true })
   }
 
-  return <ProjectDetailsContent
-    activeTab={activeTab}
-    analysisDocumentId={searchParams.get('documentId')}
-    isRefreshing={projectQuery.isFetching}
-    onEdit={() => setIsEditing(true)}
-    onTabChange={changeTab}
-    onAnalysisDocumentChange={changeAnalysisDocument}
-    onRefresh={() => { void projectQuery.refetch() }}
-    organizationName={activeOrganization.name}
-    organizationId={activeOrganization.id}
-    project={projectQuery.data}
-  />
+  return <>
+    <ProjectDetailsContent
+      activeTab={activeTab}
+      analysisDocumentId={searchParams.get('documentId')}
+      isRefreshing={projectQuery.isFetching}
+      onDelete={() => { setDeleteError(null); setIsDeleteDialogOpen(true) }}
+      onEdit={() => setIsEditing(true)}
+      onTabChange={changeTab}
+      onAnalysisDocumentChange={changeAnalysisDocument}
+      onRefresh={() => { void projectQuery.refetch() }}
+      organizationName={activeOrganization.name}
+      organizationId={activeOrganization.id}
+      project={projectQuery.data}
+    />
+    <DeleteProjectDialog
+      error={deleteError}
+      isDeleting={isDeleting}
+      onCancel={() => setIsDeleteDialogOpen(false)}
+      onConfirm={() => { void confirmDeleteProject() }}
+      open={isDeleteDialogOpen}
+      project={isDeleteDialogOpen ? projectQuery.data : null}
+    />
+  </>
 }

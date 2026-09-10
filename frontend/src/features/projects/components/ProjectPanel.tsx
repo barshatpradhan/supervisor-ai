@@ -1,6 +1,7 @@
 import { EmptyState } from '../../../components/shared/EmptyState'
 import { ErrorState } from '../../../components/shared/ErrorState'
 import { LoadingState } from '../../../components/shared/LoadingState'
+import { DeleteProjectDialog } from './DeleteProjectDialog'
 import { ProjectForm } from './ProjectForm'
 import { ProjectDetailCard } from './ProjectDetailCard'
 import type { useProjectManager } from '../hooks/useProjectManager'
@@ -10,6 +11,17 @@ interface ProjectPanelProps {
 }
 
 export function ProjectPanel({ manager }: ProjectPanelProps) {
+  const deleteDialog = (
+    <DeleteProjectDialog
+      error={manager.deleteError}
+      isDeleting={manager.isDeleting}
+      onCancel={manager.cancelDeleteProject}
+      onConfirm={() => { void manager.confirmDeleteProject() }}
+      open={Boolean(manager.projectPendingDeletion)}
+      project={manager.projectPendingDeletion}
+    />
+  )
+
   if (manager.isCreateMode) {
     return (
       <ProjectForm
@@ -65,10 +77,16 @@ export function ProjectPanel({ manager }: ProjectPanelProps) {
     )
   }
 
+  const selectedProject = manager.selectedProject
+
   return (
-    <ProjectDetailCard
-      onEdit={manager.startEditProject}
-      project={manager.selectedProject}
-    />
+    <>
+      <ProjectDetailCard
+        onDelete={() => manager.requestDeleteProject(selectedProject)}
+        onEdit={manager.startEditProject}
+        project={selectedProject}
+      />
+      {deleteDialog}
+    </>
   )
 }

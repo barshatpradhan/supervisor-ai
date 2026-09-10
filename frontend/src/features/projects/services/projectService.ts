@@ -3,7 +3,7 @@ import type {
   BackendProject,
   BackendUpdateProjectRequest,
 } from '../../../types/backend'
-import { getJson, patchJson, postJson } from '../../../lib/api'
+import { deleteJson, getJson, patchJson, postJson } from '../../../lib/api'
 
 export function listProjects() {
   return getJson<BackendProject[]>('/projects')
@@ -22,4 +22,8 @@ export function updateProject(projectId: string, request: BackendUpdateProjectRe
     `/projects/${projectId}`,
     request,
   )
+}
+
+export function deleteProject(projectId: string) {
+  return deleteJson<undefined>(`/projects/${projectId}`)
 }

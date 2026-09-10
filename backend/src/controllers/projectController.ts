@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import {
   createProject,
+  deleteProject,
   getProjectById,
   listProjects,
   updateProject,
@@ -131,6 +132,29 @@ export async function updateProjectHandler(
     });
 
     return sendSuccess(res, 200, "Project updated successfully.", project);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function deleteProjectHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  if (!req.user) {
+    return next(new AppError("Unauthorized.", 401));
+  }
+
+  try {
+    if (!req.organization) {
+      throw new AppError("Organization context is required.", 500);
+    }
+
+    const projectId = requireUuid(req.params.projectId, "Project id");
+    await deleteProject(req.user.id, req.organization.id, projectId);
+
+    return sendSuccess(res, 200, "Project deleted successfully.");
   } catch (error) {
     return next(error);
   }
