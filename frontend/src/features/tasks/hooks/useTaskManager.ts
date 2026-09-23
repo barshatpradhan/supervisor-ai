@@ -35,6 +35,11 @@ interface TaskProgressMutationState {
   isSubmitting: boolean
 }
 
+interface TaskCommentMutationState {
+  formError: string | null
+  isSubmitting: boolean
+}
+
 interface TaskAssignmentMutationState {
   formError: string | null
   isSubmitting: boolean
@@ -59,6 +64,10 @@ function createInitialTaskProgressMutationState(): TaskProgressMutationState {
     formError: null,
     isSubmitting: false,
   }
+}
+
+function createInitialTaskCommentMutationState(): TaskCommentMutationState {
+  return { formError: null, isSubmitting: false }
 }
 
 function createInitialTaskAssignmentMutationState(): TaskAssignmentMutationState {
@@ -86,6 +95,8 @@ export function useTaskManager(initialSelectedTaskId: string | null = null) {
   )
   const [taskProgressMutationState, setTaskProgressMutationState] =
     useState<TaskProgressMutationState>(createInitialTaskProgressMutationState())
+  const [taskCommentMutationState, setTaskCommentMutationState] =
+    useState<TaskCommentMutationState>(createInitialTaskCommentMutationState())
   const [assignmentMutationState, setAssignmentMutationState] =
     useState<TaskAssignmentMutationState>(createInitialTaskAssignmentMutationState())
   const [assignmentSelectionState, setAssignmentSelectionState] =
@@ -108,13 +119,20 @@ export function useTaskManager(initialSelectedTaskId: string | null = null) {
     [canManageTasks, employeeProfileQuery.data, projectList, tasksQuery.data],
   )
   const hasTasks = taskList.length > 0
+  const hasSelectedTask = taskList.some((task) => task.id === selectedTaskIdState)
   const selectedTaskId =
-    selectedTaskIdState ?? (panelMode === 'view' ? taskList[0]?.id ?? null : null)
+    hasSelectedTask
+      ? selectedTaskIdState
+      : panelMode === 'view'
+        ? taskList[0]?.id ?? null
+        : null
   const assignableEmployeesQuery = useAssignableEmployees(canManageTasks && selectedTaskId !== null)
   const selectedTask = useMemo<TaskDisplay | null>(
     () => taskList.find((task) => task.id === selectedTaskId) ?? null,
     [selectedTaskId, taskList],
   )
+  const canUpdateSelectedTask =
+    canUpdateProgress && selectedTask?.assignmentState === 'self' && selectedTask.status !== 'completed'
   const isCreateMode = panelMode === 'create'
   const isProgressMode = panelMode === 'progress'
   const isPageLoading =
@@ -128,6 +146,10 @@ export function useTaskManager(initialSelectedTaskId: string | null = null) {
 
   function clearTaskProgressMutationState() {
     setTaskProgressMutationState(createInitialTaskProgressMutationState())
+  }
+
+  function clearTaskCommentMutationState() {
+    setTaskCommentMutationState(createInitialTaskCommentMutationState())
   }
 
   function clearTaskAssignmentMutationState() {
@@ -159,6 +181,7 @@ export function useTaskManager(initialSelectedTaskId: string | null = null) {
     })
     clearTaskMutationState()
     clearTaskProgressMutationState()
+    clearTaskCommentMutationState()
     clearTaskAssignmentMutationState()
   }
 
@@ -172,10 +195,13 @@ export function useTaskManager(initialSelectedTaskId: string | null = null) {
   }
 
   function startProgressUpdate() {
-    if (!selectedTask || !canUpdateProgress) {
+    if (!selectedTask || !canUpdateSelectedTask) {
       return
     }
 
+    // Persist the automatically selected task before switching out of view mode.
+    // Without this, the progress panel has no selected task to render.
+    setSelectedTaskId(selectedTask.id)
     setPanelMode('progress')
     clearTaskProgressMutationState()
   }
@@ -188,6 +214,7 @@ export function useTaskManager(initialSelectedTaskId: string | null = null) {
     })
     clearTaskMutationState()
     clearTaskProgressMutationState()
+    clearTaskCommentMutationState()
     clearTaskAssignmentMutationState()
   }
 
@@ -268,8 +295,8 @@ export function useTaskManager(initialSelectedTaskId: string | null = null) {
     try {
       await createTaskProgress(selectedTask.id, {
         notes: values.notes.trim() || undefined,
-        progressPercentage: Number(values.progressPercentage),
-        status: values.status,
+        progressPercentage: values.isComplete ? 100 : Number(values.progressPercentage),
+        status: values.isComplete ? 'completed' : values.status,
       })
       await tasksQuery.refetch()
       setPanelMode('view')
@@ -291,6 +318,41 @@ export function useTaskManager(initialSelectedTaskId: string | null = null) {
         message,
         title: 'Progress update failed',
       })
+    }
+  }
+
+  async function submitSupervisorComment(comment: string) {
+    if (!selectedTask || !canManageTasks || !selectedTask.assigned_employee_id) return false
+
+    const notes = comment.trim()
+    if (!notes) {
+      setTaskCommentMutationState({ formError: 'Enter a comment before posting.', isSubmitting: false })
+      return false
+    }
+
+    const latestProgress = selectedTask.progress_history?.[0]
+    const progressPercentage =
+      latestProgress?.progress_percentage ?? (selectedTask.status === 'completed' ? 100 : 0)
+
+    setTaskCommentMutationState({ formError: null, isSubmitting: true })
+    try {
+      await createTaskProgress(selectedTask.id, {
+        notes: `Supervisor: ${notes}`,
+        progressPercentage,
+        status: selectedTask.status,
+      })
+      await tasksQuery.refetch()
+      notifications.success({
+        title: 'Comment posted',
+        message: 'The assigned employee can now see your comment.',
+      })
+      clearTaskCommentMutationState()
+      return true
+    } catch (caughtError) {
+      const message = caughtError instanceof Error ? caughtError.message : 'Unable to post the comment.'
+      setTaskCommentMutationState({ formError: message, isSubmitting: false })
+      notifications.error({ title: 'Comment failed', message })
+      return false
     }
   }
 
@@ -349,6 +411,7 @@ export function useTaskManager(initialSelectedTaskId: string | null = null) {
     canSubmitAssignment,
     canManageTasks,
     canUpdateProgress,
+    canUpdateSelectedTask,
     cancelPanel,
     hasTasks,
     isCreateMode,
@@ -367,7 +430,9 @@ export function useTaskManager(initialSelectedTaskId: string | null = null) {
     startProgressUpdate,
     submitTaskAssignment,
     submitCreateTask,
+    submitSupervisorComment,
     submitTaskProgress,
+    taskCommentMutationState,
     taskList,
     taskMutationState,
     taskProgressMutationState,

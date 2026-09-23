@@ -38,6 +38,7 @@ export interface TaskFormErrors {
 }
 
 export interface TaskProgressFormValues {
+  isComplete: boolean
   notes: string
   progressPercentage: string
   status: TaskStatus

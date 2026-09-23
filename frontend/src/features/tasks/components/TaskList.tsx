@@ -20,7 +20,16 @@ export function TaskList({ onSelect, selectedTaskId, tasks }: TaskListProps) {
       </div>
 
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-border-subtle">
+        <table className="min-w-[960px] divide-y divide-border-subtle">
+          <colgroup>
+            <col className="w-[31%]" />
+            <col className="w-[16%]" />
+            <col className="w-[14%]" />
+            <col className="w-[11%]" />
+            <col className="w-[11%]" />
+            <col className="w-[10%]" />
+            <col className="w-[16%]" />
+          </colgroup>
           <thead className="bg-surface-card-alt/70">
             <tr className="text-left">
               {[
@@ -34,7 +43,7 @@ export function TaskList({ onSelect, selectedTaskId, tasks }: TaskListProps) {
               ].map((heading) => (
                 <th
                   key={heading}
-                  className="px-4 py-3 text-xs font-semibold uppercase tracking-normal text-ink-500"
+                  className="whitespace-nowrap px-4 py-3 text-xs font-semibold uppercase tracking-normal text-ink-500"
                   scope="col"
                 >
                   {heading}
@@ -58,14 +67,14 @@ export function TaskList({ onSelect, selectedTaskId, tasks }: TaskListProps) {
                       onClick={() => onSelect(task.id)}
                       type="button"
                     >
-                      <span className="block font-semibold text-ink-900">{task.title}</span>
-                      <span className="mt-1 block max-w-xs text-sm text-ink-600">
+                      <span className="block text-balance font-semibold text-ink-900">{task.title}</span>
+                      <span className="mt-1 block max-w-sm text-sm leading-5 text-ink-600">
                         {task.description?.trim() || 'No task description has been added.'}
                       </span>
                     </button>
                   </td>
                   <td className="px-4 py-3 align-top text-sm text-ink-700">{task.projectLabel}</td>
-                  <td className="px-4 py-3 align-top text-sm text-ink-700">
+                  <td className="whitespace-nowrap px-4 py-3 align-top text-sm text-ink-700">
                     {task.assignedEmployeeLabel}
                   </td>
                   <td className="px-4 py-3 align-top">
@@ -74,10 +83,10 @@ export function TaskList({ onSelect, selectedTaskId, tasks }: TaskListProps) {
                   <td className="px-4 py-3 align-top">
                     <TaskStatusBadge kind="status" value={task.status} />
                   </td>
-                  <td className="px-4 py-3 align-top text-sm text-ink-700">
+                  <td className="whitespace-nowrap px-4 py-3 align-top text-sm text-ink-700">
                     {formatEstimatedHours(task.estimated_hours)}
                   </td>
-                  <td className="px-4 py-3 align-top text-sm text-ink-700">
+                  <td className="whitespace-nowrap px-4 py-3 align-top text-sm text-ink-700">
                     {formatTaskDate(task.assigned_at)}
                   </td>
                 </tr>

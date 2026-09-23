@@ -23,7 +23,7 @@ export function TaskStatusBadge({ kind, value }: TaskStatusBadgeProps) {
   return (
     <span
       className={[
-        'inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold',
+        'inline-flex shrink-0 whitespace-nowrap items-center rounded-full border px-2.5 py-1 text-xs font-semibold',
         tone,
       ].join(' ')}
     >

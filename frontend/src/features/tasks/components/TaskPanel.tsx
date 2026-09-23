@@ -54,12 +54,15 @@ export function TaskPanel({ manager }: TaskPanelProps) {
       assignmentSelection={manager.assignmentSelection}
       canManageTasks={manager.canManageTasks}
       canSubmitAssignment={manager.canSubmitAssignment}
-      canUpdateProgress={manager.canUpdateProgress}
+      canUpdateProgress={manager.canUpdateSelectedTask}
+      commentError={manager.taskCommentMutationState.formError}
       employeeDirectory={manager.assignableEmployeesQuery}
       isAssigningTask={manager.assignmentMutationState.isSubmitting}
+      isPostingComment={manager.taskCommentMutationState.isSubmitting}
       onAssignTask={manager.submitTaskAssignment}
       onAssignmentSelectionChange={manager.setAssignmentSelection}
       onCreateTask={manager.startCreateTask}
+      onPostComment={manager.submitSupervisorComment}
       onUpdateProgress={manager.startProgressUpdate}
       task={manager.selectedTask}
     />

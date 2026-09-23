@@ -276,6 +276,7 @@ export interface BackendTask {
   completed_at: string | null
   created_at: string
   updated_at: string
+  progress_history?: BackendTaskProgress[]
 }
 
 export interface BackendTaskProgress {

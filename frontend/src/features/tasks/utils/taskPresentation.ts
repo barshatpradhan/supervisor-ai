@@ -163,6 +163,7 @@ export function createTaskRequestFromValues(values: TaskFormValues): CreateTaskR
 
 export function buildTaskProgressFormValues(task: Task): TaskProgressFormValues {
   return {
+    isComplete: task.status === 'completed',
     notes: '',
     progressPercentage: task.status === 'completed' ? '100' : '0',
     status: task.status === 'todo' ? 'in_progress' : task.status,

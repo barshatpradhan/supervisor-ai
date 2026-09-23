@@ -4,6 +4,7 @@ import type { TaskDisplay } from '../types/task'
 import { formatEstimatedHours, formatTaskDate } from '../utils/taskPresentation'
 import { TaskAssignmentSection } from './TaskAssignmentSection'
 import { TaskStatusBadge } from './TaskStatusBadge'
+import { TaskProgressTimeline } from './TaskProgressTimeline'
 import type { useAssignableEmployees } from '../hooks/useAssignableEmployees'
 
 interface TaskDetailCardProps {
@@ -12,11 +13,14 @@ interface TaskDetailCardProps {
   canManageTasks: boolean
   canSubmitAssignment: boolean
   canUpdateProgress: boolean
+  commentError: string | null
   employeeDirectory: ReturnType<typeof useAssignableEmployees>
   isAssigningTask: boolean
+  isPostingComment: boolean
   onAssignTask: () => Promise<void>
   onAssignmentSelectionChange: (employeeId: string) => void
   onCreateTask: () => void
+  onPostComment: (comment: string) => Promise<boolean>
   onUpdateProgress: () => void
   task: TaskDisplay
 }
@@ -27,11 +31,14 @@ export function TaskDetailCard({
   canManageTasks,
   canSubmitAssignment,
   canUpdateProgress,
+  commentError,
   employeeDirectory,
   isAssigningTask,
+  isPostingComment,
   onAssignTask,
   onAssignmentSelectionChange,
   onCreateTask,
+  onPostComment,
   onUpdateProgress,
   task,
 }: TaskDetailCardProps) {
@@ -108,6 +115,14 @@ export function TaskDetailCard({
             </dd>
           </div>
         </dl>
+
+        <TaskProgressTimeline
+          canComment={canManageTasks && task.assigned_employee_id !== null}
+          commentError={commentError}
+          isPostingComment={isPostingComment}
+          onPostComment={onPostComment}
+          task={task}
+        />
 
         {canManageTasks ? (
           <TaskAssignmentSection

@@ -8,7 +8,6 @@ import type {
   TaskProgressFormErrors,
   TaskProgressFormValues,
 } from '../types/task'
-import { taskStatusOptions } from '../utils/taskPresentation'
 
 interface TaskProgressFormProps {
   formError: string | null
@@ -50,7 +49,7 @@ export function TaskProgressForm({
           </p>
           <h2 className="text-2xl font-bold text-ink-900">{task.title}</h2>
           <p className="max-w-2xl text-sm leading-6 text-ink-600">
-            Update your progress percentage, add notes, and move the task status forward.
+            Share your progress, add a comment for your supervisor, or complete the task when the work is finished.
           </p>
         </div>
 
@@ -85,28 +84,29 @@ export function TaskProgressForm({
             </label>
 
             <label className="grid gap-2 text-sm font-semibold text-ink-800">
-              Status
+              Update status
               <select
                 className={inputClassName}
                 onChange={(event) =>
                   setValues((current) => ({
                     ...current,
-                    status: event.target.value as TaskProgressFormValues['status'],
+                    isComplete: event.target.value === 'completed',
+                    progressPercentage:
+                      event.target.value === 'completed' ? '100' : current.progressPercentage,
+                    status:
+                      event.target.value === 'completed' ? 'completed' : 'in_progress',
                   }))
                 }
-                value={values.status}
+                value={values.isComplete ? 'completed' : 'in_progress'}
               >
-                {taskStatusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
+                <option value="in_progress">In progress</option>
+                <option value="completed">Complete task</option>
               </select>
             </label>
           </div>
 
           <label className="grid gap-2 text-sm font-semibold text-ink-800">
-            Notes
+            Comment
             <textarea
               className={textAreaClassName}
               maxLength={1200}
