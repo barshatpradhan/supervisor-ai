@@ -196,7 +196,11 @@ export async function createTaskProgressHandler(
       req.user.id,
       req.organization.id,
       taskId,
-      { progressPercentage, notes: optionalString(body, "notes") },
+      {
+        progressPercentage,
+        notes: optionalString(body, "notes"),
+        status: optionalEnum(body, "status", TASK_STATUSES),
+      },
       req.membership.role
     );
 

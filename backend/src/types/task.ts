@@ -35,6 +35,7 @@ export interface AssignTaskInput {
 export interface CreateTaskProgressInput {
   progressPercentage: number;
   notes?: string;
+  status?: TaskStatus;
 }
 
 export interface EmployeeTaskListQuery {

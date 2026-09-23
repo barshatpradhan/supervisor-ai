@@ -350,7 +350,7 @@ export async function listTasks(
       throw new AppError("Unable to fetch tasks.", 500);
     }
 
-    return getTaskWithProgressHistory(data as unknown as { id: string });
+    return Promise.all((data ?? []).map((task) => getTaskWithProgressHistory(task)));
   }
 
   const { data, error } = await supabase
@@ -371,7 +371,7 @@ export async function listTasks(
     throw new AppError("Unable to fetch tasks.", 500);
   }
 
-  return getTaskWithProgressHistory(data as unknown as { id: string });
+  return Promise.all((data ?? []).map((task) => getTaskWithProgressHistory(task)));
 }
 
 async function getTaskWithProgressHistory<T extends { id: string }>(task: T) {
@@ -380,7 +380,18 @@ async function getTaskWithProgressHistory<T extends { id: string }>(task: T) {
     .select("id, task_id, employee_id, progress_percentage, notes, created_at")
     .eq("task_id", task.id)
     .order("created_at", { ascending: false });
-  if (error) throw new AppError("Unable to fetch task progress history.", 500);
+  if (error) {
+    console.error(
+      JSON.stringify({
+        scope: "task_progress_history",
+        event: "fetch_failed",
+        taskId: task.id,
+        code: error.code,
+        message: error.message,
+      })
+    );
+    throw new AppError("Unable to fetch task progress history.", 500);
+  }
   return { ...task, progress_history: progressHistory ?? [] };
 }
 
@@ -688,9 +699,9 @@ export async function createTaskProgress(
     throw new AppError("Unable to create task progress update.", 400);
   }
 
-  const nextStatus: TaskStatus = input.progressPercentage === 0
+  const nextStatus: TaskStatus = input.status ?? (input.progressPercentage === 0
     ? "todo"
-    : input.progressPercentage === 100 ? "completed" : "in_progress";
+    : input.progressPercentage === 100 ? "completed" : "in_progress");
   const completedAt = nextStatus === "completed" ? task.completed_at ?? new Date().toISOString() : task.completed_at ?? null;
   const { data: updatedTask, error: updateTaskError } = await supabase
     .from("tasks")
