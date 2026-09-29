@@ -15,25 +15,27 @@ export interface EmailService {
   sendOrganizationInvitation(input: OrganizationInvitationEmailInput): Promise<void>;
 }
 
-class ResendEmailService implements EmailService {
+class BrevoEmailService implements EmailService {
   constructor(
     private readonly apiKey: string,
-    private readonly from: string
+    private readonly fromEmail: string,
+    private readonly fromName: string
   ) {}
 
   async sendOrganizationInvitation(input: OrganizationInvitationEmailInput) {
     try {
-      const response = await fetch("https://api.resend.com/emails", {
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${this.apiKey}`,
+          "api-key": this.apiKey,
           "Content-Type": "application/json",
+          Accept: "application/json",
         },
         body: JSON.stringify({
-          from: this.from,
-          to: [input.to],
+          sender: { email: this.fromEmail, name: this.fromName },
+          to: [{ email: input.to }],
           subject: `You've been invited to join ${input.organizationName}`,
-          html: [
+          htmlContent: [
             `<p><strong>You've been invited to join ${escapeHtml(input.organizationName)}</strong></p>`,
             input.invitedByName
               ? `<p>${escapeHtml(input.invitedByName)} has invited you to join ${escapeHtml(input.organizationName)} as a ${escapeHtml(input.invitedRole)}.</p>`
@@ -46,15 +48,15 @@ class ResendEmailService implements EmailService {
       });
 
       if (!response.ok) {
-        logDelivery("organization_invitation_email_failed", input, { provider: "resend", statusCode: response.status });
+        logDelivery("organization_invitation_email_failed", input, { provider: "brevo", statusCode: response.status });
         throw new AppError("Unable to send organization invitation email.", 502, true);
       }
 
-      logDelivery("organization_invitation_email_sent", input, { provider: "resend" });
+      logDelivery("organization_invitation_email_sent", input, { provider: "brevo" });
     } catch (error) {
       if (error instanceof AppError) throw error;
 
-      logDelivery("organization_invitation_email_failed", input, { provider: "resend" });
+      logDelivery("organization_invitation_email_failed", input, { provider: "brevo" });
       throw new AppError("Unable to send organization invitation email.", 502, true, { cause: error });
     }
   }
@@ -96,9 +98,10 @@ export function createEmailService(): EmailService {
     case "console":
       return new ConsoleEmailService();
 
-    case "resend": {
-      const apiKey = process.env.RESEND_API_KEY;
+    case "brevo": {
+      const apiKey = process.env.BREVO_API_KEY;
       const from = process.env.INVITATION_EMAIL_FROM;
+      const fromName = process.env.INVITATION_EMAIL_FROM_NAME || "Supervisor AI";
 
       if (!apiKey || !from) {
         throw new AppError(
@@ -108,7 +111,7 @@ export function createEmailService(): EmailService {
         );
       }
 
-      return new ResendEmailService(apiKey, from);
+      return new BrevoEmailService(apiKey, from, fromName);
     }
 
     default:

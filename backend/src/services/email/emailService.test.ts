@@ -32,22 +32,22 @@ function withEnvironment(values: Record<string, string | undefined>, action: () 
   });
 }
 
-test("Resend is selected in development and sends the configured invitation request", async () => {
+test("Brevo is selected in development and sends the configured invitation request", async () => {
   const originalFetch = globalThis.fetch;
   const originalInfo = console.info;
   let request: RequestInit | undefined;
   const entries: string[] = [];
   globalThis.fetch = async (_url, init) => {
     request = init;
-    return new Response(null, { status: 202 });
+    return new Response(null, { status: 201 });
   };
   console.info = (entry: string) => entries.push(entry);
 
   try {
     await withEnvironment({
       NODE_ENV: "development",
-      TRANSACTIONAL_EMAIL_PROVIDER: "resend",
-      RESEND_API_KEY: "test-server-key",
+      TRANSACTIONAL_EMAIL_PROVIDER: "brevo",
+      BREVO_API_KEY: "test-server-key",
       INVITATION_EMAIL_FROM: "invites@example.test",
     }, async () => {
       await createEmailService().sendOrganizationInvitation(invitation);
@@ -59,10 +59,10 @@ test("Resend is selected in development and sends the configured invitation requ
 
   assert.ok(request);
   const body = JSON.parse(String(request.body));
-  assert.deepEqual(body.to, [invitation.to]);
-  assert.equal(body.from, "invites@example.test");
-  assert.match(body.html, /http:\/\/localhost:5173\/invitations\/accept\?token=raw-test-token/);
-  assert.equal((request.headers as Record<string, string>).Authorization, "Bearer test-server-key");
+  assert.deepEqual(body.to, [{ email: invitation.to }]);
+  assert.equal(body.sender.email, "invites@example.test");
+  assert.match(body.htmlContent, /http:\/\/localhost:5173\/invitations\/accept\?token=raw-test-token/);
+  assert.equal((request.headers as Record<string, string>)["api-key"], "test-server-key");
   assert.doesNotMatch(entries.join("\n"), /raw-test-token|accept\?token=|test-server-key|employee@example\.test/);
 });
 
@@ -88,7 +88,7 @@ test("console delivery is available only when explicitly selected and does not l
     await withEnvironment({
       NODE_ENV: "development",
       TRANSACTIONAL_EMAIL_PROVIDER: "console",
-      RESEND_API_KEY: undefined,
+      BREVO_API_KEY: undefined,
       INVITATION_EMAIL_FROM: undefined,
     }, async () => {
       await createEmailService().sendOrganizationInvitation(invitation);
@@ -103,10 +103,10 @@ test("console delivery is available only when explicitly selected and does not l
   assert.doesNotMatch(entries[0], /raw-test-token|accept\?token=|employee@example\.test/);
 });
 
-test("missing Resend credentials fail safely instead of falling back to console", async () => {
+test("missing Brevo credentials fail safely instead of falling back to console", async () => {
   await withEnvironment({
-    TRANSACTIONAL_EMAIL_PROVIDER: "resend",
-    RESEND_API_KEY: undefined,
+    TRANSACTIONAL_EMAIL_PROVIDER: "brevo",
+    BREVO_API_KEY: undefined,
     INVITATION_EMAIL_FROM: "invites@example.test",
   }, () => {
     assert.throws(() => createEmailService(), (error: unknown) =>
@@ -115,8 +115,8 @@ test("missing Resend credentials fail safely instead of falling back to console"
   });
 
   await withEnvironment({
-    TRANSACTIONAL_EMAIL_PROVIDER: "resend",
-    RESEND_API_KEY: "test-server-key",
+    TRANSACTIONAL_EMAIL_PROVIDER: "brevo",
+    BREVO_API_KEY: "test-server-key",
     INVITATION_EMAIL_FROM: undefined,
   }, () => {
     assert.throws(() => createEmailService(), (error: unknown) =>
@@ -125,7 +125,7 @@ test("missing Resend credentials fail safely instead of falling back to console"
   });
 });
 
-test("a Resend failure produces the safe application error and does not fall back", async () => {
+test("a Brevo failure produces the safe application error and does not fall back", async () => {
   const originalFetch = globalThis.fetch;
   const originalInfo = console.info;
   let calls = 0;
@@ -138,8 +138,8 @@ test("a Resend failure produces the safe application error and does not fall bac
 
   try {
     await withEnvironment({
-      TRANSACTIONAL_EMAIL_PROVIDER: "resend",
-      RESEND_API_KEY: "test-server-key",
+      TRANSACTIONAL_EMAIL_PROVIDER: "brevo",
+      BREVO_API_KEY: "test-server-key",
       INVITATION_EMAIL_FROM: "invites@example.test",
     }, async () => {
       await assert.rejects(

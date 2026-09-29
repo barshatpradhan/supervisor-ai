@@ -72,7 +72,7 @@ flowchart LR
   API -->|service-role key| Auth["Supabase Auth\n(JWT issuance/verification)"]
   API -->|service-role key| Storage["Supabase Storage\nproject-documents bucket"]
   API -->|GEMINI_API_KEY| Gemini["Google Gemini API\n(gemini-2.0-flash default)"]
-  API -->|Resend HTTP API\nor console log| Email["Transactional email\n(organization invitations)"]
+  API -->|Brevo HTTP API\nor console log| Email["Transactional email\n(organization invitations)"]
 
   subgraph Backend["backend/src"]
     Routes[Routes] --> MW[Middleware:\nauth, org/role, upload] --> Ctrl[Controllers] --> Svc[Services]
@@ -157,7 +157,7 @@ Controllers are uniformly thin: validate `req.body`/`params`/`query` via `utils/
 | `authService.ts` | `login()` (Supabase password sign-in + app-user context), `signup()` (legacy path, gated by `AUTH_LEGACY_EMPLOYEE_SIGNUP_ENABLED`, else 410 Gone), `register()`, `requestPasswordReset()` (deliberately non-enumerating — always "succeeds," swallows the real Supabase error), `resetPassword()`, `getCurrentAppUser()`. | → `accountProvisioningService`, `userService`. ← `authController`. |
 | `dashboardService.ts` | `getSupervisorDashboard()` (org-wide counts/workload/document/recommendation aggregates) and `getEmployeeDashboard()` (self-scoped assignments, stale/blocked/unstarted attention lists, approved-vs-pending skill split). Parallelizes independent queries with `Promise.all`, joins in-memory via `Map`s. | → `employeeMetricsService`, `skillService` (`getEmployeeSkills`), `userService`. ← `dashboardController`. |
 | `documentExtractionService.ts` | `extractDocumentText()` — strategy dispatch by MIME type: plain-text passthrough, `pdf-parse` for PDF, `mammoth` for DOCX. 400 for unsupported types, 422 if extraction yields empty text. | ← `projectDocumentService.ts` only. |
-| `email/emailService.ts` | Provider abstraction selected by `TRANSACTIONAL_EMAIL_PROVIDER`: `"resend"` (real HTTP POST, HTML-escapes interpolated values, 502 on failure — no silent fallback), `"console"` (dev logging), anything else → 503. Sole capability: `sendOrganizationInvitation`. | ← `organizationService.ts` only. |
+| `email/emailService.ts` | Provider abstraction selected by `TRANSACTIONAL_EMAIL_PROVIDER`: `"brevo"` (real HTTP POST, HTML-escapes interpolated values, 502 on failure — no silent fallback), `"console"` (dev logging), anything else → 503. Sole capability: `sendOrganizationInvitation`. | ← `organizationService.ts` only. |
 | `email/invitationUrl.ts` | `buildOrganizationInvitationAcceptanceUrl()` — builds the `/invitations/accept?token=...` URL from `FRONTEND_APP_URL`, validating it's well-formed http/https. | ← `organizationService.ts` only. |
 | `employeeMetricsService.ts` | Shared capacity math: `availabilityFromWorkload`, `calculateWorkloadPercentage`, `enrichEmployeesWithCapacityMetrics` (sums active-task `estimated_hours`; active = `todo`/`in_progress`/`blocked`/`review`). | ← `taskService`, `dashboardService`, `recommendationService`, `supervisorService`, and partially `employeeService` (see §5 duplication note). |
 | `employeeService.ts` | Employee profile CRUD (`createEmployeeProfileRecordForUser/ForOrganization`, `getEmployeeProfileByAuthId`, `createEmployeeProfile`, `updateEmployeeProfile` — also replaces skills via `skillService.replaceEmployeeSkillsWithDetails`), `updateEmployeeWorkSettings` (triggers its own local `recalculateEmployeeCapacity`). | → `employeeMetricsService`, `userService`, `skillService`. ← `accountProvisioningService`, `organizationService`, `employeeController`, `supervisorController`. |
@@ -327,7 +327,7 @@ Two independent acceptance paths exist and are both live:
 ```mermaid
 flowchart TD
   A["organizationController.createInvitation\n(org admin, verified org context)"] --> B["organizationService.createOrganizationInvitation\n- ensureOrganizationAdmin\n- generate 32-byte token, store SHA-256 hash only\n- insert organization_invitations row"]
-  B --> C["email/emailService.sendOrganizationInvitation\n(Resend HTTP or console)"]
+  B --> C["email/emailService.sendOrganizationInvitation\n(Brevo HTTP or console)"]
   C -->|send fails| D["rollback: delete invitation row"]
   C -->|send succeeds| E["Invitee opens emailed link\nInvitationAcceptancePage.tsx"]
 

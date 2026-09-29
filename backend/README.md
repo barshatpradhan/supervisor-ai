@@ -574,9 +574,10 @@ Only variable names are documented. Do not commit real values.
 | `PLATFORM_ADMIN_BOOTSTRAP_CONFIRM` | Only for one-time bootstrap | Must be exactly `grant-first-platform-admin`. |
 | `AUTH_LEGACY_EMPLOYEE_SIGNUP_ENABLED` | No | Set to `true` only for temporary compatibility with the deprecated public employee signup flow. |
 | `FRONTEND_APP_URL` | Yes for invitations | Base frontend URL used to build invitation acceptance links; use `http://localhost:5173` locally. |
-| `TRANSACTIONAL_EMAIL_PROVIDER` | Yes for invitations | Set to `resend` for real delivery or explicitly to `console` for offline development/tests. |
-| `RESEND_API_KEY` | When provider is `resend` | Backend-only Resend API key. |
-| `INVITATION_EMAIL_FROM` | When provider is `resend` | Verified sender address for organization invitations. |
+| `TRANSACTIONAL_EMAIL_PROVIDER` | Yes for invitations | Set to `brevo` for real delivery or explicitly to `console` for offline development/tests. |
+| `BREVO_API_KEY` | When provider is `brevo` | Backend-only Brevo API key. |
+| `INVITATION_EMAIL_FROM` | When provider is `brevo` | Sender address verified in Brevo for organization invitations. |
+| `INVITATION_EMAIL_FROM_NAME` | No | Sender display name (default `Supervisor AI`). |
 | `INVITATION_DEBUG_RETURN_URL` | No | Development-only flag that returns the acceptance URL in create or resend responses for local verification. |
 | `GEMINI_API_KEY` | Yes for document analysis | Gemini API key; never expose it to clients. |
 | `GEMINI_MODEL` | No | Overrides the Gemini model; defaults in code when omitted. |
