@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import {
+  countOrganizations,
   isValidUserRole,
   listAppUsers,
   updateAppUserRole,
@@ -20,6 +21,28 @@ export async function getUsers(req: Request, res: Response, next: NextFunction) 
     const users = await listAppUsers();
 
     return sendSuccess(res, 200, "Users fetched successfully.", users);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getDashboardMetrics(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const [organizationCount, users, pendingSkills] = await Promise.all([
+      countOrganizations(),
+      listAppUsers(),
+      listPendingSkills(),
+    ]);
+
+    return sendSuccess(res, 200, "Dashboard metrics fetched successfully.", {
+      organizationCount,
+      userCount: users.length,
+      pendingSkillsCount: pendingSkills.length,
+    });
   } catch (error) {
     return next(error);
   }

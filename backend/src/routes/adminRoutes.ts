@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createUserHandler,
   approveSkillHandler,
+  getDashboardMetrics,
   getPendingSkills,
   getUsers,
   rejectSkillHandler,
@@ -10,7 +11,6 @@ import {
 import { authenticateUser } from "../middleware/authMiddleware.js";
 import { validateAdminCreateUserRequest } from "../middleware/authValidation.js";
 import { requirePlatformRole } from "../middleware/roleMiddleware.js";
-import { sendSuccess } from "../utils/apiResponse.js";
 
 const router = Router();
 
@@ -35,12 +35,7 @@ router.delete(
 
 router.use(authenticateUser, requirePlatformRole("platform_admin"));
 
-router.get(
-  "/dashboard",
-  (req, res) => {
-    return sendSuccess(res, 200, "Welcome admin.");
-  }
-);
+router.get("/dashboard", getDashboardMetrics);
 
 router.get("/users", getUsers);
 router.post("/users", validateAdminCreateUserRequest, createUserHandler);

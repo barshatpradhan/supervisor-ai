@@ -21,6 +21,18 @@ export async function listAppUsers() {
   return data;
 }
 
+export async function countOrganizations() {
+  const { count, error } = await supabase
+    .from("organizations")
+    .select("id", { count: "exact", head: true });
+
+  if (error) {
+    throw new AppError("Unable to count organizations.", 500);
+  }
+
+  return count ?? 0;
+}
+
 function mapLegacyRoleToPlatformRole(role: LegacyUserRole): PlatformRole | null {
   return role === "admin" ? "platform_admin" : null;
 }

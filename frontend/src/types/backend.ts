@@ -121,6 +121,14 @@ export interface BackendApprovedSkill {
   createdAt: string
 }
 
+export type BackendPendingSkill = BackendApprovedSkill
+
+export interface BackendDashboardMetrics {
+  organizationCount: number
+  userCount: number
+  pendingSkillsCount: number
+}
+
 export interface BackendCreateManagedUserRequest {
   email: string
   role: 'employee' | 'supervisor'

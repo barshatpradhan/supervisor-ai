@@ -4,7 +4,9 @@ import { LoadingState } from '../../../components/shared/LoadingState'
 import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { useApiResource } from '../../../hooks/useApiResource'
+import { getDashboardMetrics } from '../../../services/admin/adminDashboardService'
 import { listEmployeeUsers } from '../../../services/employees/employeeService'
+import { PendingSkillsQueue } from './PendingSkillsQueue'
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
@@ -17,6 +19,7 @@ function Metric({ label, value }: { label: string; value: number }) {
 
 export function PlatformAdminDashboard() {
   const usersQuery = useApiResource(listEmployeeUsers)
+  const metricsQuery = useApiResource(getDashboardMetrics)
 
   if (usersQuery.isLoading) {
     return <LoadingState label="Loading platform administration..." />
@@ -56,12 +59,30 @@ export function PlatformAdminDashboard() {
         </div>
       </section>
 
+      {metricsQuery.isLoading ? (
+        <LoadingState label="Loading platform totals..." />
+      ) : metricsQuery.error || !metricsQuery.data ? (
+        <ErrorState
+          error={metricsQuery.error}
+          onRetry={() => void metricsQuery.refetch()}
+          title="Unable to load platform totals"
+        />
+      ) : (
+        <section aria-label="Platform totals" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <Metric label="Organizations" value={metricsQuery.data.organizationCount} />
+          <Metric label="Total users" value={metricsQuery.data.userCount} />
+          <Metric label="Pending skills" value={metricsQuery.data.pendingSkillsCount} />
+        </section>
+      )}
+
       <section aria-label="Managed account totals" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric label="Managed users" value={users.length} />
         <Metric label="Employees" value={employees} />
         <Metric label="Supervisors" value={supervisors} />
         <Metric label="Administrators" value={administrators} />
       </section>
+
+      <PendingSkillsQueue />
 
       <Card>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
