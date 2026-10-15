@@ -1,5 +1,6 @@
-import { EmployeeDirectory } from '../features/employees/components/EmployeeDirectory'
+import { TeamWorkloadModule } from '../features/team/components/TeamWorkloadModule'
 
+/** Supervisors reach the Team page at /employees. */
 export function EmployeesPage() {
-  return <EmployeeDirectory />
+  return <TeamWorkloadModule />
 }

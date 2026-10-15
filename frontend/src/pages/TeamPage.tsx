@@ -1,5 +1,5 @@
-import { OrganizationTeamDirectory } from '../features/team/components/OrganizationTeamDirectory'
+import { TeamWorkloadModule } from '../features/team/components/TeamWorkloadModule'
 
 export function TeamPage() {
-  return <OrganizationTeamDirectory />
+  return <TeamWorkloadModule />
 }
