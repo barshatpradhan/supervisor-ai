@@ -67,15 +67,14 @@ describe('PendingInvitationsList', () => {
       revoke: revokeMock,
     })
 
-    vi.stubGlobal('confirm', vi.fn(() => true))
   })
 
   it('shows resend and revoke controls only for organization admins', () => {
     const { rerender } = render(<PendingInvitationsList />)
 
-    expect(screen.getByText(/organization invite management/i)).toBeInTheDocument()
+    expect(screen.getByText(/pending invitations/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /resend/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /revoke/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^revoke$/i })).toBeInTheDocument()
 
     useOrganizationMock.mockReturnValue({
       activeOrganization: { id: 'org-1', name: 'Acme Corporation' },
@@ -84,7 +83,7 @@ describe('PendingInvitationsList', () => {
 
     rerender(<PendingInvitationsList />)
 
-    expect(screen.queryByText(/organization invite management/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/pending invitations/i)).not.toBeInTheDocument()
   })
 
   it('resends and revokes invitations through org-admin actions', async () => {
@@ -100,9 +99,9 @@ describe('PendingInvitationsList', () => {
       expect.objectContaining({ title: 'Invitation resent' }),
     )
 
-    await userEvent.click(screen.getByRole('button', { name: /revoke/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^revoke$/i }))
+    await userEvent.click(screen.getByRole('button', { name: /revoke invitation/i }))
 
-    expect(window.confirm).toHaveBeenCalled()
     expect(revokeMock).toHaveBeenCalledWith('invite-1')
 
     await waitFor(() => {

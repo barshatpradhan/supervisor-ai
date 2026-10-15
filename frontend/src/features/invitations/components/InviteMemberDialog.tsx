@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { ErrorState } from '../../../components/shared/ErrorState'
 import { Button } from '../../../components/ui/Button'
-import { Card } from '../../../components/ui/Card'
+import * as DialogPrimitive from '@radix-ui/react-dialog'
+import { Dialog } from '../../../components/ui/Dialog'
+import { fieldErrorClass, fieldInputClass, fieldLabelClass } from '../../../components/ui/fieldStyles'
 import { useNotifications } from '../../../hooks/useNotifications'
 import { useOrganization } from '../../organizations/hooks/useOrganization'
 import { useCreateInvitation } from '../hooks/useCreateInvitation'
@@ -12,9 +14,6 @@ import type {
   InviteMemberFormValues,
   OrganizationInvitationMutationResponse,
 } from '../types/invitation'
-
-const inputClassName =
-  'min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-primary-600 focus:ring-3 focus:ring-primary-200'
 
 interface InviteMemberDialogProps {
   isOpen: boolean
@@ -180,170 +179,163 @@ export function InviteMemberDialog({
     }
   }
 
-  if (!isOpen || !canInvite) {
+  if (!canInvite) {
     return null
   }
 
   return (
-    <Card className="grid gap-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-            Invite member
-          </p>
-          <h2 className="mt-2 text-2xl font-bold text-ink-900">{title}</h2>
-          <p className="mt-2 text-sm leading-6 text-ink-600">
-            Send an invitation using the current organization context. The backend will provision
-            the correct pending membership and secure acceptance flow.
-          </p>
-        </div>
-        <Button onClick={handleCancel} type="button" variant="secondary">
-          Cancel
-        </Button>
-      </div>
+    <DialogPrimitive.Root
+      onOpenChange={(open) => {
+        if (!open) handleCancel()
+      }}
+      open={isOpen}
+    >
+      <Dialog description="They get an email link to join this workspace." title={title}>
+        <div className="grid gap-5">
+          {error ? <ErrorState message={error} title="Unable to create invitation" /> : null}
 
-      {error ? <ErrorState message={error} title="Unable to create invitation" /> : null}
-
-      <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
-        <label className="grid gap-2 text-sm font-semibold text-ink-800">
-          Email
-          <input
-            className={inputClassName}
-            onChange={(event) => updateValue('email', event.target.value)}
-            placeholder="person@example.com"
-            required
-            type="email"
-            value={values.email}
-          />
-          {fieldErrors.email ? <span className="text-xs text-danger-700">{fieldErrors.email}</span> : null}
-        </label>
-
-        <label className="grid gap-2 text-sm font-semibold text-ink-800">
-          Role
-          <select
-            className={inputClassName}
-            onChange={(event) =>
-              updateValue('role', event.target.value as InviteMemberFormValues['role'])
-            }
-            value={values.role}
-          >
-            <option value="employee">Employee</option>
-            <option value="supervisor">Supervisor</option>
-          </select>
-          {fieldErrors.role ? <span className="text-xs text-danger-700">{fieldErrors.role}</span> : null}
-        </label>
-
-        <label className="grid gap-2 text-sm font-semibold text-ink-800 md:col-span-2">
-          Full name
-          <input
-            className={inputClassName}
-            onChange={(event) => updateValue('fullName', event.target.value)}
-            placeholder="Jordan Lee"
-            required
-            type="text"
-            value={values.fullName}
-          />
-          {fieldErrors.fullName ? (
-            <span className="text-xs text-danger-700">{fieldErrors.fullName}</span>
-          ) : null}
-        </label>
-
-        {values.role === 'employee' ? (
-          <>
-            <label className="grid gap-2 text-sm font-semibold text-ink-800">
-              Job title
+          <form className="grid gap-4 md:grid-cols-2" onSubmit={handleSubmit}>
+            <label className={fieldLabelClass}>
+              Email
               <input
-                className={inputClassName}
-                onChange={(event) => updateValue('jobTitle', event.target.value)}
-                placeholder="Senior Frontend Engineer"
-                type="text"
-                value={values.jobTitle}
+                className={fieldInputClass}
+                onChange={(event) => updateValue('email', event.target.value)}
+                placeholder="person@example.com"
+                required
+                type="email"
+                value={values.email}
               />
+              {fieldErrors.email ? <span className={fieldErrorClass}>{fieldErrors.email}</span> : null}
             </label>
-            <label className="grid gap-2 text-sm font-semibold text-ink-800">
-              Department
-              <input
-                className={inputClassName}
-                onChange={(event) => updateValue('department', event.target.value)}
-                placeholder="Product Engineering"
-                type="text"
-                value={values.department}
-              />
-            </label>
-          </>
-        ) : null}
 
-        <label className="grid gap-2 text-sm font-semibold text-ink-800 md:col-span-2">
-          Bio
-          <textarea
-            className={`${inputClassName} min-h-28 py-3`}
-            onChange={(event) => updateValue('bio', event.target.value)}
-            placeholder="Optional profile bio"
-            value={values.bio}
-          />
-        </label>
-
-        {values.role === 'employee' ? (
-          <>
-            <label className="grid gap-2 text-sm font-semibold text-ink-800">
-              Employment type
+            <label className={fieldLabelClass}>
+              Role
               <select
-                className={inputClassName}
+                className={fieldInputClass}
                 onChange={(event) =>
-                  updateValue(
-                    'employmentType',
-                    event.target.value as InviteMemberFormValues['employmentType'],
-                  )
+                  updateValue('role', event.target.value as InviteMemberFormValues['role'])
                 }
-                value={values.employmentType}
+                value={values.role}
               >
-                <option value="">Select employment type</option>
-                <option value="full_time">Full time</option>
-                <option value="part_time">Part time</option>
+                <option value="employee">Employee</option>
+                <option value="supervisor">Supervisor</option>
               </select>
+              {fieldErrors.role ? <span className={fieldErrorClass}>{fieldErrors.role}</span> : null}
             </label>
 
-            <label className="grid gap-2 text-sm font-semibold text-ink-800">
-              Weekly capacity hours
+            <label className={`${fieldLabelClass} md:col-span-2`}>
+              Full name
               <input
-                className={inputClassName}
-                inputMode="numeric"
-                max={168}
-                min={1}
-                onChange={(event) => updateValue('weeklyCapacityHours', event.target.value)}
-                placeholder="40"
-                type="number"
-                value={values.weeklyCapacityHours}
+                className={fieldInputClass}
+                onChange={(event) => updateValue('fullName', event.target.value)}
+                placeholder="Jordan Lee"
+                required
+                type="text"
+                value={values.fullName}
               />
-              {fieldErrors.weeklyCapacityHours ? (
-                <span className="text-xs text-danger-700">
-                  {fieldErrors.weeklyCapacityHours}
-                </span>
+              {fieldErrors.fullName ? (
+                <span className={fieldErrorClass}>{fieldErrors.fullName}</span>
               ) : null}
             </label>
-          </>
-        ) : (
-          <label className="grid gap-2 text-sm font-semibold text-ink-800 md:col-span-2">
-            Department
-            <input
-              className={inputClassName}
-              onChange={(event) => updateValue('department', event.target.value)}
-              placeholder="Engineering"
-              type="text"
-              value={values.department}
-            />
-          </label>
-        )}
 
-        <div className="flex flex-col gap-3 md:col-span-2 sm:flex-row">
-          <Button disabled={isSubmitting} type="submit">
-            {isSubmitting ? 'Sending invitation...' : 'Send invitation'}
-          </Button>
-          <Button onClick={handleCancel} type="button" variant="secondary">
-            Cancel
-          </Button>
+            {values.role === 'employee' ? (
+              <>
+                <label className={fieldLabelClass}>
+                  Job title
+                  <input
+                    className={fieldInputClass}
+                    onChange={(event) => updateValue('jobTitle', event.target.value)}
+                    placeholder="Senior Frontend Engineer"
+                    type="text"
+                    value={values.jobTitle}
+                  />
+                </label>
+                <label className={fieldLabelClass}>
+                  Department
+                  <input
+                    className={fieldInputClass}
+                    onChange={(event) => updateValue('department', event.target.value)}
+                    placeholder="Product Engineering"
+                    type="text"
+                    value={values.department}
+                  />
+                </label>
+              </>
+            ) : null}
+
+            <label className={`${fieldLabelClass} md:col-span-2`}>
+              Bio
+              <textarea
+                className={`${fieldInputClass} min-h-20 py-2.5`}
+                onChange={(event) => updateValue('bio', event.target.value)}
+                placeholder="Optional profile bio"
+                value={values.bio}
+              />
+            </label>
+
+            {values.role === 'employee' ? (
+              <>
+                <label className={fieldLabelClass}>
+                  Employment type
+                  <select
+                    className={fieldInputClass}
+                    onChange={(event) =>
+                      updateValue(
+                        'employmentType',
+                        event.target.value as InviteMemberFormValues['employmentType'],
+                      )
+                    }
+                    value={values.employmentType}
+                  >
+                    <option value="">Select employment type</option>
+                    <option value="full_time">Full time</option>
+                    <option value="part_time">Part time</option>
+                  </select>
+                </label>
+
+                <label className={fieldLabelClass}>
+                  Weekly capacity hours
+                  <input
+                    className={fieldInputClass}
+                    inputMode="numeric"
+                    max={168}
+                    min={1}
+                    onChange={(event) => updateValue('weeklyCapacityHours', event.target.value)}
+                    placeholder="40"
+                    type="number"
+                    value={values.weeklyCapacityHours}
+                  />
+                  {fieldErrors.weeklyCapacityHours ? (
+                    <span className={fieldErrorClass}>
+                      {fieldErrors.weeklyCapacityHours}
+                    </span>
+                  ) : null}
+                </label>
+              </>
+            ) : (
+              <label className={`${fieldLabelClass} md:col-span-2`}>
+                Department
+                <input
+                  className={fieldInputClass}
+                  onChange={(event) => updateValue('department', event.target.value)}
+                  placeholder="Engineering"
+                  type="text"
+                  value={values.department}
+                />
+              </label>
+            )}
+
+            <div className="flex flex-col-reverse gap-3 border-t border-chart-grid pt-4 sm:flex-row sm:justify-end md:col-span-2">
+              <Button onClick={handleCancel} type="button" variant="secondary">
+                Cancel
+              </Button>
+              <Button disabled={isSubmitting} type="submit">
+                {isSubmitting ? 'Sending invitation...' : 'Send invitation'}
+              </Button>
+            </div>
+          </form>
         </div>
-      </form>
-    </Card>
+      </Dialog>
+    </DialogPrimitive.Root>
   )
 }
