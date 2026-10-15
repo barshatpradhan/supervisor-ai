@@ -1,59 +1,65 @@
-import type { ReactNode } from 'react'
 import { Link, NavLink } from 'react-router-dom'
+import type { NavigationItem } from '../../config/navigation'
+import { isNavigationItemActive } from '../../config/navigation'
 import { SupervisorLogo } from '../ui/SupervisorLogo'
 
-export interface NavigationItem {
-  href: string
-  label: string
-}
-
 interface SidebarProps {
-  activeHref?: string
-  className?: string
-  children?: ReactNode
+  activePath: string
   items: NavigationItem[]
   onNavigate?: () => void
+  /** `rail` collapses to a 72px icon rail between 1024 and 1279px; `full` always shows labels. */
+  variant?: 'rail' | 'full'
 }
 
-export function Sidebar({ activeHref = '/dashboard', children, className = '', items, onNavigate }: SidebarProps) {
+export function Sidebar({ activePath, items, onNavigate, variant = 'rail' }: SidebarProps) {
+  const isRail = variant === 'rail'
+
   return (
-    <aside className={`border-b border-border-subtle bg-surface-card lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-r ${className}`}>
-      <div className="flex h-full flex-col gap-5 p-4 lg:p-5">
-        <Link
-          className="rounded-md focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-primary-300"
-          to="/dashboard"
-        >
+    <div className="flex h-full flex-col gap-1 px-3 py-5 xl:px-4">
+      <Link
+        aria-label="Supervisor AI home"
+        className={['mb-4 flex rounded-control px-2', isRail ? 'justify-center xl:justify-start' : ''].join(' ')}
+        onClick={onNavigate}
+        to="/dashboard"
+      >
+        {isRail ? (
+          <>
+            <SupervisorLogo className="xl:hidden" compact />
+            <SupervisorLogo className="hidden xl:flex" />
+          </>
+        ) : (
           <SupervisorLogo />
-        </Link>
+        )}
+      </Link>
 
-        {children}
-
-        <nav aria-label="Primary navigation">
-          <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-1">
-            {items.map((item) => {
-              const isActive = item.href === activeHref
-
-              return (
-                <li key={item.href}>
-                  <NavLink
-                    aria-current={isActive ? 'page' : undefined}
-                    className={[
-                      'flex min-h-10 items-center rounded-md px-3 text-sm font-semibold transition focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-                      isActive
-                        ? 'bg-glass-tinted text-primary-700 ring-1 ring-border-primary'
-                        : 'text-ink-700 hover:bg-surface-muted hover:text-ink-900',
-                    ].join(' ')}
-                    onClick={onNavigate}
-                    to={item.href}
-                  >
-                    {item.label}
-                  </NavLink>
-                </li>
-              )
-            })}
-          </ul>
-        </nav>
-      </div>
-    </aside>
+      <nav aria-label="Main">
+        <ul className="m-0 flex list-none flex-col gap-1 p-0">
+          {items.map((item) => {
+            const isActive = isNavigationItemActive(item.href, activePath)
+            const Icon = item.icon
+            return (
+              <li key={item.href}>
+                <NavLink
+                  aria-current={isActive ? 'page' : undefined}
+                  className={[
+                    'flex min-h-10 items-center gap-2.5 rounded-control px-3 text-sm font-medium no-underline transition',
+                    isRail ? 'justify-center xl:justify-start' : '',
+                    isActive
+                      ? 'bg-primary-100 text-primary-700'
+                      : 'text-text-secondary hover:bg-primary-50 hover:text-text-primary',
+                  ].join(' ')}
+                  onClick={onNavigate}
+                  title={isRail ? item.label : undefined}
+                  to={item.href}
+                >
+                  <Icon aria-hidden="true" className={item.ai && !isActive ? 'text-ai-fg' : ''} size={18} />
+                  <span className={isRail ? 'sr-only xl:not-sr-only' : ''}>{item.label}</span>
+                </NavLink>
+              </li>
+            )
+          })}
+        </ul>
+      </nav>
+    </div>
   )
 }

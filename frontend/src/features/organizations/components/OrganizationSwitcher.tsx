@@ -1,122 +1,48 @@
 import { useNavigate } from 'react-router-dom'
 import { useOrganization } from '../hooks/useOrganization'
-import {
-  formatOrganizationRole,
-  getActiveOrganizations,
-  getInvitedOrganizations,
-  getSuspendedOrganizations,
-} from '../utils/organizationPresentation'
+import { formatOrganizationRole, getActiveOrganizations } from '../utils/organizationPresentation'
 
-function getButtonClassName(isSelected: boolean) {
-  return [
-    'w-full rounded-md border px-3 py-2 text-left text-sm transition focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-    isSelected
-      ? 'border-primary-200 bg-primary-50 text-primary-700'
-      : 'border-border-subtle bg-surface-card-alt text-ink-700 hover:bg-surface-muted',
-  ].join(' ')
-}
-
+/**
+ * The workspace control in the top bar. With one organization it names it; with several it
+ * becomes a select. Pending and suspended memberships live on the Select organization page.
+ */
 export function OrganizationSwitcher() {
   const navigate = useNavigate()
-  const {
-    activeMembership,
-    activeOrganization,
-    isLoading,
-    organizations,
-    selectOrganization,
-  } = useOrganization()
-
+  const { activeMembership, activeOrganization, isLoading, organizations, selectOrganization } = useOrganization()
   const activeOrganizations = getActiveOrganizations(organizations)
-  const invitedOrganizations = getInvitedOrganizations(organizations)
-  const suspendedOrganizations = getSuspendedOrganizations(organizations)
+  const roleLabel = activeMembership ? formatOrganizationRole(activeMembership.role) : null
 
   if (isLoading) {
+    return <span className="helper text-text-tertiary">Loading workspace…</span>
+  }
+
+  if (activeOrganizations.length > 1) {
     return (
-      <div className="rounded-lg border border-border-subtle bg-surface-card-alt p-3 text-sm text-ink-600">
-        Loading organizations...
+      <div className="flex min-w-0 items-center gap-2">
+        <label className="sr-only" htmlFor="workspace-switcher">Workspace</label>
+        <select
+          className="body-strong min-h-10 max-w-64 truncate rounded-control border border-border-strong bg-surface-card px-3 text-text-primary"
+          id="workspace-switcher"
+          onChange={(event) => {
+            selectOrganization(event.target.value)
+            navigate('/dashboard')
+          }}
+          value={activeOrganization?.id ?? ''}
+        >
+          {activeOrganization ? null : <option value="">Select a workspace</option>}
+          {activeOrganizations.map((entry) => (
+            <option key={entry.organization.id} value={entry.organization.id}>{entry.organization.name}</option>
+          ))}
+        </select>
+        {roleLabel ? <span className="helper hidden text-text-tertiary sm:inline">{roleLabel}</span> : null}
       </div>
     )
   }
 
   return (
-    <section className="grid gap-3 rounded-lg border border-border-subtle bg-surface-card-alt p-3">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-normal text-ink-500">
-          Active organization
-        </p>
-        <p className="mt-1 text-sm font-semibold text-ink-900">
-          {activeOrganization?.name ?? 'Select organization'}
-        </p>
-        <p className="mt-1 text-xs text-ink-600">
-          {activeMembership ? formatOrganizationRole(activeMembership.role) : 'No active membership'}
-        </p>
-      </div>
-
-      {activeOrganizations.length > 0 ? (
-        <div className="grid gap-2">
-          <p className="text-xs font-semibold uppercase tracking-normal text-ink-500">
-            Switch workspace
-          </p>
-          {activeOrganizations.map((entry) => {
-            const isSelected = activeOrganization?.id === entry.organization.id
-
-            return (
-              <button
-                key={entry.organization.id}
-                className={getButtonClassName(isSelected)}
-                onClick={() => {
-                  selectOrganization(entry.organization.id)
-                  navigate('/dashboard')
-                }}
-                type="button"
-              >
-                <span className="block font-semibold">{entry.organization.name}</span>
-                <span className="mt-1 block text-xs text-ink-600">
-                  {formatOrganizationRole(entry.membership.role)}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      ) : null}
-
-      {invitedOrganizations.length > 0 ? (
-        <div className="grid gap-2">
-          <p className="text-xs font-semibold uppercase tracking-normal text-warning-text">
-            Pending invitations
-          </p>
-          {invitedOrganizations.map((entry) => (
-            <div
-              key={entry.membership.id}
-              className="rounded-md border border-warning-fg/30 bg-warning-bg/50 px-3 py-2 text-sm"
-            >
-              <span className="block font-semibold text-ink-900">{entry.organization.name}</span>
-              <span className="mt-1 block text-xs text-ink-700">
-                {formatOrganizationRole(entry.membership.role)}
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      {suspendedOrganizations.length > 0 ? (
-        <div className="grid gap-2">
-          <p className="text-xs font-semibold uppercase tracking-normal text-danger-700">
-            Suspended
-          </p>
-          {suspendedOrganizations.map((entry) => (
-            <div
-              key={entry.membership.id}
-              className="rounded-md border border-danger-100 bg-danger-50 px-3 py-2 text-sm"
-            >
-              <span className="block font-semibold text-ink-900">{entry.organization.name}</span>
-              <span className="mt-1 block text-xs text-danger-700">
-                {formatOrganizationRole(entry.membership.role)}
-              </span>
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </section>
+    <div className="flex min-w-0 flex-col">
+      <span className="body-strong truncate text-text-primary">{activeOrganization?.name ?? 'No workspace selected'}</span>
+      {roleLabel ? <span className="helper text-text-tertiary">{roleLabel}</span> : null}
+    </div>
   )
 }

@@ -1,77 +1,56 @@
+import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
-import { Container } from '../components/layout/Container'
 import { PageShell } from '../components/layout/PageShell'
-import { Button } from '../components/ui/Button'
 import { getNavigationItems } from '../config/navigation'
 import { useAuth } from '../features/auth/hooks/useAuth'
 import { OrganizationSwitcher } from '../features/organizations/components/OrganizationSwitcher'
 import { useOrganization } from '../features/organizations/hooks/useOrganization'
 
-const routeTitles: Record<string, string> = {
-  '/admin/users/new': 'Create user',
-  '/ai-recommendations': 'AI Recommendations',
-  '/dashboard': 'Dashboard',
-  '/employees': 'Employees',
-  '/forbidden': 'Access restricted',
-  '/organization/invitations': 'Invitations',
-  '/profile': 'Profile',
-  '/projects': 'Projects',
-  '/tasks': 'Tasks',
-  '/team': 'Team',
-}
+const routeTitles: [prefix: string, title: string][] = [
+  ['/admin/users/new', 'Create user'],
+  ['/ai-recommendations', 'AI Recommendations'],
+  ['/dashboard', 'Dashboard'],
+  ['/employees', 'Team'],
+  ['/forbidden', 'Access restricted'],
+  ['/organization/invitations', 'Invitations'],
+  ['/platform-admin', 'Platform'],
+  ['/profile', 'Profile'],
+  ['/projects', 'Projects'],
+  ['/select-organization', 'Select organization'],
+  ['/tasks', 'Tasks'],
+  ['/team', 'Team'],
+]
 
-function getEyebrow(
-  activeMembershipRole: ReturnType<typeof useOrganization>['activeMembershipRole'],
-) {
-  if (activeMembershipRole === 'employee') {
-    return 'Employee workspace'
-  }
-
-  if (
-    activeMembershipRole === 'organization_admin' ||
-    activeMembershipRole === 'supervisor'
-  ) {
-    return 'Organization workspace'
-  }
-
-  return 'Supervisor workspace'
+function getRouteTitle(pathname: string) {
+  return routeTitles.find(([prefix]) => pathname === prefix || pathname.startsWith(`${prefix}/`))?.[1] ?? 'Workspace'
 }
 
 export function AppLayout() {
   const location = useLocation()
   const { logout, user } = useAuth()
-  const { activeMembershipRole, activeOrganization } = useOrganization()
-  const title = routeTitles[location.pathname] ?? 'Dashboard'
+  const { activeMembershipRole } = useOrganization()
   const navigationItems = getNavigationItems({
     organizationRole: activeMembershipRole,
     platformRole: user?.platformRole ?? null,
   })
-  const eyebrow = activeOrganization
-    ? `${getEyebrow(activeMembershipRole)} | ${activeOrganization.name}`
-    : getEyebrow(activeMembershipRole)
+
+  // Each page renders its own H1; the shell only names the browser tab.
+  useEffect(() => {
+    document.title = `${getRouteTitle(location.pathname)} · Supervisor AI`
+  }, [location.pathname])
 
   return (
     <PageShell
-      actions={
-        <Button
-          onClick={() => {
-            logout()
-          }}
-          variant="secondary"
-        >
-          Sign out
-        </Button>
-      }
-      activeHref={location.pathname}
-      eyebrow={eyebrow}
+      activePath={location.pathname}
+      headerLeading={<OrganizationSwitcher />}
       navigationItems={navigationItems}
-      sidebarContent={<OrganizationSwitcher />}
-      title={title}
+      onSignOut={() => {
+        logout()
+      }}
+      userEmail={user?.email ?? null}
     >
-      <main>
-        <Container className="py-6 sm:py-8">
-          <Outlet />
-        </Container>
+      <main className="mx-auto w-full max-w-[1240px] px-4 py-6 sm:px-6 xl:px-8 xl:py-8">
+        <Outlet />
       </main>
     </PageShell>
   )
