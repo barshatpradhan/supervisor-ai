@@ -1,8 +1,8 @@
 import type { FormEvent } from 'react'
-import { ErrorState } from '../../../components/shared/ErrorState'
-import { EmptyState } from '../../../components/shared/EmptyState'
 import { Button } from '../../../components/ui/Button'
-import { Card } from '../../../components/ui/Card'
+import { Card, CardHeader } from '../../../components/ui/Card'
+import { fieldErrorClass, fieldHintClass, fieldInputClass, fieldLabelClass, fieldTextareaClass } from '../../../components/ui/fieldStyles'
+import { StateBlock } from '../../../components/ui/StateBlock'
 import { EmployeeSkillList } from './EmployeeSkillList'
 import type { useEmployeeProfileEditor } from '../hooks/useEmployeeProfileEditor'
 
@@ -11,15 +11,7 @@ interface EmployeeProfileFormProps {
   editor: ReturnType<typeof useEmployeeProfileEditor>
 }
 
-const inputClassName =
-  'min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-primary-600 focus:ring-3 focus:ring-primary-200'
-
-const textAreaClassName = `${inputClassName} min-h-32 py-3`
-
-export function EmployeeProfileForm({
-  approvedSkillCount,
-  editor,
-}: EmployeeProfileFormProps) {
+export function EmployeeProfileForm({ approvedSkillCount, editor }: EmployeeProfileFormProps) {
   const {
     addSkill,
     availableSkillSuggestions,
@@ -50,196 +42,138 @@ export function EmployeeProfileForm({
     return null
   }
 
-  const hasNoSkills =
-    categorizedSkills.approved.length === 0 && categorizedSkills.pending.length === 0
+  const hasNoSkills = categorizedSkills.approved.length === 0 && categorizedSkills.pending.length === 0
 
   return (
-    <Card>
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-              Editable details
-            </p>
-            <h2 className="mt-2 text-xl font-bold text-ink-900">Update your profile</h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-600">
-              You can edit your name, biography, and skill list here. New skill
-              entries that are not in the approved catalog will be submitted as
-              pending for organizational review.
-            </p>
-          </div>
-          <div className="rounded-lg border border-border-subtle bg-surface-card-alt px-4 py-3 text-sm text-ink-700">
-            <p className="font-semibold text-ink-900">{approvedSkillCount} approved skills available</p>
-            <p className="mt-1 text-ink-600">Start typing to reuse an approved skill when possible.</p>
-          </div>
+    <Card aria-labelledby="edit-profile-title" className="flex flex-col gap-5">
+      <CardHeader helper="Your name, bio and skills. Your organization manages everything else." id="edit-profile-title" title="Edit profile" />
+
+      {submitError ? <StateBlock compact kind="error" title="Your profile could not be saved">{submitError}</StateBlock> : null}
+
+      <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className={fieldLabelClass}>
+            Full name
+            <input className={fieldInputClass} maxLength={120} onChange={(event) => setFullName(event.target.value)} required type="text" value={draft.fullName} />
+            {validationErrors.fullName ? <span className={fieldErrorClass}>{validationErrors.fullName}</span> : null}
+          </label>
+          <label className={fieldLabelClass}>
+            Job title
+            <input className={fieldInputClass} maxLength={120} onChange={(event) => setJobTitle(event.target.value)} placeholder="Senior frontend engineer" type="text" value={draft.jobTitle} />
+          </label>
+          <label className={fieldLabelClass}>
+            Department
+            <input className={fieldInputClass} maxLength={120} onChange={(event) => setDepartment(event.target.value)} placeholder="Product engineering" type="text" value={draft.department} />
+          </label>
+          <label className={`${fieldLabelClass} md:col-span-2`}>
+            Bio
+            <textarea
+              className={fieldTextareaClass}
+              maxLength={800}
+              onChange={(event) => setBio(event.target.value)}
+              placeholder="Your strengths, focus areas or the work you do best."
+              value={draft.bio}
+            />
+            <span className={fieldHintClass}>{draft.bio.length}/800 characters</span>
+            {validationErrors.bio ? <span className={fieldErrorClass}>{validationErrors.bio}</span> : null}
+          </label>
         </div>
 
-        {submitError ? (
-          <ErrorState message={submitError} title="Unable to save profile" />
-        ) : null}
-
-        <form className="grid gap-6" onSubmit={handleSubmit}>
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-            <label className="grid gap-2 text-sm font-semibold text-ink-800">
-              Full name
-              <input
-                className={inputClassName}
-                maxLength={120}
-                onChange={(event) => setFullName(event.target.value)}
-                placeholder="Enter your full name"
-                required
-                type="text"
-                value={draft.fullName}
-              />
-              {validationErrors.fullName ? (
-                <span className="text-sm font-medium text-danger-700">
-                  {validationErrors.fullName}
-                </span>
-              ) : null}
-            </label>
-
-            <label className="grid gap-2 text-sm font-semibold text-ink-800">
-              Job title
-              <input
-                className={inputClassName}
-                maxLength={120}
-                onChange={(event) => setJobTitle(event.target.value)}
-                placeholder="Senior Frontend Engineer"
-                type="text"
-                value={draft.jobTitle}
-              />
-            </label>
-
-            <label className="grid gap-2 text-sm font-semibold text-ink-800">
-              Department
-              <input
-                className={inputClassName}
-                maxLength={120}
-                onChange={(event) => setDepartment(event.target.value)}
-                placeholder="Product Engineering"
-                type="text"
-                value={draft.department}
-              />
-            </label>
-
-            <label className="grid gap-2 text-sm font-semibold text-ink-800">
-              Bio
-              <textarea
-                className={textAreaClassName}
-                maxLength={800}
-                onChange={(event) => setBio(event.target.value)}
-                placeholder="Tell your team about your strengths, focus areas, or current expertise."
-                value={draft.bio}
-              />
-              <span className="text-xs font-medium text-ink-500">
-                {draft.bio.length}/800 characters
-              </span>
-              {validationErrors.bio ? (
-                <span className="text-sm font-medium text-danger-700">
-                  {validationErrors.bio}
-                </span>
-              ) : null}
-            </label>
+        <section aria-labelledby="profile-skills-title" className="flex flex-col gap-4 border-t border-chart-grid pt-5">
+          <div>
+            <h3 className="section-title m-0 text-text-primary" id="profile-skills-title">Skills</h3>
+            <p className="helper m-0 text-text-tertiary">
+              {approvedSkillCount} approved skills to choose from. New names go to your organization for review.
+            </p>
           </div>
 
-          <div className="grid gap-4">
-            <div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                <label className="grid flex-1 gap-2 text-sm font-semibold text-ink-800">
-                  Add skill
-                  <input
-                    className={inputClassName}
-                    list="employee-approved-skills"
-                    onChange={(event) => setSkillInput(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.preventDefault()
-                        addSkill()
-                      }
-                    }}
-                    placeholder="React, SQL, stakeholder communication..."
-                    type="text"
-                    value={skillInput}
-                  />
-                </label>
-                <Button className="sm:min-w-28" onClick={addSkill} type="button">
-                  Add skill
-                </Button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <label className={`${fieldLabelClass} flex-1`}>
+              Add skill
+              <input
+                className={fieldInputClass}
+                list="employee-approved-skills"
+                onChange={(event) => setSkillInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    addSkill()
+                  }
+                }}
+                placeholder="React, SQL, stakeholder communication…"
+                type="text"
+                value={skillInput}
+              />
+            </label>
+            <Button className="sm:min-w-28" onClick={addSkill} variant="secondary">Add skill</Button>
+          </div>
+          <datalist id="employee-approved-skills">
+            {availableSkillSuggestions.map((skill) => <option key={skill} value={skill} />)}
+          </datalist>
+          {validationErrors.skillInput ? <p className={`${fieldErrorClass} m-0`}>{validationErrors.skillInput}</p> : null}
+
+          {hasNoSkills ? (
+            <StateBlock compact title="No skills yet">Add the skills you use so assignments and recommendations fit your profile.</StateBlock>
+          ) : (
+            <>
+              <div className="grid gap-4 md:grid-cols-2">
+                <EmployeeSkillList emptyMessage="No approved skills yet." items={categorizedSkills.approved.map((skill) => skill.name)} onRemove={removeSkill} title="Approved" tone="approved" />
+                <EmployeeSkillList emptyMessage="Nothing waiting for review." items={categorizedSkills.pending.map((skill) => skill.name)} onRemove={removeSkill} title="Waiting for review" tone="pending" />
               </div>
-              <datalist id="employee-approved-skills">
-                {availableSkillSuggestions.map((skill) => (
-                  <option key={skill} value={skill} />
-                ))}
-              </datalist>
-              <p className="mt-2 text-sm leading-6 text-ink-600">
-                Approved skills are applied immediately. New skill names are
-                saved as pending until your organization reviews them.
-              </p>
-              {validationErrors.skillInput ? (
-                <p className="mt-2 text-sm font-medium text-danger-700">
-                  {validationErrors.skillInput}
-                </p>
-              ) : null}
-            </div>
-
-            {hasNoSkills ? (
-              <EmptyState
-                description="Add the skills you actively use so future assignments and recommendations reflect your profile accurately."
-                title="No skills added yet"
-              />
-            ) : (
-              <div className="grid gap-4">
-                <EmployeeSkillList
-                  emptyMessage="No approved skills are currently attached to your profile."
-                  items={categorizedSkills.approved.map((skill) => skill.name)}
-                  onRemove={removeSkill}
-                  title="Approved skills"
-                  tone="approved"
-                />
-                <EmployeeSkillList
-                  emptyMessage="Skills that still need approval will appear here."
-                  items={categorizedSkills.pending.map((skill) => skill.name)}
-                  onRemove={removeSkill}
-                  title="Pending skills"
-                  tone="pending"
-                />
-                <div className="grid gap-3 rounded-lg border border-border-subtle bg-surface-card-alt p-4">
-                  <p className="text-sm font-semibold text-ink-900">Skill experience</p>
-                  {draft.skills.map((skill) => (
-                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem_10rem] sm:items-end" key={skill.name}>
-                      <p className="min-h-11 py-3 text-sm font-medium text-ink-800">{skill.name}</p>
-                      <label className="grid gap-1 text-xs font-semibold text-ink-600">
-                        Proficiency (1–5)
-                        <select className={inputClassName} onChange={(event) => updateSkill(skill.name, { proficiencyLevel: Number(event.target.value) })} value={skill.proficiencyLevel}>
-                          {[1, 2, 3, 4, 5].map((level) => <option key={level} value={level}>{level}</option>)}
-                        </select>
-                      </label>
-                      <label className="grid gap-1 text-xs font-semibold text-ink-600">
-                        Years experience
-                        <input className={inputClassName} max={80} min={0} onChange={(event) => updateSkill(skill.name, { yearsOfExperience: event.target.value })} placeholder="Optional" step="0.5" type="number" value={skill.yearsOfExperience} />
-                      </label>
-                    </div>
-                  ))}
-                </div>
+              <div className="overflow-x-auto rounded-control border border-chart-grid">
+                <table className="body w-full min-w-[480px] border-collapse text-left">
+                  <caption className="sr-only">Skill experience</caption>
+                  <thead className="bg-surface-muted">
+                    <tr>
+                      <th className="label px-4 py-2.5 text-text-secondary" scope="col">Skill</th>
+                      <th className="label w-40 px-3 py-2.5 text-text-secondary" scope="col">Proficiency</th>
+                      <th className="label w-40 px-4 py-2.5 text-text-secondary" scope="col">Years</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {draft.skills.map((skill) => (
+                      <tr className="border-t border-chart-grid" key={skill.name}>
+                        <th className="body-strong px-4 py-2 text-text-primary" scope="row">{skill.name}</th>
+                        <td className="px-3 py-2">
+                          <select
+                            aria-label={`${skill.name} proficiency`}
+                            className={`${fieldInputClass} w-full`}
+                            onChange={(event) => updateSkill(skill.name, { proficiencyLevel: Number(event.target.value) })}
+                            value={skill.proficiencyLevel}
+                          >
+                            {[1, 2, 3, 4, 5].map((level) => <option key={level} value={level}>{level} of 5</option>)}
+                          </select>
+                        </td>
+                        <td className="px-4 py-2">
+                          <input
+                            aria-label={`${skill.name} years of experience`}
+                            className={`${fieldInputClass} w-full`}
+                            max={80}
+                            min={0}
+                            onChange={(event) => updateSkill(skill.name, { yearsOfExperience: event.target.value })}
+                            placeholder="Optional"
+                            step="0.5"
+                            type="number"
+                            value={skill.yearsOfExperience}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
-          </div>
+            </>
+          )}
+        </section>
 
-          <div className="flex flex-col gap-3 border-t border-border-subtle pt-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="text-sm text-ink-600">
-              {isDirty ? 'You have unsaved changes.' : 'All changes are saved.'}
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <Button disabled={!isDirty || isSaving} onClick={resetForm} type="button" variant="secondary">
-                Reset
-              </Button>
-              <Button disabled={isSaving} type="submit">
-                {isSaving ? 'Saving...' : 'Save changes'}
-              </Button>
-            </div>
+        <div className="flex flex-col gap-3 border-t border-chart-grid pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <span aria-live="polite" className="helper text-text-tertiary">{isDirty ? 'You have unsaved changes.' : 'All changes saved.'}</span>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row">
+            <Button disabled={!isDirty || isSaving} onClick={resetForm} variant="secondary">Discard changes</Button>
+            <Button disabled={isSaving || !isDirty} type="submit">{isSaving ? 'Saving…' : 'Save changes'}</Button>
           </div>
-        </form>
-      </div>
+        </div>
+      </form>
     </Card>
   )
 }

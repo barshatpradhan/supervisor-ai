@@ -1,4 +1,4 @@
-import { Button } from '../../../components/ui/Button'
+import { X } from 'lucide-react'
 
 interface EmployeeSkillListProps {
   emptyMessage: string
@@ -8,55 +8,44 @@ interface EmployeeSkillListProps {
   tone: 'approved' | 'pending'
 }
 
-const toneClasses: Record<EmployeeSkillListProps['tone'], string> = {
-  approved: 'border-success-fg/30 bg-success-bg/60 text-success-text',
-  pending: 'border-warning-fg/30 bg-warning-bg/70 text-warning-text',
+const toneClasses: Record<EmployeeSkillListProps['tone'], { chip: string; dot: string }> = {
+  approved: { chip: 'bg-success-bg', dot: 'bg-success-fg' },
+  pending: { chip: 'bg-warning-bg', dot: 'bg-warning-fg' },
 }
 
-export function EmployeeSkillList({
-  emptyMessage,
-  items,
-  onRemove,
-  title,
-  tone,
-}: EmployeeSkillListProps) {
-  return (
-    <div className="rounded-lg border border-border-subtle bg-surface-card-alt p-4">
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-ink-900">{title}</h3>
-        <span className="text-xs font-semibold uppercase tracking-normal text-ink-500">
-          {items.length}
-        </span>
-      </div>
+/** Skill chips grouped by approval state, each removable. */
+export function EmployeeSkillList({ emptyMessage, items, onRemove, title, tone }: EmployeeSkillListProps) {
+  const classes = toneClasses[tone]
 
+  return (
+    <div className="flex flex-col gap-2">
+      <h3 className="label m-0 flex items-center gap-2 text-text-secondary">
+        <span aria-hidden="true" className={`size-2 rounded-pill ${classes.dot}`} />
+        {title}
+        <span className="num-sm text-text-tertiary">{items.length}</span>
+      </h3>
       {items.length > 0 ? (
-        <ul className="mt-4 flex flex-wrap gap-2">
+        <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
           {items.map((item) => (
             <li key={item}>
-              <span
-                className={[
-                  'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium',
-                  toneClasses[tone],
-                ].join(' ')}
-              >
-                <span>{item}</span>
+              <span className={`label inline-flex items-center gap-1 rounded-sm py-1 pl-2.5 pr-1 text-text-primary ${classes.chip}`}>
+                {item}
                 {onRemove ? (
-                  <Button
+                  <button
                     aria-label={`Remove ${item}`}
-                    className="h-6 min-h-6 rounded-full px-2 text-current hover:bg-black/5"
+                    className="inline-flex size-6 items-center justify-center rounded-sm text-text-secondary hover:bg-black/5 hover:text-text-primary"
                     onClick={() => onRemove(item)}
                     type="button"
-                    variant="ghost"
                   >
-                    x
-                  </Button>
+                    <X aria-hidden="true" size={14} />
+                  </button>
                 ) : null}
               </span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="mt-4 text-sm leading-6 text-ink-600">{emptyMessage}</p>
+        <p className="helper m-0 text-text-tertiary">{emptyMessage}</p>
       )}
     </div>
   )

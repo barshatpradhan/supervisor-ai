@@ -1,68 +1,62 @@
-import { EmptyState } from '../../../components/shared/EmptyState'
-import { ErrorState } from '../../../components/shared/ErrorState'
+import { Button } from '../../../components/ui/Button'
+import { Card } from '../../../components/ui/Card'
+import { PageHeader } from '../../../components/ui/PageHeader'
+import { StateBlock } from '../../../components/ui/StateBlock'
 import { useAuth } from '../../auth/hooks/useAuth'
+import { useEmployeeProfileEditor } from '../hooks/useEmployeeProfileEditor'
 import { EmployeeProfileCard } from './EmployeeProfileCard'
 import { EmployeeProfileForm } from './EmployeeProfileForm'
-import { EmployeeProfileSkeleton } from './EmployeeProfileSkeleton'
 import { EmployeeProfileWorkInfo } from './EmployeeProfileWorkInfo'
-import { useEmployeeProfileEditor } from '../hooks/useEmployeeProfileEditor'
+
+const subtitle = 'Keep your details current so assignments and recommendations match your skills.'
 
 export function EmployeeProfileModule() {
   const { user } = useAuth()
   const editor = useEmployeeProfileEditor()
 
   if (editor.isLoading) {
-    return <EmployeeProfileSkeleton />
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader subtitle={subtitle} title="Profile" />
+        <Card><StateBlock kind="loading" title="Loading your profile" /></Card>
+      </div>
+    )
   }
 
   if (editor.isMissingProfile) {
     return (
-      <EmptyState
-        description="Your employee profile is not available yet. Contact your organization if this account should already have an employee record."
-        title="Profile not available"
-      />
+      <div className="flex flex-col gap-6">
+        <PageHeader title="Profile" />
+        <Card>
+          <StateBlock title="Your profile isn't set up yet">
+            Ask your organization admin to finish your employee profile.
+          </StateBlock>
+        </Card>
+      </div>
     )
   }
 
   if (editor.error || !editor.currentProfile) {
     return (
-      <ErrorState
-        error={editor.error}
-        onRetry={() => {
-          void editor.refetch()
-        }}
-        title="Unable to load employee profile"
-      />
+      <div className="flex flex-col gap-6">
+        <PageHeader title="Profile" />
+        <Card>
+          <StateBlock action={<Button onClick={() => { void editor.refetch() }} variant="secondary">Retry</Button>} kind="error" title="Your profile could not be loaded">
+            Check your connection, then try again.
+          </StateBlock>
+        </Card>
+      </div>
     )
   }
 
   return (
-    <div className="grid gap-6">
-      <section className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-          Employee workspace
-        </p>
-        <h1 className="text-3xl font-bold tracking-normal text-ink-900">
-          Profile settings
-        </h1>
-        <p className="max-w-3xl text-sm leading-6 text-ink-600">
-          Keep your profile details current so your organization can manage
-          assignments, workload, and future recommendations accurately.
-        </p>
-      </section>
-
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <EmployeeProfileCard
-          email={user?.email ?? null}
-          profile={editor.currentProfile}
-        />
+    <div className="flex flex-col gap-6">
+      <PageHeader subtitle={subtitle} title="Profile" />
+      <div className="grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr))]">
+        <EmployeeProfileCard email={user?.email ?? null} profile={editor.currentProfile} />
         <EmployeeProfileWorkInfo profile={editor.currentProfile} />
       </div>
-
-      <EmployeeProfileForm
-        approvedSkillCount={editor.approvedSkills.length}
-        editor={editor}
-      />
+      <EmployeeProfileForm approvedSkillCount={editor.approvedSkills.length} editor={editor} />
     </div>
   )
 }

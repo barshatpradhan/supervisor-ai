@@ -1,84 +1,43 @@
+import { RadialScore } from '../../../components/charts/RadialScore'
+import { Card, CardHeader } from '../../../components/ui/Card'
+import { ProgressBar } from '../../../components/ui/ProgressBar'
 import type { BackendEmployeeProfile } from '../../../types/backend'
-import { Card } from '../../../components/ui/Card'
 import { formatEmploymentType } from '../utils/profileForm'
 
-interface EmployeeProfileWorkInfoProps {
-  profile: BackendEmployeeProfile
-}
+const HIGH_WORKLOAD_THRESHOLD = 80
 
-interface WorkInfoMetricProps {
-  description: string
-  label: string
-  tone?: 'default' | 'info' | 'warning'
-  value: string
-}
+/** Capacity, workload and availability. Your organization and your assignments set these. */
+export function EmployeeProfileWorkInfo({ profile }: { profile: BackendEmployeeProfile }) {
+  const booked = (profile.weekly_capacity_hours * profile.workload_percentage) / 100
+  const isHigh = profile.workload_percentage >= HIGH_WORKLOAD_THRESHOLD
 
-const metricToneClasses: Record<NonNullable<WorkInfoMetricProps['tone']>, string> = {
-  default: 'border-border-subtle bg-surface-card-alt',
-  info: 'border-border-primary bg-info-bg/60',
-  warning: 'border-warning-fg/40 bg-warning-bg/60',
-}
-
-function WorkInfoMetric({
-  description,
-  label,
-  tone = 'default',
-  value,
-}: WorkInfoMetricProps) {
   return (
-    <div className={`rounded-lg border p-4 ${metricToneClasses[tone]}`}>
-      <p className="text-xs font-semibold uppercase tracking-normal text-ink-600">
-        {label}
-      </p>
-      <p className="mt-2 text-2xl font-bold text-ink-900">{value}</p>
-      <p className="mt-2 text-sm leading-6 text-ink-600">{description}</p>
-    </div>
-  )
-}
-
-export function EmployeeProfileWorkInfo({
-  profile,
-}: EmployeeProfileWorkInfoProps) {
-  return (
-    <Card className="h-full">
-      <div className="flex h-full flex-col gap-5">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-            Organization-managed
-          </p>
-          <h2 className="mt-2 text-xl font-bold text-ink-900">Employment information</h2>
-          <p className="mt-2 max-w-xl text-sm leading-6 text-ink-600">
-            Employment type, capacity, workload, and availability are managed
-            automatically by your organization and task assignments.
-          </p>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <WorkInfoMetric
-            description="Set by your organization to reflect your current contract arrangement."
-            label="Employment type"
-            value={formatEmploymentType(profile.employment_type)}
-          />
-          <WorkInfoMetric
-            description="This is the total weekly work capacity currently assigned to your account."
-            label="Weekly capacity"
-            tone="info"
-            value={`${profile.weekly_capacity_hours} hrs`}
-          />
-          <WorkInfoMetric
-            description="Availability is recalculated automatically from active work and capacity."
-            label="Availability"
-            tone="info"
-            value={`${profile.availability_percentage}%`}
-          />
-          <WorkInfoMetric
-            description="Workload reflects active assigned work across your current tasks."
-            label="Workload"
-            tone={profile.workload_percentage >= 80 ? 'warning' : 'default'}
-            value={`${profile.workload_percentage}%`}
-          />
-        </div>
+    <Card aria-labelledby="profile-workload-title" className="flex h-full flex-col gap-5">
+      <CardHeader helper="Set by your organization and your current assignments" id="profile-workload-title" title="Workload this week" />
+      <div className="flex flex-wrap items-center gap-6">
+        <RadialScore color={isHigh ? 'danger-fg' : 'chart-1'} label="Workload" size={112} sublabel="workload" value={profile.workload_percentage} />
+        <dl className="body m-0 flex min-w-44 flex-1 flex-col gap-2.5">
+          <div className="flex justify-between gap-2">
+            <dt className="text-text-secondary">Booked</dt>
+            <dd className="num-sm m-0">{Number(booked.toFixed(1))}h of {profile.weekly_capacity_hours}h</dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt className="text-text-secondary">Employment</dt>
+            <dd className="m-0 text-text-primary">{formatEmploymentType(profile.employment_type)}</dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt className="text-text-secondary">Performance</dt>
+            <dd className="num-sm m-0">{profile.performance_score === null ? 'Not scored' : Math.round(profile.performance_score)}</dd>
+          </div>
+        </dl>
       </div>
+      <div className="flex flex-col gap-1.5">
+        <span className="label text-text-secondary">Availability</span>
+        <ProgressBar label="Availability" tone="good" value={profile.availability_percentage} />
+      </div>
+      {isHigh ? (
+        <p className="helper m-0 text-danger-fg">You are over the {HIGH_WORKLOAD_THRESHOLD}% workload limit. Talk to your supervisor before taking on more.</p>
+      ) : null}
     </Card>
   )
 }
