@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ProjectDetailsContent } from './ProjectDetailsModule'
@@ -16,7 +17,7 @@ const project = {
 
 describe('ProjectDetailsContent', () => {
   it('renders project data, semantic metadata, and required skills', () => {
-    render(<ProjectDetailsContent organizationName="Acme Studio" project={project} />)
+    render(<MemoryRouter><ProjectDetailsContent organizationName="Acme Studio" project={project} /></MemoryRouter>)
 
     expect(screen.getByRole('heading', { name: 'Website refresh' })).toBeInTheDocument()
     expect(screen.getByText('Acme Studio')).toBeInTheDocument()
@@ -24,11 +25,11 @@ describe('ProjectDetailsContent', () => {
     expect(screen.getByRole('list', { name: 'Required skills' })).toHaveTextContent('React')
     expect(screen.getByText('Accessibility')).toBeInTheDocument()
     expect(screen.getByText('Project metadata')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Documents' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Documents' })).toBeInTheDocument()
   })
 
   it('renders an accessible empty skills state', () => {
-    render(<ProjectDetailsContent organizationName="Acme Studio" project={{ ...project, required_skills: [] }} />)
+    render(<MemoryRouter><ProjectDetailsContent organizationName="Acme Studio" project={{ ...project, required_skills: [] }} /></MemoryRouter>)
 
     expect(screen.getByText('No required skills have been recorded for this project.')).toBeInTheDocument()
   })
