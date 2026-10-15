@@ -1,98 +1,126 @@
-import { EmptyState } from '../../../components/shared/EmptyState'
-import { ErrorState } from '../../../components/shared/ErrorState'
-import { SkeletonPage } from '../../../components/shared/SkeletonPage'
+import * as DialogPrimitive from '@radix-ui/react-dialog'
+import { Plus } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { StackedBar } from '../../../components/charts/StackedBar'
 import { Button } from '../../../components/ui/Button'
+import { Card } from '../../../components/ui/Card'
+import { Dialog } from '../../../components/ui/Dialog'
+import { PageHeader } from '../../../components/ui/PageHeader'
+import { Segmented } from '../../../components/ui/Segmented'
+import { StateBlock } from '../../../components/ui/StateBlock'
+import { useEmployeeNames } from '../hooks/useEmployeeNames'
 import { useTaskManager } from '../hooks/useTaskManager'
-import { TaskList } from './TaskList'
-import { TaskPanel } from './TaskPanel'
+import { taskStatusLabels } from '../utils/taskPresentation'
+import { boardStatuses, getTaskProgress, resolveAssigneeName, statusColorTokens } from '../utils/taskBoard'
+import { TaskBoard } from './TaskBoard'
+import type { TaskBoardCard } from './TaskBoard'
+import { TaskForm } from './TaskForm'
 
-interface TasksModuleProps {
-  initialSelectedTaskId?: string | null
-}
+type TaskFilter = 'all' | 'assigned' | 'unassigned'
 
-export function TasksModule({ initialSelectedTaskId = null }: TasksModuleProps) {
-  const manager = useTaskManager(initialSelectedTaskId)
+const filterOptions = [
+  { id: 'all', label: 'All' },
+  { id: 'assigned', label: 'Assigned' },
+  { id: 'unassigned', label: 'Unassigned' },
+] as const
 
-  if (manager.isPageLoading && !manager.hasTasks) {
-    return <SkeletonPage tableColumns={7} tableRows={5} titleWidth="w-44" />
-  }
+export function TasksModule() {
+  const manager = useTaskManager()
+  const employeeNames = useEmployeeNames(manager.canManageTasks)
+  const [filter, setFilter] = useState<TaskFilter>('all')
 
-  if (manager.pageError && !manager.hasTasks) {
-    return (
-      <ErrorState
-        error={manager.pageError}
-        onRetry={manager.retryPage}
-        title="Unable to load tasks"
-      />
-    )
-  }
+  const cards = useMemo<TaskBoardCard[]>(
+    () =>
+      manager.taskList
+        .filter((task) => filter === 'all' || (filter === 'assigned') === Boolean(task.assigned_employee_id))
+        .map((task) => ({
+          assigneeName: resolveAssigneeName(task, employeeNames),
+          estimatedHours: task.estimated_hours,
+          id: task.id,
+          priority: task.priority,
+          progress: getTaskProgress(task),
+          project: task.projectLabel,
+          status: task.status,
+          title: task.title,
+          updatedAt: task.updated_at,
+        })),
+    [employeeNames, filter, manager.taskList],
+  )
 
-  if (manager.canManageTasks && manager.projectList.length === 0) {
-    return (
-      <EmptyState
-        description="Create a project first, then return here to create and manage tasks inside it."
-        title="No projects available for tasks"
-      />
-    )
-  }
+  const statusMix = boardStatuses.map((status) => ({
+    color: statusColorTokens[status],
+    name: taskStatusLabels[status],
+    value: cards.filter((card) => card.status === status).length,
+  }))
 
-  if (!manager.hasTasks && !manager.isCreateMode) {
-    return (
-      <EmptyState
-        actionLabel={manager.canManageTasks ? 'Create task' : undefined}
-        description={
-          manager.canManageTasks
-            ? 'Create your first task to define scoped work inside a project.'
-            : 'Tasks assigned to you will appear here once your supervisor begins assigning work.'
-        }
-        onAction={manager.canManageTasks ? manager.startCreateTask : undefined}
-        title={manager.canManageTasks ? 'No tasks yet' : 'No assigned tasks yet'}
-      />
-    )
-  }
+  const newTaskButton = manager.canManageTasks ? (
+    <Button className="gap-2" disabled={manager.projectList.length === 0} onClick={manager.startCreateTask}>
+      <Plus aria-hidden="true" size={16} />
+      New task
+    </Button>
+  ) : null
 
   return (
-    <div className="grid gap-6">
-      <section className="flex flex-col gap-3 rounded-lg border border-border-subtle bg-surface-card p-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <p className="text-sm font-semibold text-ink-900">
-            {manager.canManageTasks ? 'Assignment and delivery overview' : 'Assigned work overview'}
-          </p>
-          <p className="max-w-3xl text-sm leading-6 text-ink-600">
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        actions={
+          <>
+            {manager.canManageTasks && manager.hasTasks ? (
+              <Segmented label="Show tasks" onChange={setFilter} options={filterOptions} value={filter} />
+            ) : null}
+            {manager.isRefreshing ? <span className="helper text-text-tertiary">Refreshing…</span> : null}
+            {newTaskButton}
+          </>
+        }
+        title="Tasks"
+      />
+
+      {manager.isPageLoading && !manager.hasTasks ? (
+        <Card><StateBlock kind="loading" title="Loading tasks" /></Card>
+      ) : manager.pageError && !manager.hasTasks ? (
+        <Card>
+          <StateBlock action={<Button onClick={manager.retryPage} variant="secondary">Retry</Button>} kind="error" title="Tasks could not be loaded">
+            Check your connection, then try again.
+          </StateBlock>
+        </Card>
+      ) : manager.canManageTasks && manager.projectList.length === 0 ? (
+        <Card><StateBlock title="No projects yet">Create a project first, then add tasks to it.</StateBlock></Card>
+      ) : !manager.hasTasks ? (
+        <Card>
+          <StateBlock action={newTaskButton} title={manager.canManageTasks ? 'No tasks yet' : 'No assigned tasks yet'}>
             {manager.canManageTasks
-              ? 'Review task status, delivery effort, and assignment state across active work.'
-              : 'Track your assigned work, update progress, and keep delivery status current.'}
-          </p>
-        </div>
-        <div className="flex items-center gap-3 sm:justify-end">
-          {manager.isRefreshing ? (
-            <span className="text-sm text-ink-500">Refreshing list...</span>
-          ) : null}
-          {manager.canManageTasks ? (
-            <Button onClick={manager.startCreateTask}>New task</Button>
-          ) : null}
-        </div>
-      </section>
+              ? 'Create the first task to plan work inside a project.'
+              : 'Tasks assigned to you will appear here.'}
+          </StateBlock>
+        </Card>
+      ) : (
+        <>
+          <Card aria-label="Status mix" padding="sm">
+            <StackedBar data={statusMix} />
+          </Card>
+          <TaskBoard tasks={cards} />
+        </>
+      )}
 
-      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.05fr)_minmax(440px,0.95fr)]">
-        <div className="space-y-4">
-          {manager.pageError && manager.hasTasks ? (
-            <ErrorState
-              error={manager.pageError}
-              onRetry={manager.retryPage}
-              title="Task list refresh failed"
-            />
-          ) : null}
-
-          <TaskList
-            onSelect={manager.selectTask}
-            selectedTaskId={manager.selectedTaskId}
-            tasks={manager.taskList}
+      <DialogPrimitive.Root
+        onOpenChange={(open) => {
+          if (!open) manager.cancelPanel()
+        }}
+        open={manager.isCreateMode}
+      >
+        <Dialog description="You can assign the task after it is created." title="New task">
+          <TaskForm
+            embedded
+            formError={manager.taskMutationState.formError}
+            initialValues={manager.getTaskFormValues(manager.projectList[0]?.id)}
+            isSubmitting={manager.taskMutationState.isSubmitting}
+            onCancel={manager.cancelPanel}
+            onSubmit={manager.submitCreateTask}
+            projects={manager.projectList}
+            validationErrors={manager.taskMutationState.errors}
           />
-        </div>
-
-        <TaskPanel manager={manager} />
-      </div>
+        </Dialog>
+      </DialogPrimitive.Root>
     </div>
   )
 }

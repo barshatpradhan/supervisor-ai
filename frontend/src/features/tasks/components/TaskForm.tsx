@@ -8,6 +8,8 @@ import type { TaskFormErrors, TaskFormValues } from '../types/task'
 import { taskPriorityOptions } from '../utils/taskPresentation'
 
 interface TaskFormProps {
+  /** Render only the form, for use inside a dialog that already carries the title. */
+  embedded?: boolean
   formError: string | null
   initialValues: TaskFormValues
   isSubmitting: boolean
@@ -23,6 +25,7 @@ const inputClassName =
 const textAreaClassName = `${inputClassName} min-h-32 py-3`
 
 export function TaskForm({
+  embedded = false,
   formError,
   initialValues,
   isSubmitting,
@@ -38,20 +41,8 @@ export function TaskForm({
     await onSubmit(values)
   }
 
-  return (
-    <Card>
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-            New task
-          </p>
-          <h2 className="text-2xl font-bold text-ink-900">Create task</h2>
-          <p className="max-w-2xl text-sm leading-6 text-ink-600">
-            Capture the task scope, project association, and expected effort. You can
-            assign or reassign the task after creation from the detail panel.
-          </p>
-        </div>
-
+  const content = (
+      <>
         {formError ? <ErrorState message={formError} title="Unable to save task" /> : null}
 
         <form className="grid gap-5" onSubmit={handleSubmit}>
@@ -170,6 +161,28 @@ export function TaskForm({
             </Button>
           </div>
         </form>
+      </>
+  )
+
+  if (embedded) {
+    return <div className="grid gap-5">{content}</div>
+  }
+
+  return (
+    <Card>
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
+            New task
+          </p>
+          <h2 className="text-2xl font-bold text-ink-900">Create task</h2>
+          <p className="max-w-2xl text-sm leading-6 text-ink-600">
+            Capture the task scope, project association, and expected effort. You can
+            assign or reassign the task after creation from the detail panel.
+          </p>
+        </div>
+
+        {content}
       </div>
     </Card>
   )

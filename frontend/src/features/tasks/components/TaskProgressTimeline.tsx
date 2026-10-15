@@ -28,11 +28,8 @@ export function TaskProgressTimeline({
   }
 
   return (
-    <section className="space-y-4 border-t border-border-subtle pt-6" aria-labelledby="task-updates-heading">
-      <div>
-        <h3 id="task-updates-heading" className="text-lg font-bold text-ink-900">Progress updates</h3>
-        <p className="mt-1 text-sm text-ink-600">Updates and comments shared for this task.</p>
-      </div>
+    <section className="space-y-4 border-t border-chart-grid pt-4" aria-labelledby="task-updates-heading">
+      <h3 id="task-updates-heading" className="label m-0 text-text-secondary">Updates and comments</h3>
 
       {canComment ? (
         <form className="grid gap-3 rounded-lg border border-border-subtle bg-surface-card-alt p-4" onSubmit={submitComment}>
