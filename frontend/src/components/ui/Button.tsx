@@ -9,13 +9,13 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    'bg-primary-600 text-[var(--text-on-primary)] shadow-sm hover:bg-primary-700 focus-visible:outline-primary-300',
+    'bg-primary-600 text-text-on-primary hover:bg-primary-700',
   secondary:
-    'border border-border-subtle bg-surface-card text-ink-800 hover:bg-surface-muted focus-visible:outline-primary-300',
+    'border border-border-strong bg-surface-card text-text-primary hover:bg-surface-muted',
   ghost:
-    'bg-transparent text-ink-700 hover:bg-surface-muted focus-visible:outline-primary-300',
+    'bg-transparent text-text-secondary hover:bg-surface-muted hover:text-text-primary',
   danger:
-    'border border-danger-100 bg-danger-50 text-danger-700 hover:bg-danger-100 focus-visible:outline-danger-600',
+    'bg-danger-fg text-text-on-primary hover:bg-red-700/90',
 }
 
 export function Button({
@@ -28,7 +28,7 @@ export function Button({
   return (
     <button
       className={[
-        'inline-flex min-h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-3 focus-visible:outline-offset-2',
+        'inline-flex min-h-10 items-center justify-center rounded-control px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring',
         variantClasses[variant],
         className,
       ].join(' ')}

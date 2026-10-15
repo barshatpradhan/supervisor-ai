@@ -1,33 +1,12 @@
+import { PriorityTag } from '../../../components/ui/PriorityTag'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
 import type { ProjectPriority, ProjectStatus } from '../types/project'
-import {
-  getProjectPriorityTone,
-  getProjectStatusTone,
-  projectPriorityLabels,
-  projectStatusLabels,
-} from '../utils/projectPresentation'
 
 type ProjectStatusBadgeProps =
-  | {
-      kind: 'status'
-      value: ProjectStatus
-    }
-  | {
-      kind: 'priority'
-      value: ProjectPriority
-    }
+  | { kind: 'status'; value: ProjectStatus }
+  | { kind: 'priority'; value: ProjectPriority }
 
-export function ProjectStatusBadge({ kind, value }: ProjectStatusBadgeProps) {
-  const label = kind === 'status' ? projectStatusLabels[value] : projectPriorityLabels[value]
-  const tone = kind === 'status' ? getProjectStatusTone(value) : getProjectPriorityTone(value)
-
-  return (
-    <span
-      className={[
-        'inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold',
-        tone,
-      ].join(' ')}
-    >
-      {label}
-    </span>
-  )
+/** Project status as a dot-and-word badge, priority as a signal tag. */
+export function ProjectStatusBadge(props: ProjectStatusBadgeProps) {
+  return props.kind === 'status' ? <StatusBadge status={props.value} /> : <PriorityTag priority={props.value} />
 }

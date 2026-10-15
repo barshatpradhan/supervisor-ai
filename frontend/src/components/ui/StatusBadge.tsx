@@ -1,37 +1,40 @@
-import { CheckCircle2, CircleAlert, CircleDashed, Clock3, Sparkles, XCircle } from 'lucide-react'
-
-export type StatusTone = 'active' | 'completed' | 'failed' | 'inProgress' | 'invited' | 'neutral' | 'pending' | 'recommendation' | 'warning'
+const statusStyles: Record<string, { dot: string; label: string }> = {
+  // Tasks
+  todo: { dot: 'bg-status-todo', label: 'To do' },
+  in_progress: { dot: 'bg-status-in-progress', label: 'In progress' },
+  review: { dot: 'bg-status-review', label: 'In review' },
+  blocked: { dot: 'bg-status-blocked', label: 'Blocked' },
+  completed: { dot: 'bg-status-completed', label: 'Completed' },
+  cancelled: { dot: 'bg-status-cancelled', label: 'Cancelled' },
+  // Projects
+  draft: { dot: 'bg-status-todo', label: 'Draft' },
+  active: { dot: 'bg-status-in-progress', label: 'Active' },
+  on_hold: { dot: 'bg-warning-fg', label: 'On hold' },
+  // Documents
+  pending: { dot: 'bg-chart-ai', label: 'Processing' },
+  extracted: { dot: 'bg-status-completed', label: 'Extracted' },
+  failed: { dot: 'bg-status-blocked', label: 'Failed' },
+  // Skill approvals and people
+  approved: { dot: 'bg-status-completed', label: 'Approved' },
+  rejected: { dot: 'bg-status-blocked', label: 'Rejected' },
+  over: { dot: 'bg-status-blocked', label: 'Over limit' },
+  near: { dot: 'bg-warning-fg', label: 'Near capacity' },
+  available: { dot: 'bg-status-completed', label: 'Available' },
+}
 
 interface StatusBadgeProps {
-  label: string
-  tone: StatusTone
+  label?: string
+  status: string
 }
 
-const toneClasses: Record<StatusTone, string> = {
-  active: 'border-green-200 bg-green-50 text-green-800',
-  completed: 'border-green-200 bg-green-50 text-green-800',
-  failed: 'border-red-200 bg-red-50 text-red-800',
-  inProgress: 'border-blue-200 bg-blue-50 text-blue-800',
-  invited: 'border-violet-200 bg-violet-50 text-violet-800',
-  neutral: 'border-slate-200 bg-slate-50 text-slate-700',
-  pending: 'border-amber-200 bg-amber-50 text-amber-800',
-  recommendation: 'border-indigo-200 bg-indigo-50 text-indigo-800',
-  warning: 'border-amber-200 bg-amber-50 text-amber-800',
-}
+/** A neutral pill with a colored dot and the status word, so status never relies on color alone. */
+export function StatusBadge({ label, status }: StatusBadgeProps) {
+  const style = statusStyles[status] ?? { dot: 'bg-status-todo', label: status }
 
-const toneIcons: Record<StatusTone, typeof CheckCircle2> = {
-  active: CheckCircle2,
-  completed: CheckCircle2,
-  failed: XCircle,
-  inProgress: CircleDashed,
-  invited: Clock3,
-  neutral: CircleDashed,
-  pending: Clock3,
-  recommendation: Sparkles,
-  warning: CircleAlert,
-}
-
-export function StatusBadge({ label, tone }: StatusBadgeProps) {
-  const Icon = toneIcons[tone]
-  return <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-semibold ${toneClasses[tone]}`}><Icon aria-hidden="true" size={14} />{label}</span>
+  return (
+    <span className="label inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-pill bg-surface-muted px-2.5 py-0.5 text-text-primary">
+      <span aria-hidden="true" className={`size-2 rounded-pill ${style.dot}`} />
+      {label ?? style.label}
+    </span>
+  )
 }
