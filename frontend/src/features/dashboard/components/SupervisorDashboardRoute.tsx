@@ -22,7 +22,11 @@ export function SupervisorDashboardRoute() {
 
   return <div className="grid gap-6">
     {activeMembershipRole === 'organization_admin' ? <OrganizerWelcome /> : null}
-    <SupervisorDashboardModule organizationId={activeOrganization?.id ?? null} organizationName={activeOrganization?.name ?? 'Organization'} />
+    <SupervisorDashboardModule
+      organizationId={activeOrganization?.id ?? null}
+      organizationName={activeOrganization?.name ?? 'your organization'}
+      teamHref={activeMembershipRole === 'organization_admin' ? '/team' : '/employees'}
+    />
   </div>
 }
 
