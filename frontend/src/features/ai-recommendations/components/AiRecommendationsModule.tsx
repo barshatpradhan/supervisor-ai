@@ -1,415 +1,272 @@
-import { useNavigate } from 'react-router-dom'
-import { EmptyState } from '../../../components/shared/EmptyState'
-import { ErrorState } from '../../../components/shared/ErrorState'
-import { LoadingState } from '../../../components/shared/LoadingState'
+import { Sparkles } from 'lucide-react'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { BarList } from '../../../components/charts/BarList'
+import { ChartCard } from '../../../components/charts/ChartCard'
+import { AiNote } from '../../../components/ui/AiNote'
 import { Button } from '../../../components/ui/Button'
-import { formatProjectDate, projectPriorityLabels, projectStatusLabels } from '../../projects/utils/projectPresentation'
+import { Card, CardHeader } from '../../../components/ui/Card'
+import { Chip } from '../../../components/ui/Chip'
+import { fieldInputClass } from '../../../components/ui/fieldStyles'
+import { PageHeader } from '../../../components/ui/PageHeader'
+import { PriorityTag } from '../../../components/ui/PriorityTag'
+import { StateBlock } from '../../../components/ui/StateBlock'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import type { BackendRecommendation } from '../../../types/backend'
+import { useOrganization } from '../../organizations/hooks/useOrganization'
+import { RecommendationAssignmentDialog } from '../../projects/components/RecommendationAssignmentDialog'
+import { useProjectAssignmentTasks } from '../../projects/hooks/useProjectAssignmentTasks'
 import { useAiRecommendationManager } from '../hooks/useAiRecommendationManager'
-import {
-  formatRecommendationEstimatedHours,
-  getRecommendationAnalysisSections,
-} from '../utils/recommendationPresentation'
-import { AiRecommendationResultCard } from './AiRecommendationResultCard'
-import { AiRecommendationResultsSkeleton } from './AiRecommendationResultsSkeleton'
+import { RecommendationCard } from './RecommendationCard'
 
-function ContextMetric({
-  label,
-  value,
-}: {
-  label: string
-  value: string
-}) {
-  return (
-    <div className="min-w-0 rounded-lg border border-border-subtle bg-surface-card-alt p-4">
-      <p className="text-xs font-semibold uppercase tracking-normal text-ink-500">{label}</p>
-      <p className="mt-2 break-words text-sm font-semibold text-ink-900">{value}</p>
-    </div>
-  )
-}
+const complexityLabels = { high: 'High complexity', low: 'Low complexity', medium: 'Medium complexity' } as const
+
+const aiIcon = (
+  <span aria-hidden="true" className="inline-flex size-7 items-center justify-center rounded-pill bg-ai-bg text-ai-fg">
+    <Sparkles size={16} />
+  </span>
+)
 
 export function AiRecommendationsModule() {
   const manager = useAiRecommendationManager()
-  const navigate = useNavigate()
+  const { activeOrganization } = useOrganization()
+  const organizationId = activeOrganization?.id ?? null
+  const projectId = manager.selectedProjectId ?? ''
+  const tasksQuery = useProjectAssignmentTasks(organizationId, projectId, Boolean(manager.selectedProjectId))
+  const [assigning, setAssigning] = useState<BackendRecommendation | null>(null)
 
   if (manager.isProjectsLoading && !manager.hasProjects) {
-    return <LoadingState label="Loading recommendation workspace" />
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader title="AI recommendations" />
+        <Card><StateBlock kind="loading" title="Loading projects" /></Card>
+      </div>
+    )
   }
 
   if (manager.projectsError && !manager.hasProjects) {
     return (
-      <ErrorState
-        error={manager.projectsError}
-        onRetry={() => {
-          void manager.retryProjects()
-        }}
-        title="Unable to load projects"
-      />
+      <div className="flex flex-col gap-6">
+        <PageHeader title="AI recommendations" />
+        <Card>
+          <StateBlock action={<Button onClick={() => { void manager.retryProjects() }} variant="secondary">Retry</Button>} kind="error" title="Projects could not be loaded">
+            Check your connection, then try again.
+          </StateBlock>
+        </Card>
+      </div>
     )
   }
 
   if (!manager.hasProjects) {
     return (
-      <EmptyState
-        actionLabel="Open projects"
-        description="Create a project first, then upload a project document so recommendation analysis has real planning context."
-        onAction={() => {
-          navigate('/projects')
-        }}
-        title="No projects available for recommendations"
-      />
+      <div className="flex flex-col gap-6">
+        <PageHeader title="AI recommendations" />
+        <Card>
+          <StateBlock action={<Link className="label text-text-link" to="/projects">Open projects</Link>} title="No projects yet">
+            Create a project and upload its requirements. Recommendations rank employees against that analysis.
+          </StateBlock>
+        </Card>
+      </div>
     )
   }
 
-  const selectedProject = manager.selectedProject
-  const analysis = manager.analysis
+  const { analysis, selectedProject } = manager
+  const cards = manager.recommendationCards
+  const isGenerating = manager.generationState.isSubmitting
+  const documentsLink = `/projects/${projectId}?tab=documents`
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-lg border border-ai-fg/20 bg-linear-to-br from-ai-bg via-surface-card to-surface-card p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-3">
-            <div className="inline-flex rounded-full border border-ai-fg/30 bg-ai-bg px-3 py-1 text-xs font-semibold text-ai-text">
-              AI review flow
-            </div>
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold tracking-normal text-ink-900">
-                AI recommendations
-              </h1>
-              <p className="max-w-3xl text-sm leading-6 text-ink-600">
-                AI analyzes project requirements, the backend calculates recommendation scores, and
-                the supervisor makes the final assignment decision in the existing Tasks workflow.
-              </p>
-            </div>
-          </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        actions={
+          <>
+            <label className="sr-only" htmlFor="recommendation-project">Project</label>
+            <select
+              className={`${fieldInputClass} max-w-72`}
+              id="recommendation-project"
+              onChange={(event) => manager.selectProject(event.target.value)}
+              value={manager.selectedProjectId ?? ''}
+            >
+              {manager.projectList.map((project) => (
+                <option key={project.id} value={project.id}>{project.title}</option>
+              ))}
+            </select>
+            <Button
+              disabled={!manager.hasAnalysis || isGenerating}
+              onClick={() => { void manager.generateRecommendations() }}
+              variant={cards.length > 0 ? 'secondary' : 'primary'}
+            >
+              {isGenerating ? 'Generating…' : cards.length > 0 ? 'Generate again' : 'Generate recommendations'}
+            </Button>
+          </>
+        }
+        meta={
+          selectedProject ? (
+            <>
+              <StatusBadge status={selectedProject.status} />
+              <PriorityTag priority={selectedProject.priority} />
+            </>
+          ) : null
+        }
+        subtitle="Employees ranked against the project's analyzed requirements."
+        title="AI recommendations"
+      />
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-lg border border-ai-fg/20 bg-surface-card p-4">
-              <p className="text-xs font-semibold uppercase tracking-normal text-ai-text">
-                Step 1
-              </p>
-              <p className="mt-2 text-sm font-semibold text-ink-900">Project analysis context</p>
-              <p className="mt-1 text-sm leading-6 text-ink-600">
-                Use uploaded document analysis as the project source of truth.
-              </p>
-            </div>
-            <div className="rounded-lg border border-ai-fg/20 bg-surface-card p-4">
-              <p className="text-xs font-semibold uppercase tracking-normal text-ai-text">
-                Step 2
-              </p>
-              <p className="mt-2 text-sm font-semibold text-ink-900">Scored recommendations</p>
-              <p className="mt-1 text-sm leading-6 text-ink-600">
-                The backend ranks employees from skills, availability, workload, and performance.
-              </p>
-            </div>
-            <div className="rounded-lg border border-ai-fg/20 bg-surface-card p-4">
-              <p className="text-xs font-semibold uppercase tracking-normal text-ai-text">
-                Step 3
-              </p>
-              <p className="mt-2 text-sm font-semibold text-ink-900">Supervisor decision</p>
-              <p className="mt-1 text-sm leading-6 text-ink-600">
-                Recommendations inform judgment only. Assignment stays in the real task flow.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      {manager.generationState.error ? (
+        <Card>
+          <StateBlock compact kind="error" title="Recommendations could not be generated">{manager.generationState.error}</StateBlock>
+        </Card>
+      ) : null}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(300px,0.9fr)_minmax(0,1.1fr)]">
-        <div className="min-w-0 space-y-6">
-          <section className="rounded-lg border border-border-subtle bg-surface-card p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-                  Recommendation target
-                </p>
-                <h2 className="text-lg font-bold text-ink-900">Select project</h2>
-                <p className="text-sm leading-6 text-ink-600">
-                  Saved recommendation runs and project analysis load for the currently selected
-                  project.
-                </p>
-              </div>
-              {manager.isProjectsRefreshing ? (
-                <span className="text-sm text-ink-500">Refreshing projects...</span>
-              ) : null}
-            </div>
-
-            <label className="mt-4 grid gap-2 text-sm font-semibold text-ink-800">
-              Project
-              <select
-                className="min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition focus:border-primary-600 focus:ring-3 focus:ring-primary-200"
-                onChange={(event) => {
-                  manager.selectProject(event.target.value)
-                }}
-                value={manager.selectedProjectId ?? ''}
-              >
-                {manager.projectList.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {selectedProject ? (
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <ContextMetric label="Status" value={projectStatusLabels[selectedProject.status]} />
-                <ContextMetric
-                  label="Priority"
-                  value={projectPriorityLabels[selectedProject.priority]}
-                />
-              </div>
-            ) : null}
-          </section>
-
-          <section className="rounded-lg border border-border-subtle bg-surface-card p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-normal text-ai-text">
-                  Analysis context
-                </p>
-                <h2 className="text-lg font-bold text-ink-900">Project analysis</h2>
-                <p className="text-sm leading-6 text-ink-600">
-                  Recommendation generation depends on an analyzed project document.
-                </p>
-              </div>
-              {manager.isDocumentsRefreshing ? (
-                <span className="text-sm text-ink-500">Refreshing analysis...</span>
-              ) : null}
-            </div>
-
-            {manager.isDocumentsLoading && !analysis ? (
-              <div className="mt-4">
-                <LoadingState label="Loading project analysis" />
-              </div>
-            ) : null}
-
+      <div className="flex flex-wrap items-start gap-6">
+        <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-6 xl:max-w-[400px]">
+          <Card aria-labelledby="recommendation-analysis-title" className="flex flex-col gap-4" variant="ai">
+            <CardHeader
+              action={analysis ? <span className="stat-md text-text-primary">{analysis.estimated_hours}h</span> : null}
+              helper={selectedProject?.title}
+              icon={aiIcon}
+              id="recommendation-analysis-title"
+              title="Project analysis"
+            />
+            {manager.isDocumentsLoading && !analysis ? <StateBlock compact kind="loading" title="Loading analysis" /> : null}
             {!manager.isDocumentsLoading && manager.documentsError ? (
-              <div className="mt-4">
-                <ErrorState
-                  error={manager.documentsError}
-                  onRetry={() => {
-                    void manager.retryDocuments()
-                  }}
-                  title="Unable to load project analysis"
-                />
-              </div>
+              <StateBlock action={<Button onClick={() => { void manager.retryDocuments() }} variant="secondary">Retry</Button>} compact kind="error">
+                The analysis could not be loaded.
+              </StateBlock>
             ) : null}
-
             {!manager.isDocumentsLoading && !manager.documentsError && !analysis ? (
-              <div className="mt-4">
-                <EmptyState
-                  actionLabel="Open project documents"
-                  description="Upload and analyze a project document in Projects before generating AI recommendations for this project."
-                  onAction={() => {
-                    navigate('/projects')
-                  }}
-                  title="Analysis not ready"
-                />
-              </div>
+              <StateBlock action={<Link className="label text-text-link" to={documentsLink}>Open project documents</Link>} compact title="Analysis not ready">
+                Upload a requirements document for this project. Recommendations need its analysis.
+              </StateBlock>
             ) : null}
-
             {analysis ? (
-              <div className="mt-4 space-y-5">
-                <div className="rounded-lg border border-ai-fg/20 bg-ai-bg/50 p-4">
-                  <p className="text-sm font-semibold text-ai-text">Summary</p>
-                  <p className="mt-2 break-words text-sm leading-6 text-ink-700">
-                    {analysis.summary}
-                  </p>
+              <>
+                <p className="body m-0 text-text-primary">{analysis.summary}</p>
+                <div className="flex flex-wrap gap-2">
+                  <Chip tone="ai">{complexityLabels[analysis.complexity]}</Chip>
                 </div>
-
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-                  <ContextMetric label="Complexity" value={analysis.complexity} />
-                  <ContextMetric
-                    label="Estimated hours"
-                    value={formatRecommendationEstimatedHours(analysis.estimated_hours)}
-                  />
-                  <ContextMetric label="Provider" value={analysis.provider} />
-                  <ContextMetric label="Model" value={analysis.model ?? 'Not specified'} />
-                  <ContextMetric label="Created" value={formatProjectDate(analysis.created_at)} />
-                </div>
-
-                <div className="grid gap-4">
-                  {getRecommendationAnalysisSections(analysis).map((section) => (
-                    <div
-                      key={section.label}
-                      className="min-w-0 rounded-lg border border-border-subtle bg-surface-card-alt p-4"
-                    >
-                      <p className="text-sm font-semibold text-ink-900">{section.label}</p>
-                      {section.items.length > 0 ? (
-                        <ul className="mt-3 flex flex-wrap gap-2">
-                          {section.items.map((item) => (
-                            <li
-                              key={`${section.label}-${item}`}
-                              className="rounded-full border border-border-subtle bg-surface-card px-3 py-1 text-sm font-medium text-ink-700"
-                            >
-                              {item}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="mt-2 text-sm leading-6 text-ink-600">
-                          {section.emptyLabel}
-                        </p>
-                      )}
+                {[
+                  { items: analysis.required_skills, label: 'Required skills', tone: 'ai' as const },
+                  { items: analysis.preferred_skills, label: 'Preferred skills', tone: 'neutral' as const },
+                  { items: analysis.suggested_roles, label: 'Suggested roles', tone: 'neutral' as const },
+                ].map((group) =>
+                  group.items.length > 0 ? (
+                    <div className="flex flex-col gap-2" key={group.label}>
+                      <span className="label text-text-secondary">{group.label}</span>
+                      <div className="flex flex-wrap gap-2">
+                        {group.items.map((item) => <Chip key={item} tone={group.tone}>{item}</Chip>)}
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
+                  ) : null,
+                )}
+                <p className="helper m-0 text-text-tertiary">
+                  {analysis.provider}{analysis.model ? ` · ${analysis.model}` : ''} · <Link className="text-text-link" to={documentsLink}>View source documents</Link>
+                </p>
+              </>
             ) : null}
-          </section>
+          </Card>
+
+          {cards.length > 0 ? (
+            <ChartCard
+              helper="Match score out of 100"
+              table={{
+                columns: [{ key: 'name', label: 'Employee' }, { key: 'score', label: 'Match score' }],
+                rows: cards.map((entry) => ({ name: entry.recommendation.fullName, score: Math.round(entry.recommendation.matchScore) })),
+              }}
+              title="Match scores"
+              variant="ai"
+            >
+              <BarList
+                color="chart-ai"
+                data={cards.map((entry) => ({ name: entry.recommendation.fullName, value: entry.recommendation.matchScore }))}
+                unit=""
+              />
+            </ChartCard>
+          ) : null}
         </div>
 
-        <div className="min-w-0 space-y-6">
-          <section className="rounded-lg border border-border-subtle bg-surface-card p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-normal text-ai-text">
-                  Recommendation run
-                </p>
-                <h2 className="text-lg font-bold text-ink-900">Generate or review results</h2>
-                <p className="max-w-2xl text-sm leading-6 text-ink-600">
-                  Generate a fresh recommendation run for the selected project or review the latest
-                  saved run already stored by the backend.
-                </p>
-              </div>
-
-              <Button
-                className="bg-ai-fg text-white hover:bg-ai-text"
-                disabled={!manager.hasAnalysis || manager.generationState.isSubmitting}
-                onClick={() => {
-                  void manager.generateRecommendations()
-                }}
-              >
-                {manager.generationState.isSubmitting
-                  ? 'Generating recommendations...'
-                  : 'Generate recommendations'}
-              </Button>
+        <section aria-labelledby="ranked-title" className="flex min-w-0 flex-[2_1_480px] flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="section-title m-0 text-text-primary" id="ranked-title">Ranked employees</h2>
+              <p className="helper m-0 text-text-tertiary">
+                {cards.length > 0 ? `${cards.length} ranked in the latest saved run` : 'From the latest saved run'}
+                {manager.isRecommendationsRefreshing || manager.isEmployeeDirectoryRefreshing ? ' · Refreshing…' : ''}
+              </p>
             </div>
+            <AiNote />
+          </div>
 
-            {manager.generationState.error ? (
-              <div
-                className="mt-4 rounded-lg border border-danger-100 bg-danger-50 p-4 text-sm text-danger-700"
-                role="alert"
+          {manager.employeeDirectoryError && cards.length > 0 ? (
+            <Card padding="sm">
+              <StateBlock action={<Button onClick={() => { void manager.retryEmployeeDirectory() }} variant="secondary">Retry</Button>} compact kind="error">
+                Live workload and availability could not be loaded. The saved run's values are shown.
+              </StateBlock>
+            </Card>
+          ) : null}
+
+          {manager.isRecommendationsLoading ? <Card><StateBlock kind="loading" title="Loading recommendations" /></Card> : null}
+
+          {!manager.isRecommendationsLoading && manager.recommendationsError ? (
+            <Card>
+              <StateBlock action={<Button onClick={() => { void manager.retryRecommendations() }} variant="secondary">Retry</Button>} kind="error">
+                Saved recommendations could not be loaded.
+              </StateBlock>
+            </Card>
+          ) : null}
+
+          {!manager.isRecommendationsLoading && !manager.recommendationsError && !manager.hasSavedRecommendations ? (
+            <Card>
+              <StateBlock
+                action={
+                  manager.hasAnalysis ? (
+                    <Button disabled={isGenerating} onClick={() => { void manager.generateRecommendations() }}>
+                      {isGenerating ? 'Generating…' : 'Generate recommendations'}
+                    </Button>
+                  ) : (
+                    <Link className="label text-text-link" to={documentsLink}>Open project documents</Link>
+                  )
+                }
+                title={manager.hasAnalysis ? 'No recommendations yet' : 'Analysis required'}
               >
-                {manager.generationState.error}
-              </div>
-            ) : null}
+                {manager.hasAnalysis
+                  ? 'Generate the first run when you are ready to review who fits this project.'
+                  : 'Analyze a requirements document for this project first.'}
+              </StateBlock>
+            </Card>
+          ) : null}
 
-            {manager.recommendationRun ? (
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <ContextMetric label="Latest run" value={manager.recommendationRun.recommendationRunId} />
-                <ContextMetric
-                  label="Saved results"
-                  value={`${manager.recommendationCards.length} ranked employee${manager.recommendationCards.length === 1 ? '' : 's'}`}
+          {!manager.isRecommendationsLoading && !manager.recommendationsError
+            ? cards.map((entry) => (
+                <RecommendationCard
+                  key={entry.recommendation.employeeId}
+                  liveMetrics={entry.directoryEmployee}
+                  onAssign={manager.recommendationRun && organizationId ? () => setAssigning(entry.recommendation) : undefined}
+                  rec={entry.recommendation}
+                  showNote={false}
                 />
-              </div>
-            ) : null}
-          </section>
-
-          <section className="rounded-lg border border-border-subtle bg-surface-card p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-normal text-ai-text">
-                  Recommendation results
-                </p>
-                <h2 className="text-lg font-bold text-ink-900">Employee ranking</h2>
-                <p className="text-sm leading-6 text-ink-600">
-                  Review saved AI recommendation results before handing off to the task assignment
-                  workflow.
-                </p>
-              </div>
-              {manager.isRecommendationsRefreshing ? (
-                <span className="text-sm text-ink-500">Refreshing results...</span>
-              ) : null}
-            </div>
-
-            {manager.isRecommendationsLoading ? (
-              <div className="mt-4">
-                <AiRecommendationResultsSkeleton />
-              </div>
-            ) : null}
-
-            {!manager.isRecommendationsLoading && manager.recommendationsError ? (
-              <div className="mt-4">
-                <ErrorState
-                  error={manager.recommendationsError}
-                  onRetry={() => {
-                    void manager.retryRecommendations()
-                  }}
-                  title="Unable to load saved recommendations"
-                />
-              </div>
-            ) : null}
-
-            {!manager.isRecommendationsLoading &&
-            !manager.recommendationsError &&
-            !manager.hasSavedRecommendations ? (
-              <div className="mt-4">
-                <EmptyState
-                  actionLabel={manager.hasAnalysis ? 'Generate recommendations' : 'Open projects'}
-                  description={
-                    manager.hasAnalysis
-                      ? 'No saved recommendation run exists for this project yet. Generate the first run when you are ready to review employee fit.'
-                      : 'Recommendation generation is blocked until this project has analyzed document context.'
-                  }
-                  onAction={() => {
-                    if (manager.hasAnalysis) {
-                      void manager.generateRecommendations()
-                      return
-                    }
-
-                    navigate('/projects')
-                  }}
-                  title={manager.hasAnalysis ? 'No saved recommendations yet' : 'Analysis required'}
-                />
-              </div>
-            ) : null}
-
-            {!manager.isRecommendationsLoading &&
-            !manager.recommendationsError &&
-            manager.hasSavedRecommendations ? (
-              <div className="mt-4 space-y-4">
-                {manager.employeeDirectoryError ? (
-                  <ErrorState
-                    error={manager.employeeDirectoryError}
-                    onRetry={() => {
-                      void manager.retryEmployeeDirectory()
-                    }}
-                    title="Unable to refresh live employee metrics"
-                  >
-                    <p className="mt-2 text-danger-700">
-                      Saved recommendation scores are still shown below. Availability, workload, and
-                      performance values may be incomplete until the employee directory reloads.
-                    </p>
-                  </ErrorState>
-                ) : null}
-
-                {manager.isEmployeeDirectoryRefreshing ? (
-                  <p className="text-sm text-ink-500">Refreshing live employee metrics...</p>
-                ) : null}
-
-                <div className="grid gap-4">
-                  {manager.recommendationCards.map((entry) => (
-                    <AiRecommendationResultCard
-                      entry={entry}
-                      key={entry.recommendation.employeeId}
-                      onOpenTaskAssignment={(employeeId) => {
-                        navigate('/tasks', {
-                          state: {
-                            employeeId,
-                            projectId: manager.selectedProjectId,
-                            source: 'ai-recommendations',
-                          },
-                        })
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </section>
-        </div>
+              ))
+            : null}
+        </section>
       </div>
+
+      {assigning && manager.recommendationRun && organizationId ? (
+        <RecommendationAssignmentDialog
+          onOpenChange={(open) => {
+            if (!open) {
+              setAssigning(null)
+              void manager.retryRecommendations()
+              void manager.retryEmployeeDirectory()
+            }
+          }}
+          open
+          organizationId={organizationId}
+          projectId={projectId}
+          recommendation={assigning}
+          recommendationRunId={manager.recommendationRun.recommendationRunId}
+          tasks={tasksQuery.data ?? []}
+        />
+      ) : null}
     </div>
   )
 }
