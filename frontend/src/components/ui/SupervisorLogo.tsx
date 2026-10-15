@@ -9,7 +9,7 @@ export function SupervisorLogo({
   compact = false,
   inverted = false,
 }: SupervisorLogoProps) {
-  const symbolColor = inverted ? '#8E89FF' : '#6161FF'
+  const symbolColor = inverted ? 'var(--color-primary-300)' : 'var(--color-primary-600)'
   const textColor = inverted ? 'text-white' : 'text-ink-900'
 
   return (
@@ -20,17 +20,17 @@ export function SupervisorLogo({
         role="img"
         aria-label="Supervisor logo symbol"
       >
-        <rect x="0" y="0" width="100" height="28" rx="14" fill={symbolColor} />
+        <rect x="0" y="0" width="100" height="28" rx="14" style={{ fill: symbolColor }} />
         <rect
           x="0"
           y="62"
           width="100"
           height="28"
           rx="14"
-          fill={symbolColor}
+          style={{ fill: symbolColor }}
           opacity="0.55"
         />
-        <circle cx="38" cy="45" r="13" fill={symbolColor} />
+        <circle cx="38" cy="45" r="13" style={{ fill: symbolColor }} />
       </svg>
       {!compact ? (
         <span className={`text-xl font-bold leading-none tracking-normal ${textColor}`}>

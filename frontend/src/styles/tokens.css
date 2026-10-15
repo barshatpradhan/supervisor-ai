@@ -1,281 +1,158 @@
-:root {
-  /* Calm ink and a single restrained indigo accent. */
-  --primary-50: #f5f7ff;
-  --primary-100: #ebefff;
-  --primary-200: #d9e0ff;
-  --primary-300: #bcc8ff;
-  --primary-400: #8fa0ef;
-  --primary-500: #586dc9;
-  --primary-600: #4157ad;
-  --primary-700: #34478f;
-  --primary-800: #293a72;
-  --primary-900: #202d56;
+/*
+ * Supervisor AI design tokens.
+ * Source of truth: the "Supervisor AI" design system (tokens.json v1, light theme only).
+ * Raw values are declared once in @theme; semantic names alias them. Never alias a
+ * variable to its own name (a self-referencing var() makes the value invalid).
+ * `static` keeps every token in the output, so charts can read them from inline styles.
+ */
 
-  --accent-lime-100: #eef9d9;
-  --accent-lime-500: #9cd326;
-  --accent-lime-700: #5f8611;
-  --accent-green-100: #dcf8ea;
-  --accent-green-500: #00ca72;
-  --accent-green-700: #037f4c;
-  --accent-yellow-100: #fff4cc;
-  --accent-yellow-500: #ffcb00;
-  --accent-yellow-700: #8f6d00;
-  --accent-orange-100: #ffeedb;
-  --accent-orange-500: #fdab3d;
-  --accent-orange-700: #b66d0c;
-  --accent-red-100: #ffe3e8;
-  --accent-red-500: #e2445c;
-  --accent-red-700: #bb3354;
-  --accent-sky-100: #e6f7ff;
-  --accent-sky-500: #66ccff;
-  --accent-sky-700: #1279b0;
-  --accent-lilac-100: #f1e6ff;
-  --accent-lilac-500: #a25ddc;
-  --accent-lilac-700: #784bd1;
+@theme static {
+  /* Fonts (loaded from Google Fonts in index.html) */
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --neutral-0: #ffffff;
-  --neutral-25: #fcfcfb;
-  --neutral-50: #f7f7f4;
-  --neutral-100: #f1f1ed;
-  --neutral-200: #e5e5df;
-  --neutral-300: #d6d6ce;
-  --neutral-400: #aaa9a0;
-  --neutral-500: #77766f;
-  --neutral-600: #5d5c56;
-  --neutral-700: #45443f;
-  --neutral-800: #292925;
-  --neutral-900: #171714;
+  /* Primary: one restrained indigo accent. primary-600 is THE accent (6.6:1 on white). */
+  --color-primary-50: #f5f7ff;
+  --color-primary-100: #ebefff;
+  --color-primary-200: #d9e0ff;
+  --color-primary-300: #bcc8ff;
+  --color-primary-400: #8fa0ef;
+  --color-primary-500: #586dc9;
+  --color-primary-600: #4157ad;
+  --color-primary-700: #34478f;
+  --color-primary-800: #293a72;
+  --color-primary-900: #202d56;
 
-  /* Purpose aliases */
-  --success-bg: var(--accent-green-100);
-  --success-fg: var(--accent-green-500);
-  --success-text: var(--accent-green-700);
-  --warning-bg: var(--accent-yellow-100);
-  --warning-fg: var(--accent-yellow-500);
-  --warning-text: var(--accent-yellow-700);
-  --error-bg: var(--accent-red-100);
-  --error-fg: var(--accent-red-500);
-  --error-text: var(--accent-red-700);
-  --info-bg: var(--accent-sky-100);
-  --info-fg: var(--primary-600);
-  --info-text: var(--primary-700);
-  --ai-bg: var(--accent-lilac-100);
-  --ai-fg: var(--accent-lilac-500);
-  --ai-text: var(--accent-lilac-700);
+  /* Warm neutrals */
+  --color-neutral-0: #ffffff;
+  --color-neutral-25: #fcfcfb;
+  --color-neutral-50: #f7f7f4;
+  --color-neutral-100: #f1f1ed;
+  --color-neutral-200: #e5e5df;
+  --color-neutral-300: #d6d6ce;
+  --color-neutral-400: #aaa9a0;
+  --color-neutral-500: #77766f;
+  --color-neutral-600: #5d5c56;
+  --color-neutral-700: #45443f;
+  --color-neutral-800: #292925;
+  --color-neutral-900: #171714;
 
-  --surface-canvas: var(--neutral-50);
-  --surface-canvas-alt: var(--neutral-100);
-  --surface-card: var(--neutral-0);
-  --surface-card-alt: var(--neutral-25);
-  --surface-elevated: var(--neutral-0);
-  --surface-overlay: rgb(24 27 52 / 50%);
-  --surface-glass-subtle: rgb(255 255 255 / 76%);
-  --surface-glass-strong: rgb(255 255 255 / 88%);
-  --surface-glass-tinted: rgb(97 97 255 / 10%);
-  --surface-glass-border: rgb(255 255 255 / 92%);
+  /* Accents: 100 = soft tint, 500 = decorative fill only, 700 = text, icons and chart marks */
+  --color-green-100: #dcf8ea;
+  --color-green-500: #00ca72;
+  --color-green-700: #037f4c;
+  --color-yellow-100: #fff4cc;
+  --color-yellow-500: #ffcb00;
+  --color-yellow-700: #8f6d00;
+  --color-orange-100: #ffeedb;
+  --color-orange-500: #fdab3d;
+  --color-orange-700: #b66d0c;
+  --color-red-100: #ffe3e8;
+  --color-red-500: #e2445c;
+  --color-red-700: #bb3354;
+  --color-sky-100: #e6f7ff;
+  --color-sky-500: #66ccff;
+  --color-sky-700: #1279b0;
+  --color-lilac-100: #f1e6ff;
+  --color-lilac-500: #a25ddc;
+  --color-lilac-700: #784bd1;
 
-  --text-primary: var(--neutral-800);
-  --text-secondary: var(--neutral-600);
-  --text-tertiary: var(--neutral-500);
-  --text-disabled: var(--neutral-400);
-  --text-on-primary: #ffffff;
-  --text-link: var(--primary-600);
+  /* Status */
+  --color-success-bg: var(--color-green-100);
+  --color-success-fg: var(--color-green-700);
+  --color-warning-bg: var(--color-yellow-100);
+  --color-warning-fg: var(--color-yellow-700); /* 4.4:1 on warning-bg: words go in text-primary */
+  --color-danger-bg: var(--color-red-100);
+  --color-danger-fg: var(--color-red-700);
+  --color-info-bg: var(--color-primary-100);
+  --color-info-fg: var(--color-primary-700);
 
-  --border-default: #e0e0d8;
-  --border-strong: var(--neutral-300);
-  --border-primary: var(--primary-200);
+  /* AI: violet appears only on AI output */
+  --color-ai-bg: var(--color-lilac-100);
+  --color-ai-fg: var(--color-lilac-700);
+  --color-ai-border: #dccbfa;
 
-  --elevation-card: 0 2px 8px rgb(23 23 20 / 5%);
-  --elevation-shell: 0 18px 44px rgb(23 23 20 / 12%);
+  /* Surfaces */
+  --color-surface-canvas: var(--color-neutral-50);
+  --color-surface-card: var(--color-neutral-0);
+  --color-surface-inset: var(--color-neutral-25);
+  --color-surface-muted: var(--color-neutral-100);
+  --color-surface-overlay: rgb(24 27 52 / 50%);
 
-  /* Tailwind-exposed aliases */
-  --color-primary-50: var(--primary-50);
-  --color-primary-100: var(--primary-100);
-  --color-primary-200: var(--primary-200);
-  --color-primary-300: var(--primary-300);
-  --color-primary-400: var(--primary-400);
-  --color-primary-500: var(--primary-500);
-  --color-primary-600: var(--primary-600);
-  --color-primary-700: var(--primary-700);
-  --color-primary-800: var(--primary-800);
-  --color-primary-900: var(--primary-900);
+  /* Text */
+  --color-text-primary: #23231f;
+  --color-text-secondary: var(--color-neutral-600);
+  --color-text-tertiary: var(--color-neutral-500); /* on surface-card only (4.3:1 on canvas) */
+  --color-text-disabled: var(--color-neutral-400);
+  --color-text-on-primary: #ffffff;
+  --color-text-link: var(--color-primary-600);
 
-  --color-brand-50: var(--primary-50);
-  --color-brand-100: var(--primary-100);
-  --color-brand-200: var(--primary-200);
-  --color-brand-300: var(--primary-300);
-  --color-brand-400: var(--primary-400);
-  --color-brand-500: var(--primary-500);
-  --color-brand-600: var(--primary-600);
-  --color-brand-700: var(--primary-700);
-  --color-brand-800: var(--primary-800);
-  --color-brand-900: var(--primary-900);
+  /* Borders and focus */
+  --color-border-default: #e0e0d8;
+  --color-border-strong: var(--color-neutral-300);
+  --color-border-primary: var(--color-primary-200);
+  --color-focus-ring: var(--color-primary-600);
 
-  --color-ink-50: var(--neutral-50);
-  --color-ink-100: var(--neutral-100);
-  --color-ink-200: var(--neutral-200);
-  --color-ink-300: var(--neutral-300);
-  --color-ink-400: var(--neutral-400);
-  --color-ink-500: var(--neutral-500);
-  --color-ink-600: var(--neutral-600);
-  --color-ink-700: var(--neutral-700);
-  --color-ink-800: var(--neutral-800);
-  --color-ink-900: var(--neutral-900);
+  /* Charts (Recharts reads these as var(--color-chart-1) etc.) */
+  --color-chart-1: var(--color-primary-600);
+  --color-chart-2: var(--color-sky-700);
+  --color-chart-3: var(--color-orange-700);
+  --color-chart-4: var(--color-neutral-500);
+  --color-chart-track: var(--color-neutral-100);
+  --color-chart-grid: var(--color-neutral-200);
+  --color-chart-axis: var(--color-neutral-500);
+  --color-chart-threshold: var(--color-red-700);
+  --color-chart-ai: var(--color-lilac-700);
+  --color-tooltip-bg: var(--color-neutral-900);
 
-  --color-lime-100: var(--accent-lime-100);
-  --color-lime-500: var(--accent-lime-500);
-  --color-lime-700: var(--accent-lime-700);
-  --color-green-100: var(--accent-green-100);
-  --color-green-500: var(--accent-green-500);
-  --color-green-700: var(--accent-green-700);
-  --color-yellow-100: var(--accent-yellow-100);
-  --color-yellow-500: var(--accent-yellow-500);
-  --color-yellow-700: var(--accent-yellow-700);
-  --color-orange-100: var(--accent-orange-100);
-  --color-orange-500: var(--accent-orange-500);
-  --color-orange-700: var(--accent-orange-700);
-  --color-red-100: var(--accent-red-100);
-  --color-red-500: var(--accent-red-500);
-  --color-red-700: var(--accent-red-700);
-  --color-sky-100: var(--accent-sky-100);
-  --color-sky-500: var(--accent-sky-500);
-  --color-sky-700: var(--accent-sky-700);
-  --color-lilac-100: var(--accent-lilac-100);
-  --color-lilac-500: var(--accent-lilac-500);
-  --color-lilac-700: var(--accent-lilac-700);
+  /* Task status (always paired with a word: blocked and completed are close in lightness) */
+  --color-status-todo: var(--color-neutral-500);
+  --color-status-in-progress: var(--color-primary-600);
+  --color-status-review: var(--color-sky-700);
+  --color-status-blocked: var(--color-red-700);
+  --color-status-completed: var(--color-green-700);
+  --color-status-cancelled: var(--color-neutral-300);
 
-  --color-success-bg: var(--success-bg);
-  --color-success-fg: var(--success-fg);
-  --color-success-text: var(--success-text);
-  --color-warning-bg: var(--warning-bg);
-  --color-warning-fg: var(--warning-fg);
-  --color-warning-text: var(--warning-text);
-  --color-danger-50: var(--error-bg);
-  --color-danger-100: var(--error-bg);
-  --color-danger-600: var(--error-fg);
-  --color-danger-700: var(--error-text);
-  --color-info-bg: var(--info-bg);
-  --color-info-fg: var(--info-fg);
-  --color-info-text: var(--info-text);
-  --color-ai-bg: var(--ai-bg);
-  --color-ai-fg: var(--ai-fg);
-  --color-ai-text: var(--ai-text);
+  /* Radius */
+  --radius-sm: 6px; /* chips, square-ended badges, tooltips */
+  --radius-control: 8px; /* buttons, inputs, tabs, segmented controls */
+  --radius-card: 10px; /* cards, panels, dialogs, drawer */
+  --radius-pill: 9999px; /* status badges, avatars, progress bars */
 
-  --color-surface-page: var(--surface-canvas);
-  --color-surface-card: var(--surface-card);
-  --color-surface-muted: var(--surface-canvas-alt);
-  --color-surface-card-alt: var(--surface-card-alt);
-  --color-surface-elevated: var(--surface-elevated);
-  --color-glass-subtle: var(--surface-glass-subtle);
-  --color-glass-strong: var(--surface-glass-strong);
-  --color-glass-tinted: var(--surface-glass-tinted);
-  --color-glass-border: var(--surface-glass-border);
-  --color-border-subtle: var(--border-default);
-  --color-border-strong: var(--border-strong);
-  --color-border-primary: var(--border-primary);
+  /* Shadows: faint, the border does most of the work */
+  --shadow-card: 0 1px 2px rgb(23 23 20 / 4%);
+  --shadow-raised: 0 2px 8px rgb(23 23 20 / 5%);
+  --shadow-overlay: 0 18px 44px rgb(23 23 20 / 12%);
 
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-text-tertiary: var(--text-tertiary);
-  --color-text-disabled: var(--text-disabled);
-  --color-text-link: var(--text-link);
+  /*
+   * Legacy aliases: older class names mapped onto the design-system tokens so existing
+   * components keep rendering. Prefer the names above in new code, then remove these.
+   */
+  --color-ink-50: var(--color-neutral-50);
+  --color-ink-100: var(--color-neutral-100);
+  --color-ink-200: var(--color-neutral-200);
+  --color-ink-300: var(--color-neutral-300);
+  --color-ink-400: var(--color-neutral-400);
+  --color-ink-500: var(--color-neutral-500);
+  --color-ink-600: var(--color-neutral-600);
+  --color-ink-700: var(--color-neutral-700);
+  --color-ink-800: var(--color-neutral-800);
+  --color-ink-900: var(--color-neutral-900);
 
-  --shadow-card: var(--elevation-card);
-  --shadow-shell: var(--elevation-shell);
-}
+  --color-success-text: var(--color-success-fg);
+  --color-warning-text: var(--color-warning-fg);
+  --color-info-text: var(--color-info-fg);
+  --color-ai-text: var(--color-ai-fg);
+  --color-danger-50: var(--color-danger-bg);
+  --color-danger-100: var(--color-danger-bg);
+  --color-danger-600: var(--color-danger-fg);
+  --color-danger-700: var(--color-danger-fg);
 
-@theme {
-  --color-primary-50: var(--primary-50);
-  --color-primary-100: var(--primary-100);
-  --color-primary-200: var(--primary-200);
-  --color-primary-300: var(--primary-300);
-  --color-primary-400: var(--primary-400);
-  --color-primary-500: var(--primary-500);
-  --color-primary-600: var(--primary-600);
-  --color-primary-700: var(--primary-700);
-  --color-primary-800: var(--primary-800);
-  --color-primary-900: var(--primary-900);
+  --color-surface-page: var(--color-surface-canvas);
+  --color-surface-card-alt: var(--color-surface-inset);
+  --color-surface-canvas-alt: var(--color-surface-muted);
+  --color-surface-elevated: var(--color-surface-card);
+  --color-border-subtle: var(--color-border-default);
 
-  --color-brand-50: var(--primary-50);
-  --color-brand-100: var(--primary-100);
-  --color-brand-200: var(--primary-200);
-  --color-brand-300: var(--primary-300);
-  --color-brand-400: var(--primary-400);
-  --color-brand-500: var(--primary-500);
-  --color-brand-600: var(--primary-600);
-  --color-brand-700: var(--primary-700);
-  --color-brand-800: var(--primary-800);
-  --color-brand-900: var(--primary-900);
-
-  --color-ink-50: var(--neutral-50);
-  --color-ink-100: var(--neutral-100);
-  --color-ink-200: var(--neutral-200);
-  --color-ink-300: var(--neutral-300);
-  --color-ink-400: var(--neutral-400);
-  --color-ink-500: var(--neutral-500);
-  --color-ink-600: var(--neutral-600);
-  --color-ink-700: var(--neutral-700);
-  --color-ink-800: var(--neutral-800);
-  --color-ink-900: var(--neutral-900);
-
-  --color-lime-100: var(--accent-lime-100);
-  --color-lime-500: var(--accent-lime-500);
-  --color-lime-700: var(--accent-lime-700);
-  --color-green-100: var(--accent-green-100);
-  --color-green-500: var(--accent-green-500);
-  --color-green-700: var(--accent-green-700);
-  --color-yellow-100: var(--accent-yellow-100);
-  --color-yellow-500: var(--accent-yellow-500);
-  --color-yellow-700: var(--accent-yellow-700);
-  --color-orange-100: var(--accent-orange-100);
-  --color-orange-500: var(--accent-orange-500);
-  --color-orange-700: var(--accent-orange-700);
-  --color-red-100: var(--accent-red-100);
-  --color-red-500: var(--accent-red-500);
-  --color-red-700: var(--accent-red-700);
-  --color-sky-100: var(--accent-sky-100);
-  --color-sky-500: var(--accent-sky-500);
-  --color-sky-700: var(--accent-sky-700);
-  --color-lilac-100: var(--accent-lilac-100);
-  --color-lilac-500: var(--accent-lilac-500);
-  --color-lilac-700: var(--accent-lilac-700);
-
-  --color-success-bg: var(--success-bg);
-  --color-success-fg: var(--success-fg);
-  --color-success-text: var(--success-text);
-  --color-warning-bg: var(--warning-bg);
-  --color-warning-fg: var(--warning-fg);
-  --color-warning-text: var(--warning-text);
-  --color-danger-50: var(--error-bg);
-  --color-danger-100: var(--error-bg);
-  --color-danger-600: var(--error-fg);
-  --color-danger-700: var(--error-text);
-  --color-info-bg: var(--info-bg);
-  --color-info-fg: var(--info-fg);
-  --color-info-text: var(--info-text);
-  --color-ai-bg: var(--ai-bg);
-  --color-ai-fg: var(--ai-fg);
-  --color-ai-text: var(--ai-text);
-
-  --color-surface-page: var(--surface-canvas);
-  --color-surface-card: var(--surface-card);
-  --color-surface-muted: var(--surface-canvas-alt);
-  --color-surface-card-alt: var(--surface-card-alt);
-  --color-surface-elevated: var(--surface-elevated);
-  --color-glass-subtle: var(--surface-glass-subtle);
-  --color-glass-strong: var(--surface-glass-strong);
-  --color-glass-tinted: var(--surface-glass-tinted);
-  --color-glass-border: var(--surface-glass-border);
-  --color-border-subtle: var(--border-default);
-  --color-border-strong: var(--border-strong);
-  --color-border-primary: var(--border-primary);
-
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-text-tertiary: var(--text-tertiary);
-  --color-text-disabled: var(--text-disabled);
-  --color-text-link: var(--text-link);
-
-  --shadow-card: var(--elevation-card);
-  --shadow-shell: var(--elevation-shell);
+  --shadow-shell: var(--shadow-overlay);
 }

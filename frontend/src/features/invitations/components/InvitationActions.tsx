@@ -31,7 +31,7 @@ export function InvitationActions({
       {showAuthActions ? (
         <>
           <Link
-            className="inline-flex min-h-10 items-center justify-center rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-[var(--text-on-primary)] shadow-sm transition hover:bg-primary-700 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary-300"
+            className="inline-flex min-h-10 items-center justify-center rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-text-on-primary shadow-sm transition hover:bg-primary-700 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary-300"
             to={loginPath}
           >
             Sign in

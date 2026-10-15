@@ -331,8 +331,8 @@ export function AdminUserCreateModule() {
                         <span
                           className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                             skill.isCustom
-                              ? 'bg-warning-100 text-warning-700'
-                              : 'bg-success-100 text-success-700'
+                              ? 'bg-warning-bg text-text-primary'
+                              : 'bg-success-bg text-success-fg'
                           }`}
                         >
                           {skill.isCustom ? 'Pending approval' : 'Approved'}

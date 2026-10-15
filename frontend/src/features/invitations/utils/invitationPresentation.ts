@@ -39,7 +39,7 @@ export function getInvitationStatusTone(status: InvitationPublicStatus) {
     case 'revoked':
       return 'border-danger-100 bg-danger-50 text-danger-700'
     case 'accepted':
-      return 'border-success-200 bg-success-100 text-success-700'
+      return 'border-success-fg/30 bg-success-bg text-success-fg'
     default:
       return 'border-border-subtle bg-surface-card-alt text-ink-700'
   }

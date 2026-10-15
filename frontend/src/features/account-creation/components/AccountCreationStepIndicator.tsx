@@ -17,7 +17,7 @@ export function AccountCreationStepIndicator({
             step.status === 'current'
               ? 'border-primary-200 bg-primary-50 text-primary-700'
               : step.status === 'complete'
-                ? 'border-success-100 bg-success-50 text-success-700'
+                ? 'border-success-fg/30 bg-success-bg text-success-fg'
                 : 'border-border-subtle bg-surface-card text-ink-600'
 
           return (
