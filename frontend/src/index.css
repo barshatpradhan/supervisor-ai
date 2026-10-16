@@ -1,6 +1,17 @@
 @import 'tailwindcss';
 @import './styles/tokens.css';
 
+/* Landing page product walkthrough. */
+@keyframes preview-fill {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes preview-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
 /* Design-system type styles. Numbers are always mono with tabular figures. */
 @utility stat-xl {
   font-family: var(--font-mono);

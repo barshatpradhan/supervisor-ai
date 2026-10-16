@@ -27,6 +27,7 @@ export function RadialScore({ color = 'chart-1', label, size = 120, sublabel, th
           cy={size / 2}
           fill="none"
           r={radius}
+          className="transition-[stroke-dasharray] duration-700 ease-out motion-reduce:transition-none"
           stroke={tokenColor(color)}
           strokeDasharray={`${(circumference * clamped) / 100} ${circumference}`}
           strokeLinecap="round"

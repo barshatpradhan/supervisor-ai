@@ -29,7 +29,7 @@ export function ProgressBar({ label, showValue = true, size = 'md', tone = 'prim
         className={`flex-1 overflow-hidden rounded-pill bg-chart-track ${size === 'sm' ? 'h-1.5' : 'h-2'}`}
         role="progressbar"
       >
-        <div className={`h-full rounded-pill ${toneClasses[tone]}`} style={{ width: `${clamped}%` }} />
+        <div className={`h-full rounded-pill transition-[width] duration-700 ease-out motion-reduce:transition-none ${toneClasses[tone]}`} style={{ width: `${clamped}%` }} />
       </div>
       {showValue ? <span className="num-sm w-10 text-right text-text-primary">{clamped}%</span> : null}
     </div>
