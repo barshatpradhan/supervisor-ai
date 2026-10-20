@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react'
 import type { AccountCreationStep } from '../types/accountCreation'
 
 interface AccountCreationStepIndicatorProps {
@@ -10,35 +11,45 @@ export function AccountCreationStepIndicator({
   steps,
 }: AccountCreationStepIndicatorProps) {
   return (
-    <div aria-label={`Account creation steps. Current step: ${currentStepLabel}`} className="rounded-xl border border-border-subtle bg-surface-card-alt p-4">
-      <ol className="grid gap-3 md:grid-cols-4">
+    <nav aria-label={`Account creation steps. Current step: ${currentStepLabel}`}>
+      <ol className="m-0 grid list-none gap-3 p-0 [grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))]">
         {steps.map((step, index) => {
-          const statusClasses =
-            step.status === 'current'
-              ? 'border-primary-200 bg-primary-50 text-primary-700'
-              : step.status === 'complete'
-                ? 'border-success-fg/30 bg-success-bg text-success-fg'
-                : 'border-border-subtle bg-surface-card text-ink-600'
+          const isCurrent = step.status === 'current'
+          const isComplete = step.status === 'complete'
 
           return (
             <li
-              aria-current={step.status === 'current' ? 'step' : undefined}
-              className={`rounded-lg border p-3 ${statusClasses}`}
+              aria-current={isCurrent ? 'step' : undefined}
+              className={[
+                'flex items-start gap-3 border-t-[3px] pt-3',
+                isCurrent ? 'border-primary-600' : isComplete ? 'border-status-completed' : 'border-chart-grid',
+              ].join(' ')}
               key={step.id}
             >
-              <div className="flex items-start gap-3">
-                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-current text-xs font-bold">
-                  {index + 1}
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold">{step.label}</p>
-                  <p className="mt-1 text-xs leading-5 opacity-90">{step.description}</p>
-                </div>
+              <span
+                aria-hidden="true"
+                className={[
+                  'num-sm inline-flex size-7 shrink-0 items-center justify-center rounded-full',
+                  isCurrent
+                    ? 'bg-primary-600 text-text-on-primary'
+                    : isComplete
+                      ? 'bg-success-bg text-success-fg'
+                      : 'border border-border-strong text-text-tertiary',
+                ].join(' ')}
+              >
+                {isComplete ? <Check size={14} /> : index + 1}
+              </span>
+              <div className="min-w-0">
+                <p className={['body-strong m-0', isCurrent ? 'text-text-primary' : 'text-text-secondary'].join(' ')}>
+                  {step.label}
+                  {isComplete ? <span className="sr-only"> (complete)</span> : null}
+                </p>
+                <p className="helper m-0 text-text-tertiary">{step.description}</p>
               </div>
             </li>
           )
         })}
       </ol>
-    </div>
+    </nav>
   )
 }

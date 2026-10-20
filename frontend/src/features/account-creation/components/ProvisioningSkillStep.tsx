@@ -1,8 +1,9 @@
-import { ErrorState } from '../../../components/shared/ErrorState'
-import { EmptyState } from '../../../components/shared/EmptyState'
-import { LoadingState } from '../../../components/shared/LoadingState'
+import { Plus, X } from 'lucide-react'
 import { Button } from '../../../components/ui/Button'
-import { Card } from '../../../components/ui/Card'
+import { Card, CardHeader } from '../../../components/ui/Card'
+import { StateBlock } from '../../../components/ui/StateBlock'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { fieldErrorClass, fieldHintClass, fieldInputClass, fieldLabelClass } from '../../../components/ui/fieldStyles'
 import type { ApprovedSkillCatalogState, SkillSelectionItem } from '../types/accountCreation'
 
 interface ProvisioningSkillStepProps {
@@ -18,9 +19,6 @@ interface ProvisioningSkillStepProps {
   selectedSkills: SkillSelectionItem[]
   validationErrors: Partial<Record<'skills' | `skill-${string}`, string>>
 }
-
-const inputClassName =
-  'min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-primary-600 focus:ring-3 focus:ring-primary-200'
 
 export function ProvisioningSkillStep({
   addApprovedSkill,
@@ -48,69 +46,79 @@ export function ProvisioningSkillStep({
   } = approvedSkillCatalog
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-      <Card className="flex flex-col gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-            Approved skills
-          </p>
-          <h2 className="mt-2 text-xl font-bold text-ink-900">Build the skill list</h2>
-          <p className="mt-2 text-sm leading-6 text-ink-600">
-            Search the approved catalog first, then add a custom skill only when
-            nothing suitable exists. Custom entries remain pending approval after
-            account creation.
-          </p>
-        </div>
+    <div className="grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))]">
+      <Card aria-labelledby="skill-catalog-title" className="flex flex-col gap-4">
+        <CardHeader
+          helper="Pick from the approved catalog first. Custom skills wait for platform approval."
+          id="skill-catalog-title"
+          title="Skill catalog"
+        />
 
-        {isLoading ? <LoadingState label="Loading approved skills" /> : null}
+        {isLoading ? <StateBlock compact kind="loading" title="Loading approved skills" /> : null}
 
         {error ? (
-          <ErrorState
-            message={error}
-            onRetry={() => {
-              void retry()
-            }}
-            title="Unable to load approved skills"
-          />
+          <StateBlock
+            action={<Button onClick={() => { void retry() }} type="button" variant="secondary">Retry</Button>}
+            compact
+            kind="error"
+            title="Approved skills could not be loaded"
+          >
+            {error}
+          </StateBlock>
         ) : null}
 
         {!isLoading && !error ? (
           <>
-            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
-              <label className="grid gap-2 text-sm font-semibold text-ink-800">
-                Search approved skills
+            <div className="grid gap-3 [grid-template-columns:minmax(0,1fr)_minmax(0,180px)]">
+              <label className={fieldLabelClass}>
+                Search
                 <input
-                  className={inputClassName}
+                  className={fieldInputClass}
                   onChange={(event) => setSearchValue(event.target.value)}
-                  placeholder="Search React, SQL, QA..."
+                  placeholder="React, SQL, QA…"
                   type="search"
                   value={searchValue}
                 />
               </label>
-
-              <label className="grid gap-2 text-sm font-semibold text-ink-800">
-                Filter by category
-                <select
-                  className={inputClassName}
-                  onChange={(event) => setSelectedCategory(event.target.value)}
-                  value={selectedCategory}
-                >
+              <label className={fieldLabelClass}>
+                Category
+                <select className={fieldInputClass} onChange={(event) => setSelectedCategory(event.target.value)} value={selectedCategory}>
                   <option value="">All categories</option>
                   {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
+                    <option key={category} value={category}>{category}</option>
                   ))}
                 </select>
               </label>
             </div>
 
-            <div className="rounded-xl border border-border-subtle bg-surface-card-alt p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                <label className="grid flex-1 gap-2 text-sm font-semibold text-ink-800">
-                  Add a custom skill
+            {filteredSkills.length === 0 ? (
+              <StateBlock compact title="No approved skills match">
+                Try a different search or category, or add a custom skill below.
+              </StateBlock>
+            ) : (
+              <ul aria-label="Approved skills available for selection" className="m-0 flex list-none flex-wrap gap-2 p-0">
+                {filteredSkills.map((skill) => (
+                  <li key={skill.id}>
+                    <button
+                      className="body inline-flex min-h-9 items-center gap-1.5 rounded-full border border-border-strong bg-surface-card px-3 text-text-primary transition hover:border-primary-600 hover:bg-primary-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+                      onClick={() => addApprovedSkill(skill.id)}
+                      title={skill.category ?? 'Uncategorized'}
+                      type="button"
+                    >
+                      <Plus aria-hidden="true" className="text-text-tertiary" size={14} />
+                      {skill.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <div className="flex flex-col gap-2 border-t border-chart-grid pt-4">
+              <div className="flex flex-wrap items-end gap-3">
+                <label className={`${fieldLabelClass} min-w-0 flex-1`}>
+                  Custom skill
                   <input
-                    className={inputClassName}
+                    className={fieldInputClass}
                     onChange={(event) => onCustomSkillInputChange(event.target.value)}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter') {
@@ -118,137 +126,82 @@ export function ProvisioningSkillStep({
                         addCustomSkill()
                       }
                     }}
-                    placeholder="Only add a custom skill if the catalog does not fit"
+                    placeholder="Only if the catalog has nothing suitable"
                     type="text"
                     value={customSkillInput}
                   />
                 </label>
-                <Button className="sm:min-w-40" onClick={addCustomSkill} type="button" variant="secondary">
-                  Add custom skill
-                </Button>
+                <Button onClick={addCustomSkill} type="button" variant="secondary">Add custom skill</Button>
               </div>
-              <p className="mt-2 text-sm text-ink-600">{customSkillMessage}</p>
-              {validationErrors.skills ? (
-                <p className="mt-2 text-sm font-medium text-danger-700">
-                  {validationErrors.skills}
-                </p>
-              ) : null}
+              {customSkillMessage ? <p className={`${fieldHintClass} m-0`}>{customSkillMessage}</p> : null}
+              {validationErrors.skills ? <p className={`${fieldErrorClass} m-0`}>{validationErrors.skills}</p> : null}
             </div>
-
-            {filteredSkills.length === 0 ? (
-              <EmptyState
-                description="Try a different search or category, or add a custom skill if the catalog does not have the right match."
-                title="No approved skills match this filter"
-              />
-            ) : (
-              <ul className="grid gap-3 md:grid-cols-2" aria-label="Approved skills available for selection">
-                {filteredSkills.map((skill) => (
-                  <li key={skill.id}>
-                    <button
-                      className="flex h-full w-full flex-col items-start rounded-xl border border-border-subtle bg-surface-card p-4 text-left transition hover:border-primary-200 hover:bg-primary-50 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary-300"
-                      onClick={() => addApprovedSkill(skill.id)}
-                      type="button"
-                    >
-                      <span className="text-sm font-semibold text-ink-900">{skill.name}</span>
-                      <span className="mt-1 text-xs text-ink-600">
-                        {skill.category ?? 'Uncategorized'}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
           </>
         ) : null}
       </Card>
 
-      <Card className="flex flex-col gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-            Selected skills
-          </p>
-          <h2 className="mt-2 text-xl font-bold text-ink-900">Add proficiency details</h2>
-          <p className="mt-2 text-sm leading-6 text-ink-600">
-            Each skill needs a proficiency level and optional years of experience.
-          </p>
-        </div>
+      <Card aria-labelledby="selected-skills-title" className="flex flex-col gap-4">
+        <CardHeader
+          helper="Set a proficiency for each skill; years of experience are optional."
+          id="selected-skills-title"
+          title={`Selected skills${selectedSkills.length > 0 ? ` · ${selectedSkills.length}` : ''}`}
+        />
 
         {selectedSkills.length === 0 ? (
-          <EmptyState
-            description="Choose approved skills or add a custom skill to capture what this person can do."
-            title="No skills selected yet"
-          />
+          <StateBlock compact title="No skills selected yet">
+            Choose from the catalog or add a custom skill.
+          </StateBlock>
         ) : (
-          <ul className="grid gap-4" aria-label="Selected skills">
+          <ul aria-label="Selected skills" className="m-0 flex list-none flex-col p-0">
             {selectedSkills.map((skill) => {
               const fieldError = validationErrors[`skill-${skill.clientId}`]
 
               return (
-                <li
-                  className="rounded-xl border border-border-subtle bg-surface-card-alt p-4"
-                  key={skill.clientId}
-                >
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold text-ink-900">{skill.name}</p>
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                              skill.isCustom
-                                ? 'bg-warning-bg text-text-primary'
-                                : 'bg-success-bg text-success-fg'
-                            }`}
-                          >
-                            {skill.isCustom ? 'Pending approval' : 'Approved'}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-xs text-ink-600">
+                <li className="flex flex-col gap-3 border-t border-chart-grid py-3 first:border-t-0 first:pt-0" key={skill.clientId}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="body-strong m-0 text-text-primary">{skill.name}</p>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <StatusBadge status={skill.isCustom ? 'pending' : 'approved'} label={skill.isCustom ? 'Pending approval' : 'Approved'} />
+                        <span className="helper text-text-tertiary">
                           {skill.category ?? (skill.isCustom ? 'Custom skill' : 'Uncategorized')}
-                        </p>
+                        </span>
                       </div>
-                      <Button onClick={() => onRemoveSkill(skill.clientId)} type="button" variant="ghost">
-                        Remove
-                      </Button>
                     </div>
-
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <label className="grid gap-2 text-sm font-semibold text-ink-800">
-                        Proficiency level
-                        <select
-                          className={inputClassName}
-                          onChange={(event) =>
-                            onUpdateSkillProficiency(skill.clientId, Number(event.target.value))
-                          }
-                          value={skill.proficiencyLevel}
-                        >
-                          {[1, 2, 3, 4, 5].map((level) => (
-                            <option key={level} value={level}>
-                              {level} / 5
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label className="grid gap-2 text-sm font-semibold text-ink-800">
-                        Years of experience
-                        <input
-                          className={inputClassName}
-                          inputMode="decimal"
-                          min="0"
-                          onChange={(event) => onUpdateSkillYears(skill.clientId, event.target.value)}
-                          placeholder="Optional"
-                          step="0.5"
-                          type="number"
-                          value={skill.yearsOfExperience}
-                        />
-                      </label>
-                    </div>
-
-                    {fieldError ? (
-                      <p className="text-sm font-medium text-danger-700">{fieldError}</p>
-                    ) : null}
+                    <Button aria-label={`Remove ${skill.name}`} onClick={() => onRemoveSkill(skill.clientId)} type="button" variant="ghost">
+                      <X aria-hidden="true" size={16} />
+                    </Button>
                   </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className={fieldLabelClass}>
+                      Proficiency
+                      <select
+                        className={fieldInputClass}
+                        onChange={(event) => onUpdateSkillProficiency(skill.clientId, Number(event.target.value))}
+                        value={skill.proficiencyLevel}
+                      >
+                        {[1, 2, 3, 4, 5].map((level) => (
+                          <option key={level} value={level}>{level} / 5</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className={fieldLabelClass}>
+                      Years of experience
+                      <input
+                        className={fieldInputClass}
+                        inputMode="decimal"
+                        min="0"
+                        onChange={(event) => onUpdateSkillYears(skill.clientId, event.target.value)}
+                        placeholder="Optional"
+                        step="0.5"
+                        type="number"
+                        value={skill.yearsOfExperience}
+                      />
+                    </label>
+                  </div>
+
+                  {fieldError ? <p className={`${fieldErrorClass} m-0`}>{fieldError}</p> : null}
                 </li>
               )
             })}

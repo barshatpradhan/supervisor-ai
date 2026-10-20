@@ -11,6 +11,7 @@ import {
   listPendingSkills,
   rejectSkill,
 } from "../services/skillService.js";
+import { listUserDirectory, parseUserDirectoryQuery } from "../services/userDirectoryService.js";
 import type { AdminProvisionUserInput } from "../types/provisioning.js";
 import { AppError } from "../utils/appError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
@@ -21,6 +22,16 @@ export async function getUsers(req: Request, res: Response, next: NextFunction) 
     const users = await listAppUsers();
 
     return sendSuccess(res, 200, "Users fetched successfully.", users);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function getUserDirectory(req: Request, res: Response, next: NextFunction) {
+  try {
+    const directory = await listUserDirectory(parseUserDirectoryQuery(req.query as Record<string, unknown>));
+
+    return sendSuccess(res, 200, "User directory fetched successfully.", directory);
   } catch (error) {
     return next(error);
   }

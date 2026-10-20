@@ -123,6 +123,36 @@ export interface BackendApprovedSkill {
 
 export type BackendPendingSkill = BackendApprovedSkill
 
+export type BackendUserDirectoryRoleFilter =
+  | BackendOrganizationMembershipRole
+  | 'platform_admin'
+  | 'unassigned'
+
+export interface BackendUserDirectoryEntry {
+  key: string
+  user_id: string
+  email: string | null
+  full_name: string | null
+  job_title: string | null
+  platform_role: BackendPlatformRole | null
+  created_at: string
+  organization: { id: string; name: string } | null
+  organization_role: BackendOrganizationMembershipRole | null
+  membership_status: BackendOrganizationMembershipStatus | null
+  teams: Array<{ id: string; name: string }>
+}
+
+export interface BackendUserDirectoryPage {
+  items: BackendUserDirectoryEntry[]
+  page: number
+  page_size: number
+  total: number
+  total_pages: number
+  filters: {
+    organizations: Array<{ id: string; name: string; teams: Array<{ id: string; name: string }> }>
+  }
+}
+
 export interface BackendDashboardMetrics {
   organizationCount: number
   userCount: number

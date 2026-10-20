@@ -4,6 +4,7 @@ import {
   approveSkillHandler,
   getDashboardMetrics,
   getPendingSkills,
+  getUserDirectory,
   getUsers,
   rejectSkillHandler,
   updateUserRole,
@@ -38,6 +39,7 @@ router.use(authenticateUser, requirePlatformRole("platform_admin"));
 router.get("/dashboard", getDashboardMetrics);
 
 router.get("/users", getUsers);
+router.get("/users/directory", getUserDirectory);
 router.post("/users", validateAdminCreateUserRequest, createUserHandler);
 router.patch("/users/:userId/role", updateUserRole);
 

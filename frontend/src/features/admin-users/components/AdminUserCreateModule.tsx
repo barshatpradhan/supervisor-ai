@@ -1,16 +1,61 @@
-import type { FormEvent } from 'react'
-import { ErrorState } from '../../../components/shared/ErrorState'
-import { EmptyState } from '../../../components/shared/EmptyState'
+import type { FormEvent, ReactNode } from 'react'
 import { Button } from '../../../components/ui/Button'
-import { Card } from '../../../components/ui/Card'
+import { Card, CardHeader } from '../../../components/ui/Card'
+import { PageHeader } from '../../../components/ui/PageHeader'
+import { Segmented } from '../../../components/ui/Segmented'
+import { StateBlock } from '../../../components/ui/StateBlock'
+import { StatusBadge } from '../../../components/ui/StatusBadge'
+import {
+  fieldErrorClass,
+  fieldHintClass,
+  fieldInputClass,
+  fieldLabelClass,
+  fieldTextareaClass,
+} from '../../../components/ui/fieldStyles'
 import { AccountCreationStepIndicator } from '../../account-creation/components/AccountCreationStepIndicator'
 import { ProvisioningSkillStep } from '../../account-creation/components/ProvisioningSkillStep'
 import { useAdminUserCreationForm } from '../hooks/useAdminUserCreationForm'
 
-const inputClassName =
-  'min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-primary-600 focus:ring-3 focus:ring-primary-200'
+const ROLE_OPTIONS = [
+  { id: 'employee', label: 'Employee' },
+  { id: 'supervisor', label: 'Supervisor' },
+] as const
 
-const textAreaClassName = `${inputClassName} min-h-32 py-3`
+const ROLE_HINTS = {
+  employee: 'Gets tasks, a skills profile and workload tracking.',
+  supervisor: 'Manages projects and assigns work to employees.',
+} as const
+
+function Field({ children, error, errorId, hint, label, wide = false }: {
+  children: ReactNode
+  error?: string
+  errorId: string
+  hint?: string
+  label: string
+  wide?: boolean
+}) {
+  return (
+    <label className={`${fieldLabelClass}${wide ? ' [grid-column:1/-1]' : ''}`}>
+      {label}
+      {children}
+      {hint ? <span className={fieldHintClass}>{hint}</span> : null}
+      {error ? <span className={fieldErrorClass} id={errorId}>{error}</span> : null}
+    </label>
+  )
+}
+
+function ReviewList({ items }: { items: { label: string; value: ReactNode }[] }) {
+  return (
+    <dl className="m-0 flex flex-col">
+      {items.map((item) => (
+        <div className="flex justify-between gap-4 border-t border-chart-grid py-2.5 first:border-t-0 first:pt-0" key={item.label}>
+          <dt className="body text-text-secondary">{item.label}</dt>
+          <dd className="body-strong m-0 text-right text-text-primary [overflow-wrap:anywhere]">{item.value}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
 
 export function AdminUserCreateModule() {
   const form = useAdminUserCreationForm()
@@ -37,11 +82,12 @@ export function AdminUserCreateModule() {
     validationErrors,
     values,
   } = form
+  const isLastStep = currentStepIndex === steps.length - 1
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (currentStepIndex === steps.length - 1) {
+    if (isLastStep) {
       await submit()
       return
     }
@@ -50,147 +96,96 @@ export function AdminUserCreateModule() {
   }
 
   return (
-    <form className="grid gap-5" onSubmit={handleSubmit}>
-      <AccountCreationStepIndicator
-        currentStepLabel={steps[currentStepIndex]?.label ?? 'Account'}
-        steps={steps}
+    <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+      <PageHeader
+        back={{ label: 'Platform', to: '/platform-admin' }}
+        subtitle="Create an employee or supervisor account. They get an email to set their password."
+        title="New user"
       />
 
+      <AccountCreationStepIndicator currentStepLabel={steps[currentStepIndex]?.label ?? 'Account'} steps={steps} />
+
       {submitError ? (
-        <ErrorState message={submitError} title="Unable to create the user" />
+        <StateBlock kind="error" title="The user could not be created">{submitError}</StateBlock>
       ) : null}
 
       {currentStepIndex === 0 ? (
-        <Card className="grid gap-5">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-              Step 1
-            </p>
-            <h2 className="mt-2 text-xl font-bold text-ink-900">Choose the account type</h2>
-            <p className="mt-2 text-sm leading-6 text-ink-600">
-              Admin provisioning supports employees and supervisors only.
-            </p>
+        <Card aria-labelledby="account-step-title" className="flex flex-col gap-5">
+          <CardHeader helper="Admin provisioning supports employees and supervisors." id="account-step-title" title="Account" />
+          <div className="flex flex-col gap-1.5">
+            <Segmented
+              label="User role"
+              onChange={(role) => setValue('role', role)}
+              options={ROLE_OPTIONS}
+              value={values.role}
+            />
+            <p className={`${fieldHintClass} m-0`}>{ROLE_HINTS[values.role]}</p>
+            {validationErrors.role ? <p className={`${fieldErrorClass} m-0`} id="admin-role-error">{validationErrors.role}</p> : null}
           </div>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <label className="grid gap-2 text-sm font-semibold text-ink-800">
-              User role
-              <select
-                aria-describedby={validationErrors.role ? 'admin-role-error' : undefined}
-                aria-invalid={Boolean(validationErrors.role)}
-                className={inputClassName}
-                onChange={(event) =>
-                  setValue('role', event.target.value as 'employee' | 'supervisor')
-                }
-                value={values.role}
-              >
-                <option value="employee">Employee</option>
-                <option value="supervisor">Supervisor</option>
-              </select>
-              {validationErrors.role ? (
-                <span className="text-sm font-medium text-danger-700" id="admin-role-error">
-                  {validationErrors.role}
-                </span>
-              ) : null}
-            </label>
-
-            <label className="grid gap-2 text-sm font-semibold text-ink-800">
-              Email
+          <div className="max-w-xl">
+            <Field error={validationErrors.email} errorId="admin-email-error" label="Email">
               <input
                 aria-describedby={validationErrors.email ? 'admin-email-error' : undefined}
                 aria-invalid={Boolean(validationErrors.email)}
-                className={inputClassName}
+                autoComplete="off"
+                className={fieldInputClass}
                 onChange={(event) => setValue('email', event.target.value)}
                 placeholder="new.user@example.com"
                 required
                 type="email"
                 value={values.email}
               />
-              {validationErrors.email ? (
-                <span className="text-sm font-medium text-danger-700" id="admin-email-error">
-                  {validationErrors.email}
-                </span>
-              ) : null}
-            </label>
+            </Field>
           </div>
         </Card>
       ) : null}
 
       {currentStepIndex === 1 ? (
-        <Card className="grid gap-5">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-              Step 2
-            </p>
-            <h2 className="mt-2 text-xl font-bold text-ink-900">Capture profile information</h2>
-            <p className="mt-2 text-sm leading-6 text-ink-600">
-              Only user-provided profile fields are collected here. System-managed
-              metrics stay protected.
-            </p>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <label className="grid gap-2 text-sm font-semibold text-ink-800">
-              Full name
+        <Card aria-labelledby="profile-step-title" className="flex flex-col gap-5">
+          <CardHeader
+            helper="Workload, availability and performance are calculated by the system later."
+            id="profile-step-title"
+            title="Profile"
+          />
+          <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]">
+            <Field error={validationErrors.fullName} errorId="admin-full-name-error" label="Full name">
               <input
                 aria-describedby={validationErrors.fullName ? 'admin-full-name-error' : undefined}
                 aria-invalid={Boolean(validationErrors.fullName)}
-                className={inputClassName}
+                className={fieldInputClass}
                 onChange={(event) => setValue('fullName', event.target.value)}
-                placeholder={values.role === 'employee' ? 'Employee name' : 'Supervisor name'}
+                placeholder="First and last name"
                 required
                 type="text"
                 value={values.fullName}
               />
-              {validationErrors.fullName ? (
-                <span className="text-sm font-medium text-danger-700" id="admin-full-name-error">
-                  {validationErrors.fullName}
-                </span>
-              ) : null}
-            </label>
+            </Field>
 
             {values.role === 'employee' ? (
               <>
-                <label className="grid gap-2 text-sm font-semibold text-ink-800">
-                  Employment type
+                <Field error={validationErrors.employmentType} errorId="admin-employment-type-error" label="Employment type">
                   <select
-                    aria-describedby={
-                      validationErrors.employmentType ? 'admin-employment-type-error' : undefined
-                    }
+                    aria-describedby={validationErrors.employmentType ? 'admin-employment-type-error' : undefined}
                     aria-invalid={Boolean(validationErrors.employmentType)}
-                    className={inputClassName}
-                    onChange={(event) =>
-                      setValue(
-                        'employmentType',
-                        event.target.value as 'full_time' | 'part_time' | '',
-                      )
-                    }
+                    className={fieldInputClass}
+                    onChange={(event) => setValue('employmentType', event.target.value as 'full_time' | 'part_time' | '')}
                     value={values.employmentType}
                   >
                     <option value="">Select employment type</option>
                     <option value="full_time">Full-time</option>
                     <option value="part_time">Part-time</option>
                   </select>
-                  {validationErrors.employmentType ? (
-                    <span
-                      className="text-sm font-medium text-danger-700"
-                      id="admin-employment-type-error"
-                    >
-                      {validationErrors.employmentType}
-                    </span>
-                  ) : null}
-                </label>
-
-                <label className="grid gap-2 text-sm font-semibold text-ink-800">
-                  Weekly capacity hours
+                </Field>
+                <Field
+                  error={validationErrors.weeklyCapacityHours}
+                  errorId="admin-weekly-capacity-hours-error"
+                  hint="Used to calculate workload. 1–168."
+                  label="Weekly capacity (hours)"
+                >
                   <input
-                    aria-describedby={
-                      validationErrors.weeklyCapacityHours
-                        ? 'admin-weekly-capacity-hours-error'
-                        : undefined
-                    }
+                    aria-describedby={validationErrors.weeklyCapacityHours ? 'admin-weekly-capacity-hours-error' : undefined}
                     aria-invalid={Boolean(validationErrors.weeklyCapacityHours)}
-                    className={inputClassName}
+                    className={fieldInputClass}
                     inputMode="numeric"
                     max="168"
                     min="1"
@@ -199,61 +194,34 @@ export function AdminUserCreateModule() {
                     type="number"
                     value={values.weeklyCapacityHours}
                   />
-                  {validationErrors.weeklyCapacityHours ? (
-                    <span
-                      className="text-sm font-medium text-danger-700"
-                      id="admin-weekly-capacity-hours-error"
-                    >
-                      {validationErrors.weeklyCapacityHours}
-                    </span>
-                  ) : null}
-                </label>
+                </Field>
               </>
             ) : (
-              <label className="grid gap-2 text-sm font-semibold text-ink-800">
-                Department
+              <Field error={validationErrors.department} errorId="admin-department-error" label="Department">
                 <input
                   aria-describedby={validationErrors.department ? 'admin-department-error' : undefined}
                   aria-invalid={Boolean(validationErrors.department)}
-                  className={inputClassName}
+                  className={fieldInputClass}
                   onChange={(event) => setValue('department', event.target.value)}
                   placeholder="Engineering"
                   required
                   type="text"
                   value={values.department}
                 />
-                {validationErrors.department ? (
-                  <span className="text-sm font-medium text-danger-700" id="admin-department-error">
-                    {validationErrors.department}
-                  </span>
-                ) : null}
-              </label>
+              </Field>
             )}
 
-            <label className="grid gap-2 text-sm font-semibold text-ink-800 lg:col-span-2">
-              Bio
+            <Field error={validationErrors.bio} errorId="admin-bio-error" hint={`${values.bio.length}/800 characters · optional`} label="Bio" wide>
               <textarea
                 aria-describedby={validationErrors.bio ? 'admin-bio-error' : undefined}
                 aria-invalid={Boolean(validationErrors.bio)}
-                className={textAreaClassName}
+                className={fieldTextareaClass}
                 maxLength={800}
                 onChange={(event) => setValue('bio', event.target.value)}
-                placeholder={
-                  values.role === 'employee'
-                    ? 'Optional employee bio'
-                    : 'Optional supervisor bio'
-                }
+                placeholder="What they work on and what they are good at"
                 value={values.bio}
               />
-              <span className="text-xs font-medium text-ink-500">
-                {values.bio.length}/800 characters
-              </span>
-              {validationErrors.bio ? (
-                <span className="text-sm font-medium text-danger-700" id="admin-bio-error">
-                  {validationErrors.bio}
-                </span>
-              ) : null}
-            </label>
+            </Field>
           </div>
         </Card>
       ) : null}
@@ -274,121 +242,74 @@ export function AdminUserCreateModule() {
         />
       ) : null}
 
-      {currentStepIndex === steps.length - 1 ? (
-        <Card className="grid gap-5">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-              Final step
-            </p>
-            <h2 className="mt-2 text-xl font-bold text-ink-900">Review the account request</h2>
-            <p className="mt-2 text-sm leading-6 text-ink-600">
-              Check the role-specific details before creating the user.
-            </p>
-          </div>
-
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-            <Card className="bg-surface-card-alt p-4">
-              <h3 className="text-sm font-semibold text-ink-900">Account</h3>
-              <dl className="mt-3 grid gap-2 text-sm text-ink-700">
-                <div>
-                  <dt className="font-medium text-ink-500">Email</dt>
-                  <dd>{reviewData.account.email}</dd>
-                </div>
-                <div>
-                  <dt className="font-medium text-ink-500">Role</dt>
-                  <dd>{reviewData.account.roleLabel}</dd>
-                </div>
-              </dl>
+      {isLastStep ? (
+        <div className="flex flex-col gap-6">
+          <div className="grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr))]">
+            <Card aria-labelledby="review-account-title" className="flex flex-col gap-3">
+              <CardHeader id="review-account-title" level={3} title="Account" />
+              <ReviewList
+                items={[
+                  { label: 'Email', value: reviewData.account.email },
+                  { label: 'Role', value: reviewData.account.roleLabel },
+                ]}
+              />
             </Card>
-
-            <Card className="bg-surface-card-alt p-4">
-              <h3 className="text-sm font-semibold text-ink-900">Profile</h3>
-              <dl className="mt-3 grid gap-2 text-sm text-ink-700">
-                {reviewData.profile.map((item) => (
-                  <div key={item.label}>
-                    <dt className="font-medium text-ink-500">{item.label}</dt>
-                    <dd>{item.value}</dd>
-                  </div>
-                ))}
-              </dl>
+            <Card aria-labelledby="review-profile-title" className="flex flex-col gap-3">
+              <CardHeader id="review-profile-title" level={3} title="Profile" />
+              <ReviewList items={reviewData.profile} />
             </Card>
           </div>
 
           {values.role === 'employee' ? (
-            reviewData.skills.length === 0 ? (
-              <EmptyState
-                description="This employee will be created without initial skills."
-                title="No skills selected"
-              />
-            ) : (
-              <Card className="bg-surface-card-alt p-4">
-                <h3 className="text-sm font-semibold text-ink-900">Skills</h3>
-                <ul className="mt-3 grid gap-3 md:grid-cols-2">
+            <Card aria-labelledby="review-skills-title" className="flex flex-col gap-3">
+              <CardHeader id="review-skills-title" level={3} title={`Skills · ${reviewData.skills.length}`} />
+              {reviewData.skills.length === 0 ? (
+                <StateBlock compact title="No skills selected">This employee will be created without initial skills.</StateBlock>
+              ) : (
+                <ul className="m-0 grid list-none gap-x-6 p-0 [grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr))]">
                   {reviewData.skills.map((skill) => (
-                    <li className="rounded-lg border border-border-subtle bg-surface-card p-3" key={skill.clientId}>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-semibold text-ink-900">{skill.name}</span>
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                            skill.isCustom
-                              ? 'bg-warning-bg text-text-primary'
-                              : 'bg-success-bg text-success-fg'
-                          }`}
-                        >
-                          {skill.isCustom ? 'Pending approval' : 'Approved'}
-                        </span>
+                    <li className="flex items-center justify-between gap-3 border-t border-chart-grid py-2.5" key={skill.clientId}>
+                      <div className="min-w-0">
+                        <p className="body-strong m-0 truncate text-text-primary">{skill.name}</p>
+                        <p className="helper m-0 text-text-tertiary">
+                          {skill.proficiencyLevel}/5{skill.yearsOfExperience ? ` · ${skill.yearsOfExperience} years` : ''}
+                        </p>
                       </div>
-                      <p className="mt-2 text-sm text-ink-600">
-                        Proficiency {skill.proficiencyLevel}/5
-                        {skill.yearsOfExperience
-                          ? ` • ${skill.yearsOfExperience} years`
-                          : ' • Experience not specified'}
-                      </p>
+                      <StatusBadge label={skill.isCustom ? 'Pending approval' : 'Approved'} status={skill.isCustom ? 'pending' : 'approved'} />
                     </li>
                   ))}
                 </ul>
-              </Card>
-            )
+              )}
+            </Card>
           ) : null}
 
-          <label className="flex items-start gap-3 rounded-lg border border-border-subtle bg-surface-card-alt p-4 text-sm text-ink-700">
-            <input
-              aria-describedby={validationErrors.reviewConfirmed ? 'admin-review-confirmed-error' : undefined}
-              aria-invalid={Boolean(validationErrors.reviewConfirmed)}
-              checked={values.reviewConfirmed}
-              className="mt-1 h-4 w-4 rounded border-border-subtle text-primary-600 focus:ring-primary-300"
-              onChange={(event) => setReviewConfirmed(event.target.checked)}
-              type="checkbox"
-            />
-            <span>I confirm this user information is ready to submit for account creation.</span>
-          </label>
-          {validationErrors.reviewConfirmed ? (
-            <p className="text-sm font-medium text-danger-700" id="admin-review-confirmed-error">
-              {validationErrors.reviewConfirmed}
-            </p>
-          ) : null}
-        </Card>
+          <div className="flex flex-col gap-1.5">
+            <label className="body flex items-start gap-3 text-text-primary">
+              <input
+                aria-describedby={validationErrors.reviewConfirmed ? 'admin-review-confirmed-error' : undefined}
+                aria-invalid={Boolean(validationErrors.reviewConfirmed)}
+                checked={values.reviewConfirmed}
+                className="mt-0.5 size-4 accent-primary-600"
+                onChange={(event) => setReviewConfirmed(event.target.checked)}
+                type="checkbox"
+              />
+              <span>I confirm these details are ready and the account can be created.</span>
+            </label>
+            {validationErrors.reviewConfirmed ? (
+              <p className={`${fieldErrorClass} m-0`} id="admin-review-confirmed-error">{validationErrors.reviewConfirmed}</p>
+            ) : null}
+          </div>
+        </div>
       ) : null}
 
-      <div className="flex flex-col gap-3 border-t border-border-subtle pt-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-ink-600">
-          Step {currentStepIndex + 1} of {steps.length}
-        </p>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button
-            disabled={currentStepIndex === 0 || isSubmitting}
-            onClick={goToPreviousStep}
-            type="button"
-            variant="secondary"
-          >
-            Back
-          </Button>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-default pt-4">
+        <p className="helper m-0 text-text-secondary">Step {currentStepIndex + 1} of {steps.length}</p>
+        <div className="flex gap-3">
+          {currentStepIndex > 0 ? (
+            <Button disabled={isSubmitting} onClick={goToPreviousStep} type="button" variant="secondary">Back</Button>
+          ) : null}
           <Button disabled={isSubmitting} type="submit">
-            {currentStepIndex === steps.length - 1
-              ? isSubmitting
-                ? 'Creating user...'
-                : 'Create user'
-              : 'Continue'}
+            {isLastStep ? (isSubmitting ? 'Creating user…' : 'Create user') : 'Continue'}
           </Button>
         </div>
       </div>

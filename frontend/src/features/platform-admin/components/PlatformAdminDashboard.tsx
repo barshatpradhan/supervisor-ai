@@ -1,117 +1,80 @@
+import { UserPlus } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { ErrorState } from '../../../components/shared/ErrorState'
-import { LoadingState } from '../../../components/shared/LoadingState'
 import { Button } from '../../../components/ui/Button'
-import { Card } from '../../../components/ui/Card'
+import { PageHeader } from '../../../components/ui/PageHeader'
+import { StateBlock } from '../../../components/ui/StateBlock'
+import { StatTile } from '../../../components/ui/StatTile'
 import { useApiResource } from '../../../hooks/useApiResource'
 import { getDashboardMetrics } from '../../../services/admin/adminDashboardService'
 import { listEmployeeUsers } from '../../../services/employees/employeeService'
 import { PendingSkillsQueue } from './PendingSkillsQueue'
-
-function Metric({ label, value }: { label: string; value: number }) {
-  return (
-    <Card className="p-5">
-      <p className="text-sm font-semibold text-ink-700">{label}</p>
-      <p className="mt-3 text-3xl font-bold tracking-tight text-ink-900">{value}</p>
-    </Card>
-  )
-}
+import { UserDirectory } from './UserDirectory'
 
 export function PlatformAdminDashboard() {
   const usersQuery = useApiResource(listEmployeeUsers)
   const metricsQuery = useApiResource(getDashboardMetrics)
 
-  if (usersQuery.isLoading) {
-    return <LoadingState label="Loading platform administration..." />
-  }
-
-  if (usersQuery.error || !usersQuery.data) {
-    return (
-      <ErrorState
-        error={usersQuery.error}
-        onRetry={() => void usersQuery.refetch()}
-        title="Unable to load platform administration"
-      />
-    )
-  }
-
-  const users = usersQuery.data
+  const users = usersQuery.data ?? []
   const employees = users.filter((user) => user.role === 'employee').length
   const supervisors = users.filter((user) => user.role === 'supervisor').length
   const administrators = users.filter((user) => user.role === 'admin').length
+  const metrics = metricsQuery.data
+  const totalsFailed = Boolean(metricsQuery.error || usersQuery.error)
+
+  function refreshTotals() {
+    void metricsQuery.refetch()
+    void usersQuery.refetch()
+  }
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-lg border border-border-subtle bg-surface-card p-5 sm:p-6">
-        <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-          Platform administration
-        </p>
-        <div className="mt-2 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-normal text-ink-900">Platform dashboard</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-600">
-              Review managed account totals and provision employee or supervisor accounts.
-            </p>
-          </div>
-          <Link to="/admin/users/new">
-            <Button>Create user</Button>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        actions={
+          <Link
+            className="inline-flex min-h-10 items-center gap-2 rounded-control bg-primary-600 px-4 text-sm font-semibold text-text-on-primary no-underline hover:bg-primary-700"
+            to="/admin/users/new"
+          >
+            <UserPlus aria-hidden="true" size={16} />
+            Create user
           </Link>
-        </div>
-      </section>
+        }
+        subtitle="Every organization and account on the platform, and the skills waiting for review."
+        title="Platform"
+      />
 
-      {metricsQuery.isLoading ? (
-        <LoadingState label="Loading platform totals..." />
-      ) : metricsQuery.error || !metricsQuery.data ? (
-        <ErrorState
-          error={metricsQuery.error}
-          onRetry={() => void metricsQuery.refetch()}
-          title="Unable to load platform totals"
-        />
+      {totalsFailed ? (
+        <StateBlock action={<Button onClick={refreshTotals} variant="secondary">Retry</Button>} kind="error" title="Platform totals could not be loaded">
+          The user list below may still work.
+        </StateBlock>
+      ) : metricsQuery.isLoading || usersQuery.isLoading || !metrics ? (
+        <StateBlock kind="loading" title="Loading platform totals" />
       ) : (
-        <section aria-label="Platform totals" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <Metric label="Organizations" value={metricsQuery.data.organizationCount} />
-          <Metric label="Total users" value={metricsQuery.data.userCount} />
-          <Metric label="Pending skills" value={metricsQuery.data.pendingSkillsCount} />
+        <section aria-label="Platform totals" className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))]">
+          <StatTile context="On the platform" label="Organizations" value={metrics.organizationCount} />
+          <StatTile
+            context={`${employees} employees · ${supervisors} supervisors · ${administrators} admins`}
+            label="Users"
+            meter={{
+              label: 'Users by account role',
+              segments: [
+                { color: 'chart-1', label: 'Employees', value: employees },
+                { color: 'chart-2', label: 'Supervisors', value: supervisors },
+                { color: 'chart-3', label: 'Admins', value: administrators },
+              ],
+            }}
+            value={metrics.userCount}
+          />
+          <StatTile
+            context={metrics.pendingSkillsCount === 0 ? 'Nothing to review' : 'Waiting for review below'}
+            label="Pending skills"
+            value={metrics.pendingSkillsCount}
+          />
         </section>
       )}
 
-      <section aria-label="Managed account totals" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Managed users" value={users.length} />
-        <Metric label="Employees" value={employees} />
-        <Metric label="Supervisors" value={supervisors} />
-        <Metric label="Administrators" value={administrators} />
-      </section>
+      <PendingSkillsQueue onChange={() => { void metricsQuery.refetch() }} />
 
-      <PendingSkillsQueue />
-
-      <Card>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-ink-900">Managed accounts</h2>
-            <p className="mt-1 text-sm text-ink-600">
-              Accounts returned by the platform administration service.
-            </p>
-          </div>
-          <Button onClick={() => void usersQuery.refetch()} variant="secondary">
-            {usersQuery.isRefreshing ? 'Refreshing...' : 'Refresh'}
-          </Button>
-        </div>
-
-        {users.length === 0 ? (
-          <p className="mt-5 text-sm text-ink-600">No managed accounts have been created yet.</p>
-        ) : (
-          <ul className="mt-5 grid gap-3">
-            {users.map((user) => (
-              <li className="rounded-lg border border-border-subtle bg-surface-card-alt p-4" key={user.id}>
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm font-semibold text-ink-900">{user.email ?? 'Email unavailable'}</p>
-                  <span className="text-sm capitalize text-ink-600">{user.role}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+      <UserDirectory />
     </div>
   )
 }
