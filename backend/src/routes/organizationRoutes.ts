@@ -7,6 +7,7 @@ import {
   listCurrentUserOrganizationsHandler,
   listOrganizationInvitationsHandler,
   listOrganizationMembersHandler,
+  listOrganizationTeamsHandler,
   resendOrganizationInvitationHandler,
   issueInvitationLinkHandler,
   revokeOrganizationInvitationHandler,
@@ -32,6 +33,14 @@ router.get(
   authenticateUser,
   resolveOrganizationContext,
   getOrganizationHandler
+);
+
+router.get(
+  "/:organizationId/teams",
+  authenticateUser,
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin", "supervisor"),
+  listOrganizationTeamsHandler
 );
 
 router.get(

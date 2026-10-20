@@ -3,6 +3,7 @@ export const queryKeys = {
   organizations: { all: ['organizations'] as const },
   team: {
     list: (organizationId: string) => ['team', organizationId] as const,
+    teams: (organizationId: string) => ['team', organizationId, 'teams'] as const,
   },
   projects: {
     all: ['projects'] as const,

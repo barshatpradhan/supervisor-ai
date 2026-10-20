@@ -645,6 +645,14 @@ export interface BackendOrganizationMemberSummary {
   supervisor_full_name: string | null
 }
 
+export interface BackendOrganizationTeamSummary {
+  id: string
+  name: string
+  description: string | null
+  lead: { supervisor_id: string; full_name: string } | null
+  members: Array<{ employee_id: string; full_name: string; job_title: string | null }>
+}
+
 export interface BackendCreateOrganizationRequest {
   name: string
   slug: string

@@ -1,5 +1,5 @@
 import { Plus } from 'lucide-react'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChartCard } from '../../../components/charts/ChartCard'
 import { ColumnChart } from '../../../components/charts/ColumnChart'
@@ -15,7 +15,9 @@ import { useOrganization } from '../../organizations/hooks/useOrganization'
 import { useAssignableEmployees } from '../../tasks/hooks/useAssignableEmployees'
 import { useTasks } from '../../tasks/hooks/useTasks'
 import { useOrganizationTeam } from '../hooks/useOrganizationTeam'
+import { useOrganizationTeams } from '../hooks/useOrganizationTeams'
 
+const ALL_TEAMS = 'all'
 const HIGH_WORKLOAD_THRESHOLD = 80
 const NEAR_CAPACITY_THRESHOLD = 70
 
@@ -71,7 +73,27 @@ export function TeamWorkloadModule() {
   const isAdmin = activeMembershipRole === 'organization_admin'
   const directory = useAssignableEmployees(true)
   const tasksQuery = useTasks()
-  const employees = useMemo(() => directory.data ?? [], [directory.data])
+  const teamsQuery = useOrganizationTeams(activeOrganization?.id ?? null)
+  const teams = useMemo(() => teamsQuery.data ?? [], [teamsQuery.data])
+  const [selectedTeamId, setSelectedTeamId] = useState(ALL_TEAMS)
+  const selectedTeam = teams.find((team) => team.id === selectedTeamId) ?? null
+
+  // Team names per employee; an employee can be on more than one team.
+  const teamNamesByEmployee = useMemo(() => {
+    const names = new Map<string, string[]>()
+    for (const team of teams) {
+      for (const member of team.members) names.set(member.employee_id, [...(names.get(member.employee_id) ?? []), team.name])
+    }
+    return names
+  }, [teams])
+
+  // Charts and the table follow the team filter.
+  const employees = useMemo(() => {
+    const all = directory.data ?? []
+    if (!selectedTeam) return all
+    const memberIds = new Set(selectedTeam.members.map((member) => member.employee_id))
+    return all.filter((employee) => memberIds.has(employee.id))
+  }, [directory.data, selectedTeam])
 
   const activeTaskCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -108,7 +130,8 @@ export function TeamWorkloadModule() {
   const capacity = members.reduce((sum, member) => sum + member.weekly_capacity_hours, 0)
   const booked = members.reduce((sum, member) => sum + member.booked, 0)
   const overLimit = members.filter((member) => member.status === 'over').length
-  const isFiltered = directory.hasActiveFilters
+  const isFiltered = directory.hasActiveFilters || selectedTeam !== null
+  const hasTeams = teams.length > 0
   const chartState = directory.isLoading ? 'loading' : directory.error ? 'error' : employees.length === 0 ? 'empty' : 'ready'
 
   return (
@@ -129,6 +152,36 @@ export function TeamWorkloadModule() {
         }
         title="Team"
       />
+
+      {hasTeams ? (
+        <div aria-label="Filter by team" className="flex flex-wrap items-center gap-2" role="group">
+          {[{ id: ALL_TEAMS, label: 'All teams' }, ...teams.map((team) => ({ id: team.id, label: team.name }))].map((option) => {
+            const isSelected = option.id === selectedTeamId
+            return (
+              <button
+                aria-pressed={isSelected}
+                className={[
+                  'min-h-9 rounded-full border px-3.5 text-sm font-medium',
+                  isSelected
+                    ? 'border-primary-600 bg-primary-600 text-text-on-primary'
+                    : 'border-border-strong bg-surface-card text-text-secondary hover:text-text-primary',
+                ].join(' ')}
+                key={option.id}
+                onClick={() => setSelectedTeamId(option.id)}
+                type="button"
+              >
+                {option.label}
+              </button>
+            )
+          })}
+          {selectedTeam ? (
+            <span className="helper text-text-tertiary">
+              {selectedTeam.lead ? `Led by ${selectedTeam.lead.full_name}` : 'No lead assigned'}
+              {selectedTeam.description ? ` · ${selectedTeam.description}` : ''}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr))]">
         <ChartCard
@@ -168,7 +221,11 @@ export function TeamWorkloadModule() {
 
       <Card aria-labelledby="team-members-title" className="flex flex-col" padding="flush">
         <div className="flex flex-wrap items-end justify-between gap-3 px-5 pb-3 pt-5">
-          <CardHeader helper={isAdmin ? 'Employees, busiest first' : 'Busiest first'} id="team-members-title" title="Members" />
+          <CardHeader
+            helper={`${selectedTeam ? `${selectedTeam.name} · ` : ''}${isAdmin ? 'Employees, busiest first' : 'Busiest first'}`}
+            id="team-members-title"
+            title="Members"
+          />
           <label className="label flex flex-col gap-1 text-text-secondary">
             Search
             <input
@@ -188,10 +245,16 @@ export function TeamWorkloadModule() {
         ) : null}
         {!directory.isLoading && !directory.error && members.length === 0 ? (
           <StateBlock
-            action={isFiltered ? <Button onClick={directory.resetFilters} variant="secondary">Clear search</Button> : undefined}
-            title={isFiltered ? 'No one matches that search' : 'No employees yet'}
+            action={
+              isFiltered ? (
+                <Button onClick={() => { directory.resetFilters(); setSelectedTeamId(ALL_TEAMS) }} variant="secondary">
+                  Clear filters
+                </Button>
+              ) : undefined
+            }
+            title={isFiltered ? 'No one matches these filters' : 'No employees yet'}
           >
-            {isFiltered ? 'Try a different name.' : 'Employees appear here when they join this organization.'}
+            {isFiltered ? 'Try a different name or team.' : 'Employees appear here when they join this organization.'}
           </StateBlock>
         ) : null}
         {members.length > 0 ? (
@@ -200,6 +263,7 @@ export function TeamWorkloadModule() {
               <thead className="bg-surface-muted">
                 <tr>
                   <th className="label px-5 py-2.5 text-text-secondary" scope="col">Name</th>
+                  {hasTeams ? <th className="label px-3 py-2.5 text-text-secondary" scope="col">Team</th> : null}
                   <th className="label px-3 py-2.5 text-text-secondary" scope="col">Active tasks</th>
                   <th className="label px-3 py-2.5 text-text-secondary" scope="col">Hours</th>
                   <th className="label w-[28%] px-3 py-2.5 text-text-secondary" scope="col">Utilization</th>
@@ -221,6 +285,9 @@ export function TeamWorkloadModule() {
                         </div>
                       </div>
                     </td>
+                    {hasTeams ? (
+                      <td className="body px-3 py-3 text-text-secondary">{teamNamesByEmployee.get(member.id)?.join(', ') ?? '–'}</td>
+                    ) : null}
                     <td className="num-sm px-3 py-3">{tasksQuery.data ? activeTaskCounts.get(member.id) ?? 0 : '–'}</td>
                     <td className="num-sm px-3 py-3">{formatHours(member.booked)} / {formatHours(member.weekly_capacity_hours)}</td>
                     <td className="px-3 py-3">

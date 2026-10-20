@@ -11,6 +11,7 @@ import {
   issueInvitationAcceptanceLink,
   revokeOrganizationInvitation,
 } from "../services/organizationService.js";
+import { listOrganizationTeams } from "../services/teamService.js";
 import type {
   CreateOrganizationInvitationInput,
   OrganizationInvitationSkillInput,
@@ -155,6 +156,20 @@ export async function getOrganizationHandler(
     const organizationId = requireUuid(req.params.organizationId, "Organization id");
     const organization = await getOrganizationDetails(organizationId);
     return sendSuccess(res, 200, "Organization fetched successfully.", organization);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function listOrganizationTeamsHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const organizationId = requireUuid(req.params.organizationId, "Organization id");
+    const teams = await listOrganizationTeams(organizationId);
+    return sendSuccess(res, 200, "Organization teams fetched successfully.", teams);
   } catch (error) {
     return next(error);
   }

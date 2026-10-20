@@ -1,6 +1,7 @@
 import { getJson, postJson } from '../../../lib/api'
 import type {
   BackendOrganizationMemberSummary,
+  BackendOrganizationTeamSummary,
 } from '../../../types/backend'
 import type {
   CreateOrganizationRequest,
@@ -16,6 +17,10 @@ export function listCurrentUserOrganizations() {
 
 export function listOrganizationMembers(organizationId: string) {
   return getJson<BackendOrganizationMemberSummary[]>(`/organizations/${organizationId}/members`)
+}
+
+export function listOrganizationTeams(organizationId: string) {
+  return getJson<BackendOrganizationTeamSummary[]>(`/organizations/${organizationId}/teams`)
 }
 
 export function createOrganization(request: CreateOrganizationRequest) {
