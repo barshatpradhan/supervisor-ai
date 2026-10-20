@@ -1,3 +1,4 @@
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { supabaseAuth } from "../config/supabase.js";
 import { env } from "../config/environment.js";
 import type {
@@ -69,6 +70,16 @@ export async function login(input: LoginInput) {
     email: input.email,
     password: input.password,
   });
+
+  // A network failure is not a wrong password; say so instead of blaming the user.
+  if (error && isAuthRetryableFetchError(error)) {
+    throw new AppError(
+      "Sign-in is unavailable right now because the authentication service can't be reached. Try again shortly.",
+      503,
+      true,
+      { cause: error }
+    );
+  }
 
   if (error || !data.user || !data.session) {
     throw new AppError("Invalid email or password.", 401);
