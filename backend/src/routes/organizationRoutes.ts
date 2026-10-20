@@ -8,6 +8,7 @@ import {
   listOrganizationInvitationsHandler,
   listOrganizationMembersHandler,
   resendOrganizationInvitationHandler,
+  issueInvitationLinkHandler,
   revokeOrganizationInvitationHandler,
 } from "../controllers/organizationController.js";
 import { authenticateUser } from "../middleware/authMiddleware.js";
@@ -63,6 +64,15 @@ router.post(
   resolveOrganizationContext,
   requireOrganizationRole("organization_admin"),
   resendOrganizationInvitationHandler
+);
+
+// Admin-only: issues a fresh acceptance link to share by hand when email delivery fails.
+router.post(
+  "/:organizationId/invitations/:invitationId/link",
+  authenticateUser,
+  resolveOrganizationContext,
+  requireOrganizationRole("organization_admin"),
+  issueInvitationLinkHandler
 );
 
 router.post(

@@ -3,6 +3,7 @@ import type {
   CreateOrganizationInvitationRequest,
   InvitationAcceptance,
   InvitationInspection,
+  InvitationLink,
   OrganizationInvitationMutationResponse,
   OrganizationInvitationSummary,
 } from '../types/invitation'
@@ -45,6 +46,13 @@ export function resendOrganizationInvitation(
 ) {
   return postJson<OrganizationInvitationMutationResponse>(
     `/organizations/${organizationId}/invitations/${invitationId}/resend`,
+  )
+}
+
+/** Admin-only. Issues a fresh link (earlier links stop working); the server audits each call. */
+export function issueInvitationLink(organizationId: string, invitationId: string) {
+  return postJson<InvitationLink>(
+    `/organizations/${organizationId}/invitations/${invitationId}/link`,
   )
 }
 

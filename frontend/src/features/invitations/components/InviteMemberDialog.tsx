@@ -162,10 +162,17 @@ export function InviteMemberDialog({
 
     try {
       const result = await createInvitation(buildRequest(values))
-      notifications.success({
-        message: `Invitation sent to ${normalizeEmail(values.email)}.`,
-        title: 'Invitation created',
-      })
+      if (result.deliveryStatus === 'failed') {
+        notifications.warning({
+          message: 'Resend it, or copy the invite link from the list and share it yourself.',
+          title: 'Invitation created, but the email failed to send',
+        })
+      } else {
+        notifications.success({
+          message: `Invitation sent to ${normalizeEmail(values.email)}.`,
+          title: 'Invitation created',
+        })
+      }
       resetForm()
       onSuccess(result)
     } catch (caughtError) {

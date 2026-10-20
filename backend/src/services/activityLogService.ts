@@ -5,7 +5,8 @@ export type ActivityEventType =
   | "task_completed"
   | "project_progress_updated"
   | "employee_dashboard_viewed"
-  | "supervisor_dashboard_viewed";
+  | "supervisor_dashboard_viewed"
+  | "invitation_link_copied";
 
 /** Audit metadata is deliberately identifiers and calculated values only. */
 export async function logActivity(input: {

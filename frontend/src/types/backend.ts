@@ -732,6 +732,18 @@ export interface BackendOrganizationInvitationSummary {
   revoked_by_user_id: string | null
   revoked_at: string | null
   membership_status: BackendOrganizationMembershipStatus
+  /** Outcome of the last email attempt; null until the first send finishes. */
+  delivery_status: BackendInvitationDeliveryStatus | null
+  /** Short, redacted provider reason for the last failed send. */
+  delivery_error: string | null
+}
+
+export type BackendInvitationDeliveryStatus = 'sent' | 'failed'
+
+/** Admin-only: a freshly issued acceptance link to share by hand. */
+export interface BackendInvitationLinkResponse {
+  acceptanceUrl: string
+  expiresAt: string
 }
 
 export interface BackendOrganizationInvitationMutationResponse {
@@ -753,7 +765,11 @@ export interface BackendOrganizationInvitationMutationResponse {
     revoked_by_user_id: string | null
     revoked_at: string | null
     created_at: string
+    delivery_status: BackendInvitationDeliveryStatus | null
+    delivery_error: string | null
   }
+  /** "failed" means the invitation exists but its email did not go out. */
+  deliveryStatus?: BackendInvitationDeliveryStatus
   membership: {
     id: string
     organization_id: string

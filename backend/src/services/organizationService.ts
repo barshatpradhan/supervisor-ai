@@ -11,6 +11,7 @@ import type {
   InvitationPublicStatus,
   Organization,
   OrganizationInvitation,
+  OrganizationInvitationLinkResult,
   OrganizationInvitationMutationResult,
   OrganizationInvitationSummary,
   OrganizationMemberSummary,
@@ -24,6 +25,7 @@ import { isRecord } from "../utils/validation.js";
 import { createEmployeeProfileRecordForOrganization } from "./employeeService.js";
 import { replaceEmployeeSkillsWithDetails } from "./skillService.js";
 import { createSupervisorProfileRecordForOrganization } from "./supervisorService.js";
+import { logActivity } from "./activityLogService.js";
 import { createEmailService } from "./email/emailService.js";
 import { buildOrganizationInvitationAcceptanceUrl } from "./email/invitationUrl.js";
 import { getAppUserByAuthId, getAuthOnboardingStateForAppUser } from "./userService.js";
@@ -72,6 +74,8 @@ interface OrganizationInvitationRow {
   revoked_by_user_id: string | null;
   revoked_at: string | null;
   created_at: string;
+  delivery_status?: InvitationDeliveryStatus | null;
+  delivery_error?: string | null;
 }
 
 interface OrganizationInvitationListRow extends OrganizationInvitationRow {
@@ -159,12 +163,20 @@ const INVITATION_TOKEN_BYTES = 32;
 const INVITATION_RESEND_COOLDOWN_MS = 60 * 1000;
 const INVITATION_PROFILE_META_KEY = "__invitation_meta";
 
+const INVITATION_DELIVERY_ERROR_MAX_LENGTH = 300;
+
+type InvitationDeliveryStatus = "sent" | "failed";
+
 interface InvitationProfileCompatibilityMetadata {
   token_hash?: string | null;
   last_sent_at?: string | null;
   send_count?: number;
   accepted_by_user_id?: string | null;
   revoked_by_user_id?: string | null;
+  /** Null until the first send attempt finishes. */
+  delivery_status?: InvitationDeliveryStatus | null;
+  /** Short, redacted provider reason for the last failed send. */
+  delivery_error?: string | null;
 }
 
 function logOrganizationEvent(
@@ -294,6 +306,12 @@ function readInvitationCompatibilityMetadata(profile: Record<string, unknown>) {
       typeof rawMetadata.revoked_by_user_id === "string"
         ? rawMetadata.revoked_by_user_id
         : null,
+    delivery_status:
+      rawMetadata.delivery_status === "sent" || rawMetadata.delivery_status === "failed"
+        ? rawMetadata.delivery_status
+        : null,
+    delivery_error:
+      typeof rawMetadata.delivery_error === "string" ? rawMetadata.delivery_error : null,
   } satisfies InvitationProfileCompatibilityMetadata;
 }
 
@@ -314,8 +332,46 @@ function writeInvitationCompatibilityMetadata(
       send_count: metadata.send_count ?? 0,
       accepted_by_user_id: metadata.accepted_by_user_id ?? null,
       revoked_by_user_id: metadata.revoked_by_user_id ?? null,
+      delivery_status: metadata.delivery_status ?? null,
+      delivery_error: metadata.delivery_error ?? null,
     },
   };
+}
+
+interface InvitationDeliveryOutcome {
+  status: InvitationDeliveryStatus;
+  error: string | null;
+}
+
+/** A short failure reason for admins: no recipient address, no API key, no token. */
+function summarizeDeliveryError(error: unknown, recipient: string) {
+  const cause = error instanceof AppError && error.cause instanceof Error ? error.cause : null;
+  const message = cause?.message ?? (error instanceof Error ? error.message : "Unknown delivery error.");
+
+  return message
+    .split(recipient)
+    .join("[recipient]")
+    .replace(/[^\s"'<>@]+@[^\s"'<>@]+\.[a-z]{2,}/gi, "[email]")
+    .replace(/token=[^&\s"']+/gi, "token=[redacted]")
+    .slice(0, INVITATION_DELIVERY_ERROR_MAX_LENGTH);
+}
+
+/** Sends the invitation email and reports the outcome instead of throwing. */
+async function deliverInvitationEmail(
+  input: Parameters<ReturnType<typeof createEmailService>["sendOrganizationInvitation"]>[0]
+): Promise<InvitationDeliveryOutcome> {
+  try {
+    await createEmailService().sendOrganizationInvitation(input);
+    return { status: "sent", error: null };
+  } catch (error) {
+    const summary = summarizeDeliveryError(error, input.to);
+    logOrganizationEvent("organization_invitation_delivery_failed", {
+      invitationId: input.invitationId,
+      organizationId: input.organizationId,
+      reason: summary,
+    });
+    return { status: "failed", error: summary };
+  }
 }
 
 function hydrateInvitationRow(
@@ -341,6 +397,8 @@ function hydrateInvitationRow(
     send_count: row.send_count ?? metadata.send_count ?? 0,
     accepted_by_user_id: row.accepted_by_user_id ?? metadata.accepted_by_user_id ?? null,
     revoked_by_user_id: row.revoked_by_user_id ?? metadata.revoked_by_user_id ?? null,
+    delivery_status: row.delivery_status ?? metadata.delivery_status ?? null,
+    delivery_error: row.delivery_error ?? metadata.delivery_error ?? null,
   };
 }
 
@@ -390,6 +448,8 @@ function mapInvitation(row: OrganizationInvitationRow): OrganizationInvitation {
     revoked_by_user_id: hydratedRow.revoked_by_user_id,
     revoked_at: hydratedRow.revoked_at,
     created_at: hydratedRow.created_at,
+    delivery_status: hydratedRow.delivery_status ?? null,
+    delivery_error: hydratedRow.delivery_error ?? null,
   };
 }
 
@@ -1220,6 +1280,8 @@ export async function listOrganizationInvitations(organizationId: string) {
       revoked_by_user_id: hydratedInvitation.revoked_by_user_id,
       revoked_at: hydratedInvitation.revoked_at,
       membership_status: invitation.organization_members?.status ?? "invited",
+      delivery_status: hydratedInvitation.delivery_status ?? null,
+      delivery_error: hydratedInvitation.delivery_error ?? null,
     };
   });
 }
@@ -1278,19 +1340,37 @@ export async function createOrganizationInvitation(
     });
   }
 
-  try {
-    await createEmailService().sendOrganizationInvitation({
-      to: normalizedEmail,
-      organizationName: organization.name,
-      invitedRole: input.role,
-      acceptanceUrl,
-      expiresAt,
+  const delivery = await deliverInvitationEmail({
+    to: normalizedEmail,
+    organizationName: organization.name,
+    invitedRole: input.role,
+    acceptanceUrl,
+    expiresAt,
+    invitationId: invitation.id,
+    organizationId,
+  });
+
+  // The invitation stands even if the email did not go out; admins can resend or copy a link.
+  const { data: recordedInvitation, error: deliveryRecordError } = await supabase
+    .from("organization_invitations")
+    .update({
+      profile: writeInvitationCompatibilityMetadata(storedProfile, {
+        ...readInvitationCompatibilityMetadata(storedProfile),
+        delivery_status: delivery.status,
+        delivery_error: delivery.error,
+      }),
+    })
+    .eq("id", invitation.id)
+    .select(
+      "id, organization_id, user_id, membership_id, email, role, profile, invited_by_user_id, invited_at, expires_at, accepted_at, revoked_at, created_at"
+    )
+    .single<typeof invitation>();
+
+  if (deliveryRecordError || !recordedInvitation) {
+    logOrganizationEvent("organization_invitation_delivery_record_failed", {
       invitationId: invitation.id,
       organizationId,
     });
-  } catch (error) {
-    await supabase.from("organization_invitations").delete().eq("id", invitation.id);
-    throw error;
   }
 
   logOrganizationEvent("organization_invitation_created", {
@@ -1298,12 +1378,20 @@ export async function createOrganizationInvitation(
     organizationId,
     role: input.role,
     invitationId: invitation.id,
+    deliveryStatus: delivery.status,
   });
 
+  const resultInvitation = hydrateInvitationRow(recordedInvitation ?? invitation);
+
   return {
-    invitation: mapInvitation(hydrateInvitationRow(invitation)),
+    invitation: mapInvitation({
+      ...resultInvitation,
+      delivery_status: delivery.status,
+      delivery_error: delivery.error,
+    }),
     membership: null,
-    ...buildInvitationDebugResponse(acceptanceUrl),
+    deliveryStatus: delivery.status,
+    ...(delivery.status === "sent" ? buildInvitationDebugResponse(acceptanceUrl) : {}),
   };
 }
 
@@ -1481,6 +1569,8 @@ export async function acceptInvitationByToken(
           send_count: invitation.send_count,
           accepted_by_user_id: appUser.id,
           revoked_by_user_id: invitation.revoked_by_user_id,
+          delivery_status: invitation.delivery_status ?? null,
+          delivery_error: invitation.delivery_error ?? null,
         }),
       })
       .eq("id", invitation.id)
@@ -1608,7 +1698,7 @@ export async function resendOrganizationInvitation(
   const acceptanceUrl = buildInvitationAcceptanceUrl(rawToken);
 
   const organization = await getOrganizationById(organizationId);
-  await createEmailService().sendOrganizationInvitation({
+  const delivery = await deliverInvitationEmail({
     to: invitation.email,
     organizationName: organization.name,
     invitedRole: invitation.role,
@@ -1617,18 +1707,23 @@ export async function resendOrganizationInvitation(
     invitationId: invitation.id,
     organizationId,
   });
+  const wasSent = delivery.status === "sent";
 
+  // A failed send keeps the previous token valid, so a link someone already has still works.
+  // last_sent_at still moves forward, so the resend cooldown applies either way.
   const { data: updatedInvitation, error: updateError } = await supabase
     .from("organization_invitations")
     .update({
       profile: writeInvitationCompatibilityMetadata(invitation.profile, {
-        token_hash: tokenHash,
+        token_hash: wasSent ? tokenHash : invitation.token_hash,
         last_sent_at: lastSentAt,
         send_count: (invitation.send_count ?? 0) + 1,
         accepted_by_user_id: invitation.accepted_by_user_id,
         revoked_by_user_id: null,
+        delivery_status: delivery.status,
+        delivery_error: delivery.error,
       }),
-      expires_at: expiresAt,
+      ...(wasSent ? { expires_at: expiresAt } : {}),
       revoked_at: null,
     })
     .eq("id", invitation.id)
@@ -1657,12 +1752,14 @@ export async function resendOrganizationInvitation(
     organizationId,
     role: invitation.role,
     sendCount: hydratedUpdatedInvitation.send_count,
+    deliveryStatus: delivery.status,
   });
 
   return {
     invitation: mapInvitation(hydratedUpdatedInvitation),
     membership: membership ? mapMembership(membership) : null,
-    ...buildInvitationDebugResponse(acceptanceUrl),
+    deliveryStatus: delivery.status,
+    ...(wasSent ? buildInvitationDebugResponse(acceptanceUrl) : {}),
   };
 }
 
@@ -1698,6 +1795,8 @@ export async function revokeOrganizationInvitation(
         send_count: invitation.send_count,
         accepted_by_user_id: invitation.accepted_by_user_id,
         revoked_by_user_id: revoker.id,
+        delivery_status: invitation.delivery_status ?? null,
+        delivery_error: invitation.delivery_error ?? null,
       }),
     })
     .eq("id", invitation.id)
@@ -1744,6 +1843,71 @@ export async function revokeOrganizationInvitation(
   return {
     invitation: mapInvitation(hydrateInvitationRow(revokedInvitation)),
     membership: suspendedMembership.data ? mapMembership(suspendedMembership.data) : null,
+  };
+}
+
+/**
+ * Issues a fresh acceptance link for an admin to share by hand when email delivery fails.
+ * The new token is stored hashed like any other, so earlier links stop working. The URL is
+ * returned only here, never in list or mutation responses, and every issue is audited.
+ */
+export async function issueInvitationAcceptanceLink(
+  authUserId: string,
+  organizationId: string,
+  invitationId: string
+): Promise<OrganizationInvitationLinkResult> {
+  const admin = await getAppUserByAuthId(authUserId);
+  await ensureOrganizationAdmin(admin.id, organizationId);
+
+  const invitation = await getInvitationByIdForOrganization(organizationId, invitationId);
+  const status = getInvitationPublicStatus(invitation);
+
+  if (status !== "pending") {
+    throw new AppError(
+      status === "expired"
+        ? "This invitation has expired. Resend it to get a new link."
+        : `Links can only be copied for pending invitations; this one is ${status}.`,
+      409
+    );
+  }
+
+  const rawToken = generateInvitationToken();
+  const { error: updateError } = await supabase
+    .from("organization_invitations")
+    .update({
+      profile: writeInvitationCompatibilityMetadata(invitation.profile, {
+        token_hash: hashInvitationToken(rawToken),
+        last_sent_at: invitation.last_sent_at,
+        send_count: invitation.send_count,
+        accepted_by_user_id: invitation.accepted_by_user_id,
+        revoked_by_user_id: invitation.revoked_by_user_id,
+        delivery_status: invitation.delivery_status ?? null,
+        delivery_error: invitation.delivery_error ?? null,
+      }),
+    })
+    .eq("id", invitation.id)
+    .is("accepted_at", null)
+    .is("revoked_at", null);
+
+  if (updateError) {
+    throw new AppError("Unable to create an invitation link.", 400, true, { cause: updateError });
+  }
+
+  await logActivity({
+    organizationId,
+    actorUserId: admin.id,
+    eventType: "invitation_link_copied",
+    metadata: { invitationId: invitation.id, role: invitation.role },
+  });
+  logOrganizationEvent("organization_invitation_link_issued", {
+    adminAppUserId: admin.id,
+    invitationId: invitation.id,
+    organizationId,
+  });
+
+  return {
+    acceptanceUrl: buildInvitationAcceptanceUrl(rawToken),
+    expiresAt: invitation.expires_at,
   };
 }
 

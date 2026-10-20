@@ -8,6 +8,7 @@ import {
   listOrganizationInvitations,
   listOrganizationMembers,
   resendOrganizationInvitation,
+  issueInvitationAcceptanceLink,
   revokeOrganizationInvitation,
 } from "../services/organizationService.js";
 import type {
@@ -246,6 +247,28 @@ export async function resendOrganizationInvitationHandler(
       "Organization invitation resent successfully.",
       result
     );
+  } catch (error) {
+    return next(error);
+  }
+}
+
+export async function issueInvitationLinkHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  if (!req.user) {
+    return next(new AppError("Unauthorized.", 401));
+  }
+
+  try {
+    const organizationId = requireUuid(req.params.organizationId, "Organization id");
+    const invitationId = requireUuid(req.params.invitationId, "Invitation id");
+    const result = await issueInvitationAcceptanceLink(req.user.id, organizationId, invitationId);
+
+    // The response carries a live acceptance link; keep it out of shared caches.
+    res.setHeader("Cache-Control", "no-store");
+    return sendSuccess(res, 200, "Invitation link created.", result);
   } catch (error) {
     return next(error);
   }

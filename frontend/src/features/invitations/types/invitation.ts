@@ -1,6 +1,7 @@
 import type {
   BackendCreateOrganizationInvitationRequest,
   BackendInvitationAcceptanceResponse,
+  BackendInvitationLinkResponse,
   BackendInvitationInspectionResponse,
   BackendInvitationPublicStatus,
   BackendOrganizationInvitationMutationResponse,
@@ -13,6 +14,7 @@ export type InvitationAcceptance = BackendInvitationAcceptanceResponse
 export type OrganizationInvitationSummary = BackendOrganizationInvitationSummary
 export type OrganizationInvitationMutationResponse = BackendOrganizationInvitationMutationResponse
 export type CreateOrganizationInvitationRequest = BackendCreateOrganizationInvitationRequest
+export type InvitationLink = BackendInvitationLinkResponse
 
 export type InvitationRole = CreateOrganizationInvitationRequest['role']
 

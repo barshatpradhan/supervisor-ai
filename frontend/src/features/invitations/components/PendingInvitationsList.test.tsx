@@ -5,6 +5,8 @@ import { PendingInvitationsList } from './PendingInvitationsList'
 
 const successMock = vi.fn()
 const errorMock = vi.fn()
+const warningMock = vi.fn()
+const issueInvitationLinkMock = vi.fn()
 const resendMock = vi.fn()
 const revokeMock = vi.fn()
 const refreshMock = vi.fn()
@@ -16,7 +18,12 @@ vi.mock('../../../hooks/useNotifications', () => ({
   useNotifications: () => ({
     error: errorMock,
     success: successMock,
+    warning: warningMock,
   }),
+}))
+
+vi.mock('../services/invitationService', () => ({
+  issueInvitationLink: (...args: unknown[]) => issueInvitationLinkMock(...args),
 }))
 
 vi.mock('../../organizations/hooks/useOrganization', () => ({
@@ -31,6 +38,8 @@ describe('PendingInvitationsList', () => {
   beforeEach(() => {
     successMock.mockReset()
     errorMock.mockReset()
+    warningMock.mockReset()
+    issueInvitationLinkMock.mockReset()
     resendMock.mockReset()
     revokeMock.mockReset()
     refreshMock.mockReset()
@@ -57,6 +66,8 @@ describe('PendingInvitationsList', () => {
           revoked_by_user_id: null,
           revoked_at: null,
           membership_status: 'invited',
+          delivery_status: 'sent',
+          delivery_error: null,
           derivedStatus: 'pending',
         },
       ],
@@ -109,5 +120,62 @@ describe('PendingInvitationsList', () => {
         expect.objectContaining({ title: 'Invitation revoked' }),
       )
     })
+  })
+
+  it('marks failed emails on the page and logs the reason only to the console', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const state = usePendingInvitationsMock()
+    usePendingInvitationsMock.mockReturnValue({
+      ...state,
+      invitations: [{ ...state.invitations[0], delivery_status: 'failed', delivery_error: 'Brevo responded 401: unauthorized' }],
+    })
+
+    render(<PendingInvitationsList />)
+
+    expect(screen.getByText('Email failed')).toBeInTheDocument()
+    expect(screen.queryByText(/brevo responded/i)).not.toBeInTheDocument()
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Brevo responded 401'))
+    warn.mockRestore()
+  })
+
+  it('warns when a resend fails to deliver instead of claiming success', async () => {
+    resendMock.mockResolvedValue({ deliveryStatus: 'failed' })
+
+    render(<PendingInvitationsList />)
+    await userEvent.click(screen.getByRole('button', { name: /resend/i }))
+
+    expect(resendMock).toHaveBeenCalledWith('invite-1')
+    expect(warningMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'Resend failed to deliver' }))
+    expect(successMock).not.toHaveBeenCalled()
+  })
+
+  it('lets organization admins copy a freshly issued invite link', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    issueInvitationLinkMock.mockResolvedValue({
+      acceptanceUrl: 'http://localhost:5173/invitations/accept?token=fresh',
+      expiresAt: '2026-07-23T10:00:00.000Z',
+    })
+
+    render(<PendingInvitationsList />)
+    await userEvent.click(screen.getByRole('button', { name: /copy invite link/i }))
+
+    await waitFor(() => {
+      expect(issueInvitationLinkMock).toHaveBeenCalledWith('org-1', 'invite-1')
+      expect(writeText).toHaveBeenCalledWith('http://localhost:5173/invitations/accept?token=fresh')
+      expect(successMock).toHaveBeenCalledWith(expect.objectContaining({ title: 'Invite link copied' }))
+    })
+  })
+
+  it('never offers the invite link to non-admins', () => {
+    useOrganizationMock.mockReturnValue({
+      activeOrganization: { id: 'org-1', name: 'Acme Corporation' },
+      activeMembershipRole: 'supervisor',
+    })
+
+    render(<PendingInvitationsList />)
+
+    expect(screen.queryByRole('button', { name: /copy invite link/i })).not.toBeInTheDocument()
+    expect(issueInvitationLinkMock).not.toHaveBeenCalled()
   })
 })

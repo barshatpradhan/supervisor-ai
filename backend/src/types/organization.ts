@@ -82,6 +82,10 @@ export interface OrganizationInvitation {
   revoked_by_user_id: string | null;
   revoked_at: string | null;
   created_at: string;
+  /** Outcome of the last email attempt; null until the first send finishes. */
+  delivery_status: "sent" | "failed" | null;
+  /** Short, redacted provider reason for the last failed send. */
+  delivery_error: string | null;
 }
 
 export interface OrganizationMemberSummary {
@@ -112,6 +116,8 @@ export interface OrganizationInvitationSummary {
   revoked_by_user_id: string | null;
   revoked_at: string | null;
   membership_status: OrganizationMembershipStatus;
+  delivery_status: "sent" | "failed" | null;
+  delivery_error: string | null;
 }
 
 export interface CurrentUserOrganizationMembershipSummary {
@@ -174,8 +180,16 @@ export interface InvitationAcceptanceResult {
 export interface OrganizationInvitationMutationResult {
   invitation: OrganizationInvitation;
   membership: OrganizationMembership | null;
+  /** Set on create and resend: "failed" means the invitation exists but the email did not go out. */
+  deliveryStatus?: "sent" | "failed";
   /** Development-only invitation link, enabled with INVITATION_DEBUG_RETURN_URL=true. */
   debug?: {
     acceptance_url: string;
   };
+}
+
+/** Admin-only response. The only place an acceptance URL is returned outside debug mode. */
+export interface OrganizationInvitationLinkResult {
+  acceptanceUrl: string;
+  expiresAt: string;
 }
