@@ -14,6 +14,10 @@ vi.mock('../features/organizations/hooks/useOrganization', () => ({
   useOrganization: () => useOrganizationMock(),
 }))
 
+vi.mock('../hooks/useCurrentUserName', () => ({
+  useCurrentUserName: () => null,
+}))
+
 vi.mock('../features/organizations/components/OrganizationSwitcher', () => ({
   OrganizationSwitcher: () => <div>Organization switcher</div>,
 }))

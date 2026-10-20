@@ -8,10 +8,12 @@ interface HeaderProps {
   onOpenNavigation: () => void
   onSignOut: () => void
   userEmail: string | null
+  /** Profile name; the avatar and label fall back to the email until it loads. */
+  userName?: string | null
 }
 
 /** The 64px top bar: workspace switcher on the left, the signed-in user on the right. */
-export function Header({ leading, onOpenNavigation, onSignOut, userEmail }: HeaderProps) {
+export function Header({ leading, onOpenNavigation, onSignOut, userEmail, userName = null }: HeaderProps) {
   return (
     <header className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-border-default bg-surface-card px-4 py-3 sm:px-6 xl:px-8">
       <div className="flex min-w-0 items-center gap-3">
@@ -21,8 +23,13 @@ export function Header({ leading, onOpenNavigation, onSignOut, userEmail }: Head
         {leading}
       </div>
       <div className="flex items-center gap-3">
-        <Avatar name={userEmail} size={36} />
-        {userEmail ? <span className="body hidden max-w-56 truncate text-text-secondary md:inline">{userEmail}</span> : null}
+        <Avatar name={userName ?? userEmail} size={36} />
+        {userName || userEmail ? (
+          <span className="hidden min-w-0 flex-col md:flex">
+            <span className="body-strong max-w-56 truncate text-text-primary">{userName ?? userEmail}</span>
+            {userName && userEmail ? <span className="helper max-w-56 truncate text-text-tertiary">{userEmail}</span> : null}
+          </span>
+        ) : null}
         <Button className="gap-2" onClick={onSignOut} variant="secondary">
           <LogOut aria-hidden="true" size={16} />
           Sign out

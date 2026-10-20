@@ -13,13 +13,14 @@ interface PageShellProps {
   navigationItems: NavigationItem[]
   onSignOut: () => void
   userEmail: string | null
+  userName?: string | null
 }
 
 /**
  * The page frame: a 232px sidebar (a 72px icon rail from 1024 to 1279px, a drawer below
  * 1024px), a 64px top bar and the canvas content area.
  */
-export function PageShell({ activePath, children, headerLeading, navigationItems, onSignOut, userEmail }: PageShellProps) {
+export function PageShell({ activePath, children, headerLeading, navigationItems, onSignOut, userEmail, userName = null }: PageShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   return (
@@ -45,7 +46,7 @@ export function PageShell({ activePath, children, headerLeading, navigationItems
       </DialogPrimitive.Root>
 
       <div className="flex min-w-0 flex-col">
-        <Header leading={headerLeading} onOpenNavigation={() => setMobileNavOpen(true)} onSignOut={onSignOut} userEmail={userEmail} />
+        <Header leading={headerLeading} onOpenNavigation={() => setMobileNavOpen(true)} onSignOut={onSignOut} userEmail={userEmail} userName={userName} />
         {children}
       </div>
     </div>

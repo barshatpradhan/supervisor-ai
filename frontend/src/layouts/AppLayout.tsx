@@ -5,6 +5,7 @@ import { getNavigationItems } from '../config/navigation'
 import { useAuth } from '../features/auth/hooks/useAuth'
 import { OrganizationSwitcher } from '../features/organizations/components/OrganizationSwitcher'
 import { useOrganization } from '../features/organizations/hooks/useOrganization'
+import { useCurrentUserName } from '../hooks/useCurrentUserName'
 
 const routeTitles: [prefix: string, title: string][] = [
   ['/admin/users/new', 'Create user'],
@@ -28,7 +29,8 @@ function getRouteTitle(pathname: string) {
 export function AppLayout() {
   const location = useLocation()
   const { logout, user } = useAuth()
-  const { activeMembershipRole } = useOrganization()
+  const { activeMembershipRole, activeOrganization } = useOrganization()
+  const userName = useCurrentUserName(activeMembershipRole, activeOrganization?.id ?? null)
   const navigationItems = getNavigationItems({
     organizationRole: activeMembershipRole,
     platformRole: user?.platformRole ?? null,
@@ -48,6 +50,7 @@ export function AppLayout() {
         logout()
       }}
       userEmail={user?.email ?? null}
+      userName={userName}
     >
       <main className="mx-auto w-full max-w-[1240px] px-4 py-6 sm:px-6 xl:px-8 xl:py-8">
         <Outlet />
