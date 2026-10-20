@@ -1,6 +1,8 @@
 import crypto from "node:crypto";
 import { supabase } from "../config/supabase.js";
 import { AppError } from "../utils/appError.js";
+import { isSkillCategory, MAX_SKILL_NAME_LENGTH, skillMatchKey } from "../utils/skillNames.js";
+import { materializeSkillResolutions, rememberSkillAlias, resolveSkillNames } from "./skillResolutionService.js";
 
 interface SkillRow {
   id: string;
@@ -66,7 +68,7 @@ interface ResolvedEmployeeSkillsResult {
   createdSkillIds: string[];
   skillsToLink: Array<{
     input: NormalizedEmployeeSkillInput;
-    skill: SkillRow;
+    skill: { id: string };
   }>;
 }
 
@@ -126,8 +128,9 @@ function createSkillProvisioningError(
   return new AppError(message, 500, true, { cause: error });
 }
 
+/** Same key as the database's skill_match_key(), so "Node.js" and "nodejs" dedupe. */
 function normalizeSkill(skill: string) {
-  return skill.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return skillMatchKey(skill);
 }
 
 function uniqueSkills(skills: string[]) {
@@ -228,165 +231,39 @@ function mapPublicSkill(row: SkillRow): PublicSkillResponse {
   };
 }
 
+/**
+ * Maps typed skills to catalog skills (exact, alias or AI match), creating pending skills
+ * only for real skills that are not stored yet. Rejects inputs that are not skills.
+ * Skills are global; organizationId is kept for callers but no longer scopes skills.
+ */
 async function resolveEmployeeSkills(
   appUserId: string,
   skills: NormalizedEmployeeSkillInput[],
-  organizationId?: string
+  _organizationId?: string
 ): Promise<ResolvedEmployeeSkillsResult> {
   if (skills.length === 0) {
-    return {
-      createdSkillIds: [],
-      skillsToLink: [],
-    };
+    return { createdSkillIds: [], skillsToLink: [] };
   }
 
-  const normalizedNames = skills.map((skill) => skill.normalizedName);
-  let existingSkills: SkillRow[] = [];
+  const resolutions = await resolveSkillNames(skills.map((skill) => skill.name));
+  const { createdSkillIds, skillByInput } = await materializeSkillResolutions(resolutions, appUserId);
+  const resolutionByKey = new Map(resolutions.map((resolution) => [skillMatchKey(resolution.input), resolution]));
 
-  if (organizationId) {
-    const { data: globalSkills, error: globalSkillsError } = await supabase
-      .from("skills")
-      .select(
-        "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
-      )
-      .in("normalized_name", normalizedNames)
-      .is("organization_id", null)
-      .eq("is_approved", true)
-      .returns<SkillRow[]>();
-
-    if (globalSkillsError) {
-      throw createSkillProvisioningError(
-        "Unable to fetch existing skills.",
-        "fetch_global_skills",
-        globalSkillsError,
-        {
-          normalizedSkillCount: normalizedNames.length,
-          organizationId,
-        }
-      );
-    }
-
-    const { data: organizationSkills, error: organizationSkillsError } = await supabase
-      .from("skills")
-      .select(
-        "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
-      )
-      .in("normalized_name", normalizedNames)
-      .eq("organization_id", organizationId)
-      .returns<SkillRow[]>();
-
-    if (organizationSkillsError) {
-      throw createSkillProvisioningError(
-        "Unable to fetch existing skills.",
-        "fetch_organization_skills",
-        organizationSkillsError,
-        {
-          normalizedSkillCount: normalizedNames.length,
-          organizationId,
-        }
-      );
-    }
-
-    existingSkills = [...(globalSkills ?? []), ...(organizationSkills ?? [])];
-  } else {
-    const { data, error } = await supabase
-      .from("skills")
-      .select(
-        "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
-      )
-      .in("normalized_name", normalizedNames)
-      .returns<SkillRow[]>();
-
-    if (error) {
-      throw createSkillProvisioningError(
-        "Unable to fetch existing skills.",
-        "fetch_existing_skills",
-        error,
-        {
-          normalizedSkillCount: normalizedNames.length,
-        }
-      );
-    }
-
-    existingSkills = data ?? [];
-  }
-
-  const existingNormalizedNames = new Set(
-    (existingSkills ?? []).map((skill) => skill.normalized_name)
-  );
-  const missingSkills = skills.filter(
-    (skill) => !existingNormalizedNames.has(skill.normalizedName)
-  );
-  let createdSkills: SkillRow[] = [];
-
-  if (missingSkills.length > 0) {
-    const createdAt = new Date().toISOString();
-    const { data, error } = await supabase
-      .from("skills")
-      .insert(
-        missingSkills.map((skill) => ({
-          id: crypto.randomUUID(),
-          name: skill.name,
-          normalized_name: skill.normalizedName,
-          organization_id: organizationId ?? null,
-          is_approved: false,
-          created_by: appUserId,
-          created_at: createdAt,
-        }))
-      )
-      .select(
-        "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
-      )
-      .returns<SkillRow[]>();
-
-    if (error || !data) {
-      throw createSkillProvisioningError(
-        "Unable to create employee skills.",
-        "create_missing_skills",
-        error ?? {
-          message: "Missing created skill rows in Supabase response.",
-        },
-        {
-          createdByUserId: appUserId,
-          missingSkillCount: missingSkills.length,
-          organizationId: organizationId ?? null,
-        }
-      );
-    }
-
-    createdSkills = data;
-  }
-
-  const skillByNormalizedName = new Map(
-    [...(existingSkills ?? []), ...createdSkills].map((skill) => [
-      skill.normalized_name,
-      skill,
-    ])
-  );
+  logSkillProvisioningEvent("skills_resolved", {
+    inputCount: skills.length,
+    createdCount: createdSkillIds.length,
+    correctedCount: resolutions.filter((resolution) => resolution.corrected).length,
+  });
 
   return {
-    createdSkillIds: createdSkills.map((skill) => skill.id),
+    createdSkillIds,
     skillsToLink: skills
       .map((input) => {
-        const resolvedSkill = skillByNormalizedName.get(input.normalizedName);
-
-        if (!resolvedSkill) {
-          return null;
-        }
-
-        return {
-          input,
-          skill: resolvedSkill,
-        };
+        const resolution = resolutionByKey.get(input.normalizedName);
+        const skill = resolution ? skillByInput.get(resolution.input) : undefined;
+        return skill ? { input, skill: { id: skill.id } } : null;
       })
-      .filter(
-        (
-          value
-        ): value is {
-          input: NormalizedEmployeeSkillInput;
-          skill: SkillRow;
-        } => Boolean(value)
-      ),
+      .filter((value): value is { input: NormalizedEmployeeSkillInput; skill: { id: string } } => Boolean(value)),
   };
 }
 
@@ -555,12 +432,18 @@ export async function listPublicApprovedSkills(
   return (data ?? []).map(mapPublicSkill);
 }
 
-export async function listPendingSkills() {
+const SKILL_SELECT = "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at";
+
+export interface PendingSkillResponse extends ReturnType<typeof mapSkill> {
+  /** Other spellings people typed that resolve to this skill. */
+  enteredAs: string[];
+  employeeCount: number;
+}
+
+export async function listPendingSkills(): Promise<PendingSkillResponse[]> {
   const { data, error } = await supabase
     .from("skills")
-    .select(
-      "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
-    )
+    .select(SKILL_SELECT)
     .eq("is_approved", false)
     .order("created_at", { ascending: false })
     .returns<SkillRow[]>();
@@ -569,24 +452,148 @@ export async function listPendingSkills() {
     throw new AppError("Unable to fetch pending skills.", 500);
   }
 
-  return (data ?? []).map(mapSkill);
+  const skillIds = (data ?? []).map((skill) => skill.id);
+  const aliasesBySkill = new Map<string, string[]>();
+  const countsBySkill = new Map<string, number>();
+
+  if (skillIds.length > 0) {
+    const [aliasesResult, linksResult] = await Promise.all([
+      supabase
+        .from("skill_aliases")
+        .select("alias_key, skill_id")
+        .in("skill_id", skillIds)
+        .returns<Array<{ alias_key: string; skill_id: string }>>(),
+      supabase
+        .from("employee_skills")
+        .select("skill_id")
+        .in("skill_id", skillIds)
+        .returns<Array<{ skill_id: string }>>(),
+    ]);
+
+    if (aliasesResult.error || linksResult.error) {
+      throw new AppError("Unable to fetch pending skills.", 500);
+    }
+
+    for (const alias of aliasesResult.data ?? []) {
+      aliasesBySkill.set(alias.skill_id, [...(aliasesBySkill.get(alias.skill_id) ?? []), alias.alias_key]);
+    }
+    for (const link of linksResult.data ?? []) {
+      countsBySkill.set(link.skill_id, (countsBySkill.get(link.skill_id) ?? 0) + 1);
+    }
+  }
+
+  return (data ?? []).map((skill) => ({
+    ...mapSkill(skill),
+    enteredAs: aliasesBySkill.get(skill.id) ?? [],
+    employeeCount: countsBySkill.get(skill.id) ?? 0,
+  }));
 }
 
-export async function approveSkill(skillId: string) {
+export interface ApproveSkillInput {
+  name?: string;
+  category?: string;
+}
+
+/**
+ * Adds a pending skill to the catalog, optionally with a corrected name and category.
+ * If the corrected name is already a stored skill, the pending one is merged into it.
+ */
+export async function approveSkill(skillId: string, input: ApproveSkillInput = {}) {
+  const { data: pending, error: pendingError } = await supabase
+    .from("skills")
+    .select(SKILL_SELECT)
+    .eq("id", skillId)
+    .maybeSingle<SkillRow>();
+
+  if (pendingError) throw new AppError("Unable to approve skill.", 500);
+  if (!pending) throw new AppError("Skill not found.", 404);
+
+  const name = input.name === undefined ? pending.name : input.name.replace(/\s+/g, " ").trim();
+  if (!name || name.length > MAX_SKILL_NAME_LENGTH || !skillMatchKey(name)) {
+    throw new AppError(`Skill name must be 1-${MAX_SKILL_NAME_LENGTH} characters and include letters or digits.`, 400);
+  }
+  if (input.category !== undefined && !isSkillCategory(input.category)) {
+    throw new AppError("Skill category is not recognised.", 400);
+  }
+  const category = input.category ?? pending.category;
+  const key = skillMatchKey(name);
+
+  if (key !== pending.normalized_name) {
+    const { data: target } = await supabase
+      .from("skills")
+      .select(SKILL_SELECT)
+      .is("organization_id", null)
+      .eq("normalized_name", key)
+      .neq("id", skillId)
+      .maybeSingle<SkillRow>();
+
+    if (target) {
+      await mergeSkillInto(pending.id, target.id);
+      await rememberSkillAlias(pending.name, target.id, "admin");
+      const { data: approvedTarget, error } = await supabase
+        .from("skills")
+        .update({ is_approved: true, category: target.category ?? category })
+        .eq("id", target.id)
+        .select(SKILL_SELECT)
+        .single<SkillRow>();
+      if (error || !approvedTarget) throw new AppError("Unable to approve skill.", 500);
+      return mapSkill(approvedTarget);
+    }
+  }
+
   const { data, error } = await supabase
     .from("skills")
-    .update({ is_approved: true })
+    .update({ is_approved: true, name, normalized_name: key, category })
     .eq("id", skillId)
-    .select(
-      "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
-    )
+    .select(SKILL_SELECT)
     .single<SkillRow>();
 
   if (error || !data) {
     throw new AppError("Unable to approve skill.", 400);
   }
 
+  if (key !== pending.normalized_name) await rememberSkillAlias(pending.name, data.id, "admin");
+
   return mapSkill(data);
+}
+
+/** Moves every employee link and alias from one skill to another, then deletes the source. */
+export async function mergeSkillInto(sourceSkillId: string, targetSkillId: string) {
+  const { data: sourceLinks, error: sourceError } = await supabase
+    .from("employee_skills")
+    .select("id, employee_id")
+    .eq("skill_id", sourceSkillId)
+    .returns<Array<{ id: string; employee_id: string }>>();
+  if (sourceError) throw new AppError("Unable to merge skills.", 500);
+
+  const employeeIds = (sourceLinks ?? []).map((link) => link.employee_id);
+  const alreadyLinked = new Set<string>();
+  if (employeeIds.length > 0) {
+    const { data: targetLinks, error } = await supabase
+      .from("employee_skills")
+      .select("employee_id")
+      .eq("skill_id", targetSkillId)
+      .in("employee_id", employeeIds)
+      .returns<Array<{ employee_id: string }>>();
+    if (error) throw new AppError("Unable to merge skills.", 500);
+    for (const link of targetLinks ?? []) alreadyLinked.add(link.employee_id);
+  }
+
+  // An employee who already has the target skill keeps that link; the duplicate goes.
+  const duplicateIds = (sourceLinks ?? []).filter((link) => alreadyLinked.has(link.employee_id)).map((link) => link.id);
+  if (duplicateIds.length > 0) {
+    const { error } = await supabase.from("employee_skills").delete().in("id", duplicateIds);
+    if (error) throw new AppError("Unable to merge skills.", 500);
+  }
+
+  const { error: moveError } = await supabase.from("employee_skills").update({ skill_id: targetSkillId }).eq("skill_id", sourceSkillId);
+  if (moveError) throw new AppError("Unable to merge skills.", 500);
+
+  const { error: aliasError } = await supabase.from("skill_aliases").update({ skill_id: targetSkillId }).eq("skill_id", sourceSkillId);
+  if (aliasError) throw new AppError("Unable to merge skills.", 500);
+
+  const { error: deleteError } = await supabase.from("skills").delete().eq("id", sourceSkillId);
+  if (deleteError) throw new AppError("Unable to merge skills.", 500);
 }
 
 export async function rejectSkill(skillId: string) {

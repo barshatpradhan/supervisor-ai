@@ -17,6 +17,7 @@ export function EmployeeProfileForm({ approvedSkillCount, editor }: EmployeeProf
     availableSkillSuggestions,
     categorizedSkills,
     draft,
+    isCheckingSkill,
     isDirty,
     isSaving,
     removeSkill,
@@ -28,6 +29,7 @@ export function EmployeeProfileForm({ approvedSkillCount, editor }: EmployeeProf
     setJobTitle,
     setSkillInput,
     skillInput,
+    skillNotice,
     submitError,
     updateSkill,
     validationErrors,
@@ -83,7 +85,7 @@ export function EmployeeProfileForm({ approvedSkillCount, editor }: EmployeeProf
           <div>
             <h3 className="section-title m-0 text-text-primary" id="profile-skills-title">Skills</h3>
             <p className="helper m-0 text-text-tertiary">
-              {approvedSkillCount} approved skills to choose from. New names go to your organization for review.
+              {approvedSkillCount} approved skills to choose from. Anything else is checked and corrected, and genuinely new skills go to a platform admin.
             </p>
           </div>
 
@@ -97,7 +99,7 @@ export function EmployeeProfileForm({ approvedSkillCount, editor }: EmployeeProf
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') {
                     event.preventDefault()
-                    addSkill()
+                    void addSkill()
                   }
                 }}
                 placeholder="React, SQL, stakeholder communication…"
@@ -105,12 +107,19 @@ export function EmployeeProfileForm({ approvedSkillCount, editor }: EmployeeProf
                 value={skillInput}
               />
             </label>
-            <Button className="sm:min-w-28" onClick={addSkill} variant="secondary">Add skill</Button>
+            <Button className="sm:min-w-28" disabled={isCheckingSkill} onClick={() => { void addSkill() }} variant="secondary">
+              {isCheckingSkill ? 'Checking…' : 'Add skill'}
+            </Button>
           </div>
           <datalist id="employee-approved-skills">
             {availableSkillSuggestions.map((skill) => <option key={skill} value={skill} />)}
           </datalist>
           {validationErrors.skillInput ? <p className={`${fieldErrorClass} m-0`}>{validationErrors.skillInput}</p> : null}
+          {skillNotice && !validationErrors.skillInput ? (
+            <p aria-live="polite" className={`helper m-0 ${skillNotice.tone === 'warning' ? 'font-medium text-warning-fg' : 'text-text-secondary'}`}>
+              {skillNotice.message}
+            </p>
+          ) : null}
 
           {hasNoSkills ? (
             <StateBlock compact title="No skills yet">Add the skills you use so assignments and recommendations fit your profile.</StateBlock>

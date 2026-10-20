@@ -1,4 +1,5 @@
 import { supabase } from "../config/supabase.js";
+import { skillMatchKey } from "../utils/skillNames.js";
 import type {
   AssignableEmployeeDirectoryEntry,
   SupervisorEmployeeDirectoryQuery,
@@ -26,7 +27,7 @@ export interface CreateSupervisorProfileRecordInput {
 }
 
 function normalizeSkillFilter(skill: string) {
-  return skill.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return skillMatchKey(skill);
 }
 
 export async function getSupervisorProfileByAuthId(

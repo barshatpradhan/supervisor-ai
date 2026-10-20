@@ -121,7 +121,28 @@ export interface BackendApprovedSkill {
   createdAt: string
 }
 
-export type BackendPendingSkill = BackendApprovedSkill
+export interface BackendPendingSkill extends BackendApprovedSkill {
+  /** Other spellings people typed that resolve to this skill (match keys). */
+  enteredAs: string[]
+  employeeCount: number
+}
+
+export interface BackendApproveSkillRequest {
+  name?: string
+  category?: string
+}
+
+/** How a typed skill resolves; see backend skillResolutionService. */
+export interface BackendSkillResolution {
+  input: string
+  status: 'catalog' | 'pending' | 'new' | 'unverified' | 'invalid'
+  skill: { id: string; name: string; category: string | null; isApproved: boolean } | null
+  suggestedName: string | null
+  category: string | null
+  corrected: boolean
+  reason: string | null
+  matchedBy: 'exact' | 'alias' | 'ai' | 'rule' | null
+}
 
 export type BackendUserDirectoryRoleFilter =
   | BackendOrganizationMembershipRole

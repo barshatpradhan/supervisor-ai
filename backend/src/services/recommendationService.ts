@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { skillMatchKey } from "../utils/skillNames.js";
 import { supabase } from "../config/supabase.js";
 import type {
   AssignRecommendedEmployeeInput,
@@ -84,8 +85,9 @@ const SCORE_WEIGHTS = {
   experience: 5,
 } as const;
 
+// Shared with the skill catalog, so "Node.js" in a spec matches an employee's "NodeJS".
 function normalizeSkill(skill: string) {
-  return skill.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return skillMatchKey(skill);
 }
 
 function uniqueSkills(skills: string[]) {
@@ -120,8 +122,11 @@ function findMatchingSkill(targetSkill: string, employeeSkills: EmployeeSkill[])
   const normalizedTarget = normalizeSkill(targetSkill);
   return employeeSkills.find((skill) => {
     const normalizedEmployeeSkill = normalizeSkill(skill.name);
+    if (normalizedEmployeeSkill === normalizedTarget) return true;
+    // Partial matches ("SQL" in "PostgreSQL") only for keys long enough to mean something;
+    // otherwise "Go" would match "Django" and "C" nearly everything.
+    if (Math.min(normalizedEmployeeSkill.length, normalizedTarget.length) < 3) return false;
     return (
-      normalizedEmployeeSkill === normalizedTarget ||
       normalizedEmployeeSkill.includes(normalizedTarget) ||
       normalizedTarget.includes(normalizedEmployeeSkill)
     );
@@ -329,7 +334,7 @@ async function getEmployeeSkills(employeeIds: string[]) {
     const skill = skillById.get(link.skill_id);
     if (!skill) continue;
     skillsByEmployeeId.get(link.employee_id)?.push({
-      name: skill.normalized_name || skill.name,
+      name: skill.name,
       proficiencyLevel: link.proficiency_level,
       yearsOfExperience: link.years_of_experience,
     });

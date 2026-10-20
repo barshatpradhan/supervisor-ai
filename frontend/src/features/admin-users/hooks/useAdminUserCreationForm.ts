@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNotifications } from '../../../hooks/useNotifications'
+import { useSkillCheck, type SkillCheckOutcome } from '../../../hooks/useSkillCheck'
 import { createManagedUser } from '../../../services/admin/adminUserService'
 import { useApprovedSkillCatalog } from '../../account-creation/hooks/useApprovedSkillCatalog'
 import { buildAdminUserPayload } from '../../account-creation/types/accountCreation'
@@ -30,6 +31,8 @@ export function useAdminUserCreationForm() {
   const [values, setValues] = useState<AdminUserCreationValues>(initialValues)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [customSkillInput, setCustomSkillInput] = useState('')
+  const [customSkillNotice, setCustomSkillNotice] = useState<Pick<SkillCheckOutcome, 'message' | 'tone'> | null>(null)
+  const skillCheck = useSkillCheck()
   const [validationErrors, setValidationErrors] = useState<
     ReturnType<typeof validateAdminUserCreationStep>
   >({})
@@ -88,7 +91,8 @@ export function useAdminUserCreationForm() {
     setValidationErrors((current) => ({ ...current, skills: undefined }))
   }
 
-  function addCustomSkill() {
+  /** Checks the typed skill first: catalog match, AI correction, or rejection. */
+  async function addCustomSkill() {
     const trimmedSkill = customSkillInput.trim()
 
     if (!trimmedSkill) {
@@ -99,31 +103,35 @@ export function useAdminUserCreationForm() {
       return
     }
 
-    if (hasDuplicateSkill(values.selectedSkills, trimmedSkill)) {
+    setCustomSkillNotice(null)
+    const outcome = await skillCheck.check(trimmedSkill)
+
+    if (!outcome.accepted) {
+      setValidationErrors((current) => ({ ...current, skills: outcome.message }))
+      return
+    }
+
+    if (hasDuplicateSkill(values.selectedSkills, outcome.name)) {
       setValidationErrors((current) => ({
         ...current,
-        skills: 'That skill is already selected.',
+        skills: `${outcome.name} is already selected.`,
       }))
       return
     }
 
-    const matchingApprovedSkill = allApprovedSkillsByNormalizedName.get(
-      createSelectedSkill(trimmedSkill).normalizedName,
-    )
-
-    if (matchingApprovedSkill) {
-      setValidationErrors((current) => ({
-        ...current,
-        skills: 'That skill already exists in the approved catalog. Select the approved version instead.',
-      }))
-      return
-    }
+    const catalogSkill = outcome.isApproved
+      ? allApprovedSkillsByNormalizedName.get(createSelectedSkill(outcome.name).normalizedName)
+      : undefined
+    const selected = catalogSkill
+      ? createSelectedSkill(catalogSkill.name, catalogSkill)
+      : { ...createSelectedSkill(outcome.name), category: outcome.category, isCustom: !outcome.isApproved }
 
     setValues((current) => ({
       ...current,
-      selectedSkills: [...current.selectedSkills, createSelectedSkill(trimmedSkill)],
+      selectedSkills: [...current.selectedSkills, selected],
     }))
     setCustomSkillInput('')
+    setCustomSkillNotice(outcome.message ? { message: outcome.message, tone: outcome.tone } : null)
     setValidationErrors((current) => ({ ...current, skills: undefined }))
   }
 
@@ -210,7 +218,10 @@ export function useAdminUserCreationForm() {
     currentStepIndex,
     customSkillInput,
     customSkillMessage:
-      'Custom skills stay pending approval until a reviewer approves them in the skill moderation flow.',
+      customSkillNotice?.message ??
+      'Typed skills are checked first: known skills are matched, spelling is corrected, and only genuinely new skills go to a platform admin.',
+    customSkillTone: customSkillNotice?.tone ?? 'info',
+    isCheckingCustomSkill: skillCheck.isChecking,
     goToNextStep,
     goToPreviousStep,
     isSubmitting,

@@ -80,7 +80,10 @@ export async function approveSkillHandler(
 ) {
   try {
     const skillId = requireUuid(req.params.skillId, "Skill id");
-    const skill = await approveSkill(skillId);
+    const body = (req.body ?? {}) as { name?: unknown; category?: unknown };
+    if (body.name !== undefined && typeof body.name !== "string") throw new AppError("name must be a string.", 400);
+    if (body.category !== undefined && typeof body.category !== "string") throw new AppError("category must be a string.", 400);
+    const skill = await approveSkill(skillId, { name: body.name as string | undefined, category: body.category as string | undefined });
 
     return sendSuccess(res, 200, "Skill approved successfully.", skill);
   } catch (error) {

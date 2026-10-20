@@ -17,7 +17,8 @@
     "verify:tenant-isolation": "tsx src/scripts/tenantIsolationVerification.ts",
     "verify:task-progress": "tsx src/scripts/taskProgressVerification.ts",
     "bootstrap:first-platform-admin": "tsx src/scripts/bootstrapFirstPlatformAdmin.ts",
-    "db:reset": "tsx src/scripts/resetDevelopmentDatabase.ts"
+    "db:reset": "tsx src/scripts/resetDevelopmentDatabase.ts",
+    "skills:cleanup": "tsx scripts/skills/cleanupSkills.ts"
   },
   "keywords": [],
   "author": "",

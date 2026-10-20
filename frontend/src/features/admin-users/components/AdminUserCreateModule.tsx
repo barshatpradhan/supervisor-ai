@@ -66,8 +66,10 @@ export function AdminUserCreateModule() {
     currentStepIndex,
     customSkillInput,
     customSkillMessage,
+    customSkillTone,
     goToNextStep,
     goToPreviousStep,
+    isCheckingCustomSkill,
     isSubmitting,
     removeSelectedSkill,
     reviewData,
@@ -233,6 +235,8 @@ export function AdminUserCreateModule() {
           approvedSkillCatalog={approvedSkillCatalog}
           customSkillInput={customSkillInput}
           customSkillMessage={customSkillMessage}
+          customSkillTone={customSkillTone}
+          isCheckingCustomSkill={isCheckingCustomSkill}
           onCustomSkillInputChange={setCustomSkillInput}
           onRemoveSkill={removeSelectedSkill}
           onUpdateSkillProficiency={setProficiencyLevel}

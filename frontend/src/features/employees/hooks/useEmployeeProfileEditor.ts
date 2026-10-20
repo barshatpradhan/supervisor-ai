@@ -5,6 +5,7 @@ import type {
 } from '../../../types/backend'
 import { useEmployeeProfile } from '../../../hooks/useEmployeeProfile'
 import { useNotifications } from '../../../hooks/useNotifications'
+import { useSkillCheck, type SkillCheckOutcome } from '../../../hooks/useSkillCheck'
 import { updateEmployeeProfile } from '../../../services/employees/employeeService'
 import { useApprovedSkills } from './useApprovedSkills'
 import {
@@ -116,6 +117,8 @@ export function useEmployeeProfileEditor() {
   const [draftState, setDraftState] = useState<EmployeeProfileFormValues | null>(null)
   const [profileOverride, setProfileOverride] = useState<BackendEmployeeProfile | null>(null)
   const [skillInput, setSkillInput] = useState('')
+  const [skillNotice, setSkillNotice] = useState<Pick<SkillCheckOutcome, 'message' | 'tone'> | null>(null)
+  const skillCheck = useSkillCheck()
   const [validationErrors, setValidationErrors] =
     useState<EmployeeProfileValidationErrors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -250,7 +253,8 @@ export function useEmployeeProfileEditor() {
     updateDraft((current) => ({ ...current, department: value }))
   }
 
-  function addSkill() {
+  /** Checks the typed skill first: catalog match, AI correction, or rejection. */
+  async function addSkill() {
     const normalizedInput = skillInput.trim()
 
     if (!normalizedInput) {
@@ -261,11 +265,28 @@ export function useEmployeeProfileEditor() {
       return
     }
 
+    setSkillNotice(null)
+    const outcome = await skillCheck.check(normalizedInput)
+
+    if (!outcome.accepted) {
+      setValidationErrors((current) => ({ ...current, skillInput: outcome.message }))
+      return
+    }
+
+    const alreadyAdded = (draft?.skills ?? []).some(
+      (skill) => normalizeSkillName(skill.name) === normalizeSkillName(outcome.name),
+    )
+    if (alreadyAdded) {
+      setValidationErrors((current) => ({ ...current, skillInput: `${outcome.name} is already on your profile.` }))
+      return
+    }
+
     updateDraft((current) => ({
         ...current,
-        skills: dedupeProfileSkills([...current.skills, { name: normalizedInput, proficiencyLevel: 3, yearsOfExperience: '' }]),
+        skills: dedupeProfileSkills([...current.skills, { name: outcome.name, proficiencyLevel: 3, yearsOfExperience: '' }]),
       }))
     setSkillInput('')
+    setSkillNotice(outcome.message ? { message: outcome.message, tone: outcome.tone } : null)
     setValidationErrors((current) => ({ ...current, skillInput: undefined }))
   }
 
@@ -324,6 +345,8 @@ export function useEmployeeProfileEditor() {
     setSkillInput,
     updateSkill,
     skillInput,
+    skillNotice,
+    isCheckingSkill: skillCheck.isChecking,
     submitError,
     validationErrors,
     addSkill,

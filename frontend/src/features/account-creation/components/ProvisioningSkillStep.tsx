@@ -12,6 +12,8 @@ interface ProvisioningSkillStepProps {
   approvedSkillCatalog: ApprovedSkillCatalogState
   customSkillInput: string
   customSkillMessage: string
+  customSkillTone?: 'info' | 'warning' | 'error'
+  isCheckingCustomSkill?: boolean
   onCustomSkillInputChange: (value: string) => void
   onRemoveSkill: (clientId: string) => void
   onUpdateSkillProficiency: (clientId: string, value: number) => void
@@ -26,6 +28,8 @@ export function ProvisioningSkillStep({
   approvedSkillCatalog,
   customSkillInput,
   customSkillMessage,
+  customSkillTone = 'info',
+  isCheckingCustomSkill = false,
   onCustomSkillInputChange,
   onRemoveSkill,
   onUpdateSkillProficiency,
@@ -131,9 +135,15 @@ export function ProvisioningSkillStep({
                     value={customSkillInput}
                   />
                 </label>
-                <Button onClick={addCustomSkill} type="button" variant="secondary">Add custom skill</Button>
+                <Button disabled={isCheckingCustomSkill} onClick={addCustomSkill} type="button" variant="secondary">
+                  {isCheckingCustomSkill ? 'Checking…' : 'Add custom skill'}
+                </Button>
               </div>
-              {customSkillMessage ? <p className={`${fieldHintClass} m-0`}>{customSkillMessage}</p> : null}
+              {customSkillMessage ? (
+                <p aria-live="polite" className={`${customSkillTone === 'warning' ? 'helper font-medium text-warning-fg' : fieldHintClass} m-0`}>
+                  {customSkillMessage}
+                </p>
+              ) : null}
               {validationErrors.skills ? <p className={`${fieldErrorClass} m-0`}>{validationErrors.skills}</p> : null}
             </div>
           </>
