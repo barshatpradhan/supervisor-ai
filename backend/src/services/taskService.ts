@@ -207,9 +207,11 @@ async function recalculateProjectProgress(
     throw new AppError("Unable to update project progress.", 500);
   }
 
+  // activity_logs.actor_user_id references users.id, not the Auth user id.
+  const actor = await getAppUserByAuthId(authUserId);
   await logActivity({
     organizationId,
-    actorUserId: authUserId,
+    actorUserId: actor.id,
     eventType: "project_progress_updated",
     projectId,
     metadata: { progressPercentage },

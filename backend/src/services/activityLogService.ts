@@ -28,6 +28,6 @@ export async function logActivity(input: {
 
   // Auditing must not make a completed business operation unavailable.
   if (error) {
-    console.warn(JSON.stringify({ scope: "activity_log", event: "write_failed", type: input.eventType }));
+    console.warn(JSON.stringify({ scope: "activity_log", event: "write_failed", type: input.eventType, code: error.code }));
   }
 }
