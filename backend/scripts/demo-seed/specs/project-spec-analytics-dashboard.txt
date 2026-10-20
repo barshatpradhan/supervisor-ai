@@ -1,0 +1,40 @@
+Project: Internal Analytics Dashboard Revamp
+
+Overview:
+We are rebuilding the internal analytics dashboard for the operations team.
+The current dashboard is slow, visually outdated, and difficult to extend.
+This project will replace it with a modern, performant, and maintainable
+implementation.
+
+Scope:
+- Rebuild the frontend using React 19 and TypeScript, following our design
+  system's component and token conventions.
+- Build a Node.js/Express backend API layer to serve aggregated analytics
+  data, replacing the current direct-to-database queries made from the
+  frontend.
+- Use PostgreSQL for underlying data storage and querying; work will
+  include writing and optimizing several aggregate queries.
+- Implement data visualization components (charts, tables, filters) capable
+  of handling large datasets without performance degradation.
+- Add responsive layouts so the dashboard works well on tablets used by
+  floor supervisors.
+
+Required Skills:
+- React (advanced)
+- TypeScript (advanced)
+- Node.js / Express (intermediate or higher)
+- PostgreSQL (intermediate or higher)
+
+Preferred Skills:
+- Data visualization libraries (e.g. Recharts, D3, Chart.js)
+- Experience with performance optimization for data-heavy UIs
+- Prior experience building or maintaining internal admin/analytics tools
+
+Team & Availability:
+This project requires a dedicated contributor available for at least
+20 hours per week over an estimated 6-week timeline. Strong communication
+skills are important since the contributor will work closely with the
+operations team to validate requirements throughout.
+
+Priority: High
+Status: Draft — pending resource assignment

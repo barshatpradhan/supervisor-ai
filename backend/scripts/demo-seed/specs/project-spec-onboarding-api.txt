@@ -1,0 +1,46 @@
+Project: Customer Onboarding API & Automation Pipeline
+
+Overview:
+We are building a new backend service to automate customer onboarding for
+enterprise clients. Currently, onboarding is handled manually through a mix
+of spreadsheets and email, which does not scale and introduces frequent
+data-entry errors. This project will introduce a dedicated API and
+automated workflow to replace that process.
+
+Scope:
+- Design and build a Node.js/Express REST API to manage onboarding
+  workflows: account creation, document collection, verification steps,
+  and status tracking.
+- Model and implement the underlying schema in PostgreSQL, including
+  audit logging for every onboarding step for compliance purposes.
+- Integrate with Supabase for authentication and row-level security so
+  each enterprise client's data remains strictly isolated from others.
+- Build automated email notifications at each onboarding milestone
+  (welcome, documents received, verification complete, account activated).
+- Add a lightweight internal admin view (basic React frontend) so support
+  staff can monitor onboarding status without needing direct database
+  access.
+- Write integration tests covering the core onboarding state machine, since
+  this workflow directly affects paying customers going live.
+
+Required Skills:
+- Node.js (advanced)
+- Express (advanced)
+- PostgreSQL (advanced)
+- Supabase (intermediate or higher)
+
+Preferred Skills:
+- React (basic admin UI work only, not core focus)
+- Experience with row-level security / multi-tenant data isolation
+- Experience writing integration or end-to-end tests
+- Familiarity with transactional email systems
+
+Team & Availability:
+This is a backend-heavy project requiring a contributor available for at
+least 25 hours per week over an estimated 8-week timeline. Given the
+compliance and audit-logging requirements, prior experience with
+production backend systems handling sensitive data is strongly preferred
+over general full-stack breadth.
+
+Priority: High
+Status: Draft — pending resource assignment

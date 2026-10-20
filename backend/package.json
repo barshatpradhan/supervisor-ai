@@ -18,6 +18,9 @@
     "verify:task-progress": "tsx src/scripts/taskProgressVerification.ts",
     "bootstrap:first-platform-admin": "tsx src/scripts/bootstrapFirstPlatformAdmin.ts",
     "db:reset": "tsx src/scripts/resetDevelopmentDatabase.ts",
+    "seed:demo": "tsx scripts/demo-seed/seedDemo.ts",
+    "seed:demo:clean": "tsx scripts/demo-seed/cleanDemo.ts",
+    "lint:scripts": "tsc -p scripts/tsconfig.json",
     "skills:cleanup": "tsx scripts/skills/cleanupSkills.ts"
   },
   "keywords": [],

@@ -1,0 +1,36 @@
+Project: Warehouse Scanner Rollout
+
+Overview:
+Our two regional warehouses still use handheld scanners that talk to the
+legacy v1 inventory endpoints. The devices are end-of-life and lose scans
+when Wi-Fi drops between aisles. This project replaces the fleet and moves
+scanning onto the v2 inventory API.
+
+Scope:
+- Evaluate and order replacement Android scanners for 40 devices.
+- Migrate scanning from the v1 to the v2 inventory REST API, including
+  batch sync of scan events.
+- Build an offline retry queue so scans captured without connectivity are
+  synced safely once the device reconnects, with clear conflict handling.
+- Integrate with the existing Zebra label printers for shelf labels.
+- Set up a CI pipeline that builds, signs and distributes the scanner app
+  to the device fleet.
+- Run a load test with all 40 devices before go-live.
+
+Required Skills:
+- Node.js (intermediate or higher)
+- REST APIs (intermediate or higher)
+- PostgreSQL (intermediate)
+- Offline sync / mobile data synchronisation
+
+Preferred Skills:
+- CI/CD for device fleets
+- Docker
+- Experience with hardware integrations such as label printers
+
+Team & Availability:
+Roughly 120 hours over 5 weeks. Work is paused until the hardware budget is
+approved, so the project is on hold.
+
+Priority: Medium
+Status: On hold — waiting for hardware budget approval
