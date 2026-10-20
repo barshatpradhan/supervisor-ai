@@ -156,6 +156,51 @@ test("a Brevo failure produces the safe application error and does not fall back
   assert.equal(entries.some((entry) => entry.includes('"provider":"console"')), false);
 });
 
+test("a Brevo error response is logged with its status and body, without secrets", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalInfo = console.info;
+  const entries: string[] = [];
+  globalThis.fetch = async () =>
+    new Response(
+      JSON.stringify({ code: "unauthorized", message: `Sender not valid for ${invitation.to}` }),
+      { status: 400, headers: { "Content-Type": "application/json" } }
+    );
+  console.info = (entry: string) => entries.push(entry);
+
+  let caught: unknown;
+  try {
+    await withEnvironment({
+      TRANSACTIONAL_EMAIL_PROVIDER: "brevo",
+      BREVO_API_KEY: "test-server-key",
+      INVITATION_EMAIL_FROM: "invites@example.test",
+    }, async () => {
+      await createEmailService().sendOrganizationInvitation(invitation).catch((error: unknown) => {
+        caught = error;
+      });
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    console.info = originalInfo;
+  }
+
+  assert.ok(caught instanceof AppError);
+  assert.equal(caught.statusCode, 502);
+  assert.match(String((caught.cause as Error).message), /Brevo responded 400/);
+  const logged = entries.join("\n");
+  assert.match(logged, /"statusCode":400/);
+  assert.match(logged, /unauthorized/);
+  assert.match(logged, /\[recipient\]/);
+  assert.doesNotMatch(logged, /test-server-key|raw-test-token|employee@example\.test/);
+});
+
+test("an unknown provider name fails safely", async () => {
+  await withEnvironment({ TRANSACTIONAL_EMAIL_PROVIDER: "smtp" }, () => {
+    assert.throws(() => createEmailService(), (error: unknown) =>
+      error instanceof AppError && error.statusCode === 503
+    );
+  });
+});
+
 test("organization invitations do not use Supabase invitation delivery", async () => {
   const organizationServicePath = fileURLToPath(new URL("../organizationService.ts", import.meta.url));
   const source = await readFile(organizationServicePath, "utf8");

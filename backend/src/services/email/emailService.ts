@@ -48,8 +48,16 @@ class BrevoEmailService implements EmailService {
       });
 
       if (!response.ok) {
-        logDelivery("organization_invitation_email_failed", input, { provider: "brevo", statusCode: response.status });
-        throw new AppError("Unable to send organization invitation email.", 502, true);
+        // Brevo explains failures in the body ({ code, message }), e.g. an unverified sender.
+        const providerResponse = await readProviderResponse(response, input.to);
+        logDelivery("organization_invitation_email_failed", input, {
+          provider: "brevo",
+          statusCode: response.status,
+          providerResponse,
+        });
+        throw new AppError("Unable to send organization invitation email.", 502, true, {
+          cause: new Error(`Brevo responded ${response.status}: ${providerResponse}`),
+        });
       }
 
       logDelivery("organization_invitation_email_sent", input, { provider: "brevo" });
@@ -81,6 +89,21 @@ function logDelivery(event: string, input: OrganizationInvitationEmailInput, fie
     recipientDomain: recipientDomain(input.to),
     ...fields,
   }));
+}
+
+const MAX_PROVIDER_RESPONSE_LENGTH = 500;
+
+/** The provider's error body, trimmed, with the recipient address redacted. Never includes the API key. */
+async function readProviderResponse(response: Response, recipient: string) {
+  let body: string;
+  try {
+    body = await response.text();
+  } catch {
+    return "<unreadable response body>";
+  }
+
+  if (!body) return "<empty response body>";
+  return body.split(recipient).join("[recipient]").slice(0, MAX_PROVIDER_RESPONSE_LENGTH);
 }
 
 function escapeHtml(value: string) {

@@ -582,6 +582,8 @@ Only variable names are documented. Do not commit real values.
 | `GEMINI_API_KEY` | Yes for document analysis | Gemini API key; never expose it to clients. |
 | `GEMINI_MODEL` | No | Overrides the Gemini model; defaults in code when omitted. |
 
+If Brevo rejects a send, the backend returns 502 and logs Brevo's status code and response body (recipient address redacted, API key never logged) under `organization_invitation_email_failed`. A 400 with `unauthorized` usually means the sender in `INVITATION_EMAIL_FROM` is not verified in Brevo. Copy `backend/.env.example` to start a new `.env`.
+
 ## First Platform-Admin Bootstrap
 
 This is a development/operations-only procedure. It is not exposed by public registration,
