@@ -6,6 +6,18 @@ import { incrementMetric } from "../../middleware/observabilityMiddleware.js";
 
 const DEFAULT_MODEL = "gemini-2.0-flash";
 const COMPLEXITIES: readonly DocumentComplexity[] = ["low", "medium", "high"];
+const MAX_ATTEMPTS = 3;
+// Waits before attempts 2 and 3 when Gemini is rate limited or overloaded (429/5xx).
+const RETRY_DELAYS_MS = [2_000, 6_000];
+
+function getErrorStatus(error: unknown) {
+  const status = (error as { status?: unknown } | null)?.status;
+  return typeof status === "number" ? status : undefined;
+}
+
+function isTransientStatus(status: number | undefined) {
+  return status === 429 || (status !== undefined && status >= 500);
+}
 
 function getGeminiConfiguration() {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
@@ -80,7 +92,16 @@ export async function analyzeWithGemini(input: ProjectDocumentAnalysisInput): Pr
   const { apiKey, model } = getGeminiConfiguration();
   const client = new GoogleGenAI({ apiKey });
   let lastError: unknown;
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    if (attempt > 1) {
+      const status = getErrorStatus(lastError);
+      // Overload or rate limit: back off. Other errors get one immediate retry only.
+      if (isTransientStatus(status)) {
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt - 2]));
+      } else if (attempt > 2) {
+        break;
+      }
+    }
     try {
       console.info(JSON.stringify({ scope: "document_analysis", event: "gemini_request_started", attempt, textLength: input.text.length }));
       const response = await client.models.generateContent({
@@ -103,6 +124,8 @@ export async function analyzeWithGemini(input: ProjectDocumentAnalysisInput): Pr
           event: "gemini_request_failed",
           attempt,
           errorType: error instanceof Error ? error.name : "unknown",
+          // HTTP status from the SDK's ApiError (e.g. 429, 503), so failures are diagnosable.
+          status: getErrorStatus(error),
         })
       );
       incrementMetric("gemini_requests_total", { outcome: "failure" });
