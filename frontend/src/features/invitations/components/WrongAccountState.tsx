@@ -1,6 +1,7 @@
+import { UserRoundX } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { Card } from '../../../components/ui/Card'
 import { Button } from '../../../components/ui/Button'
+import { Card, CardHeader } from '../../../components/ui/Card'
 
 interface WrongAccountStateProps {
   currentEmail: string | null
@@ -9,33 +10,34 @@ interface WrongAccountStateProps {
   maskedInvitedEmail: string
 }
 
-export function WrongAccountState({
-  currentEmail,
-  loginPath,
-  logoutToInvitedEmail,
-  maskedInvitedEmail,
-}: WrongAccountStateProps) {
+/** Signed in as someone else: switch to the invited account before accepting. */
+export function WrongAccountState({ currentEmail, loginPath, logoutToInvitedEmail, maskedInvitedEmail }: WrongAccountStateProps) {
   return (
-    <Card className="grid gap-5">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-normal text-danger-700">
-          Wrong account
-        </p>
-        <h2 className="mt-2 text-2xl font-bold text-ink-900">
-          This invitation belongs to a different email
-        </h2>
-        <p className="mt-2 text-sm leading-6 text-ink-600">
-          You are signed in as {currentEmail ?? 'another account'}, but this invitation was sent
-          to {maskedInvitedEmail}. Sign in with the invited email before accepting.
-        </p>
-      </div>
-
+    <Card aria-labelledby="wrong-account-title" className="flex flex-col gap-4">
+      <CardHeader
+        icon={
+          <span aria-hidden="true" className="inline-flex size-8 items-center justify-center rounded-pill bg-danger-bg text-danger-fg">
+            <UserRoundX size={16} />
+          </span>
+        }
+        id="wrong-account-title"
+        title="This invitation belongs to a different email"
+      />
+      <dl className="m-0 grid gap-3 rounded-control border border-chart-grid bg-surface-inset p-4 sm:grid-cols-2">
+        <div>
+          <dt className="helper text-text-tertiary">Signed in as</dt>
+          <dd className="body-strong m-0 break-words text-text-primary">{currentEmail ?? 'Another account'}</dd>
+        </div>
+        <div>
+          <dt className="helper text-text-tertiary">Invitation sent to</dt>
+          <dd className="body-strong m-0 break-words text-text-primary">{maskedInvitedEmail}</dd>
+        </div>
+      </dl>
+      <p className="body m-0 text-text-secondary">Sign in with the invited email to accept.</p>
       <div className="flex flex-col gap-3 sm:flex-row">
-        <Button onClick={logoutToInvitedEmail} type="button">
-          Sign out and continue
-        </Button>
+        <Button onClick={logoutToInvitedEmail}>Sign out and continue</Button>
         <Link
-          className="inline-flex min-h-10 items-center justify-center rounded-md border border-border-subtle bg-surface-card px-4 py-2 text-sm font-semibold text-ink-800 transition hover:bg-surface-muted focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary-300"
+          className="inline-flex min-h-10 items-center justify-center rounded-control border border-border-strong bg-surface-card px-4 text-sm font-semibold text-text-primary no-underline hover:bg-surface-muted"
           to={loginPath}
         >
           Open sign in
