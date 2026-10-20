@@ -1,3 +1,4 @@
+import { PasswordInput } from '../../../components/ui/PasswordInput'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -75,28 +76,26 @@ export function RegisterForm({ helperText }: RegisterFormProps) {
 
       <label className="grid gap-2 text-sm font-semibold text-ink-800">
         Password
-        <input
+        <PasswordInput
           autoComplete="new-password"
           className={inputClassName}
           minLength={8}
           onChange={(event) => setPassword(event.target.value)}
           placeholder="Create a password"
           required
-          type="password"
           value={password}
         />
       </label>
 
       <label className="grid gap-2 text-sm font-semibold text-ink-800">
         Confirm password
-        <input
+        <PasswordInput
           autoComplete="new-password"
           className={inputClassName}
           minLength={8}
           onChange={(event) => setConfirmPassword(event.target.value)}
           placeholder="Repeat your password"
           required
-          type="password"
           value={confirmPassword}
         />
       </label>

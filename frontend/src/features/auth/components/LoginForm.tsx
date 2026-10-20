@@ -1,3 +1,4 @@
+import { PasswordInput } from '../../../components/ui/PasswordInput'
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
@@ -49,13 +50,12 @@ export function LoginForm() {
 
       <label className="grid gap-2 text-sm font-semibold text-ink-800">
         Password
-        <input
+        <PasswordInput
           autoComplete="current-password"
           className="min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-primary-600 focus:ring-3 focus:ring-primary-200"
           onChange={(event) => setPassword(event.target.value)}
           placeholder="Enter your password"
           required
-          type="password"
           value={password}
         />
       </label>

@@ -42,7 +42,7 @@ describe('LoginForm', () => {
     )
 
     await userEvent.type(screen.getByLabelText(/email/i), 'invitee@example.com')
-    await userEvent.type(screen.getByLabelText(/password/i), 'SecurePassword123!')
+    await userEvent.type(screen.getByLabelText('Password'), 'SecurePassword123!')
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }))
 
     expect(loginMock).toHaveBeenCalledWith({
@@ -66,7 +66,7 @@ describe('LoginForm', () => {
     )
 
     await userEvent.type(screen.getByLabelText(/email/i), 'admin@example.com')
-    await userEvent.type(screen.getByLabelText(/password/i), 'SecurePassword123!')
+    await userEvent.type(screen.getByLabelText('Password'), 'SecurePassword123!')
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }))
 
     expect(navigateMock).toHaveBeenCalledWith('/platform-admin', { replace: true })
