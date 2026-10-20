@@ -22,3 +22,5 @@ frontend/build/
 # AI/Context Files (if applicable to root or subfolders)
 **/CLAUDE.MD
 **/CODEX.MD
+
+SMPT-Key-Brevo.txt
