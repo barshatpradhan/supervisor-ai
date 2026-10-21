@@ -312,7 +312,12 @@ Members of an organization can chat under **Messages** in the sidebar (`/message
 **Conversations**
 
 - **General**: one per organization, created automatically. Every active member can read and post.
-- **Project channels**: one per project, created automatically when the project is created (existing projects were backfilled by the migration). Only active organization admins and supervisors can see them, the same people who can see projects today. A deleted project's channel becomes read-only.
+- **Project channels**: one per project, created automatically when the project is created (existing projects were backfilled by the migration).
+  - Active organization admins and supervisors see every project channel, with the full history. A deleted project's channel becomes read-only for them.
+  - Employees see a project's channel while at least one non-deleted task in that project is assigned to them, in any status. Access is checked on every request, so it ends as soon as their last task there is unassigned or deleted, and the channel disappears for them when the project is deleted. Their earlier messages stay, under their name.
+  - Employees see messages only from the date their access to the project began. The date is stored (`messaging_project_access`, kept up to date by triggers on `tasks`), so losing one of several tasks never moves it forward. Losing every task in the project ends access; being assigned again starts a new date.
+  - A new assignee also sees earlier messages in the channel that tag a task now assigned to them, labelled "Earlier message about your task". Each is shown whole (text, sender, mentions, reactions, task chip), so it can include what was said about the previous assignee; the messages around it stay hidden. These do not count as unread, and they disappear again if the task moves on.
+  - In the channel an employee sees the project title, the names and roles of the people who can open it, and the messages. Project pages, documents, analyses, recommendations and other people's tasks stay admin and supervisor only.
 - **Direct messages**: between exactly two active members of the same organization. There is one per pair, whoever starts it.
 
 **Privacy: admins cannot read other people's direct messages.** No one, organization admins and supervisors included, can open a direct message they are not part of through the app or the API; the API answers 404. (Anyone with direct database access, such as the service-role key or the Supabase dashboard, can still read the tables.)
@@ -321,7 +326,8 @@ Members of an organization can chat under **Messages** in the sidebar (`/message
 
 **Task tags and progress requests**
 
-- "Tag a task" attaches a task you can access. Each viewer sees it according to their own task access: people who cannot open the task see only "Restricted task", with no title, status or progress.
+- "Tag a task" attaches a task you can access (employees: only their own). In a project channel the task must belong to that project. Each viewer sees it according to their own task access: people who cannot open the task, including colleagues in the same project channel and a task's former assignee, see only "Restricted task", with no title, status or progress. The message text itself stays visible to everyone who can read it.
+- "Ask about this task" (employees, on the task page and task cards) opens the project's channel with the task tagged and suggests the project's creator and other admins and supervisors to @mention. Nobody is mentioned unless the sender picks them.
 - "Ask for update" (admins and supervisors) posts a progress request in your direct message with the task's assignee, mentions them, and logs a `task_progress_requested` activity entry. The assignee gets an "Update progress" button that opens the existing progress form. Chat never changes task data.
 
 **Unread state and polling.** There is no realtime connection; the browser polls:
@@ -332,7 +338,7 @@ Members of an organization can chat under **Messages** in the sidebar (`/message
 
 The two polling endpoints have their own per-user limit (240/min) instead of the shared per-IP API limit. Sending is limited to 30 messages per minute per user. These limits are in memory, per server instance.
 
-**Database.** The tables are added by `supabase/migrations/202610220001_team_messaging.sql`; `supabase/rollbacks/202610220001_team_messaging_down.sql` undoes it. Both are covered by `supabase/tests/`. To run the service tests against a disposable database with the migrations applied: `cd backend && npm run test:messaging`. They refuse to run against a non-local `SUPABASE_URL`.
+**Database.** The tables are added by `supabase/migrations/202610220001_team_messaging.sql`; `supabase/rollbacks/202610220001_team_messaging_down.sql` undoes it. Employee access to project channels and per-channel unread counts come from the two functions in `supabase/migrations/202610230001_messaging_project_members.sql`; `supabase/migrations/202610240001_messaging_project_access_history.sql` (applied after it) adds the stored access dates and the tagged-message lookup. Both have rollbacks in `supabase/rollbacks/`, and `supabase/tests/messaging_project_access_backfill_check.sql` is a read-only check that the access table matches live task assignments. All of these are covered by `supabase/tests/`. To run the service tests against a disposable database with the migrations applied: `cd backend && npm run test:messaging`. They refuse to run against a non-local `SUPABASE_URL`.
 
 ## Production operations
 
