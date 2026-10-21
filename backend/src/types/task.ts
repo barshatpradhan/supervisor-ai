@@ -28,10 +28,6 @@ export interface UpdateTaskInput {
   dueDate?: string;
 }
 
-export interface AssignTaskInput {
-  employeeId?: string;
-}
-
 export interface CreateTaskProgressInput {
   progressPercentage: number;
   notes?: string;

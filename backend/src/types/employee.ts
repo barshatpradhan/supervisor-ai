@@ -1,6 +1,6 @@
 export type EmploymentType = "full_time" | "part_time";
 
-export interface AssignableEmployeeSkill {
+interface AssignableEmployeeSkill {
   name: string;
   proficiency_level: number;
   years_of_experience: number | null;

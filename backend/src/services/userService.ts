@@ -81,11 +81,3 @@ export async function getAuthOnboardingStateForAppUser(
   };
 }
 
-export function assertPlatformRole(
-  user: AuthenticatedAppUser,
-  allowedRoles: readonly PlatformRole[]
-) {
-  if (!user.platformRole || !allowedRoles.includes(user.platformRole)) {
-    throw new AppError("Forbidden.", 403);
-  }
-}

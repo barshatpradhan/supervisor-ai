@@ -17,7 +17,7 @@ export interface EmployeeProfileSkillFormValue {
   yearsOfExperience: string
 }
 
-export interface EmployeeSkillDisplayItem {
+interface EmployeeSkillDisplayItem {
   name: string
   normalizedName: string
 }

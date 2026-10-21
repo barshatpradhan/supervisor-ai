@@ -3,7 +3,7 @@ export type BackendOrganizationMembershipRole =
   | 'organization_admin'
   | 'supervisor'
   | 'employee'
-export type BackendOrganizationMembershipStatus = 'invited' | 'active' | 'suspended'
+type BackendOrganizationMembershipStatus = 'invited' | 'active' | 'suspended'
 export type BackendPlatformRole = 'platform_admin'
 export type BackendInvitationPublicStatus = 'pending' | 'expired' | 'revoked' | 'accepted'
 
@@ -21,9 +21,9 @@ export type BackendTaskStatus =
 
 export type BackendDocumentExtractionStatus = 'pending' | 'extracted' | 'failed'
 
-export type BackendDocumentAnalysisComplexity = 'low' | 'medium' | 'high'
+type BackendDocumentAnalysisComplexity = 'low' | 'medium' | 'high'
 
-export interface BackendLinkedUser {
+interface BackendLinkedUser {
   id: string
   auth_user_id: string
   role: BackendUserRole
@@ -101,7 +101,7 @@ export interface BackendAdminUser {
   created_at: string
 }
 
-export interface BackendEmployeeSkill {
+interface BackendEmployeeSkill {
   id: string
   name: string
   normalizedName: string
@@ -269,7 +269,7 @@ export interface BackendUpdateSupervisorProfileRequest {
   bio?: string | null
 }
 
-export interface BackendAssignableEmployeeSkill {
+interface BackendAssignableEmployeeSkill {
   name: string
   proficiency_level: number
   years_of_experience: number | null
@@ -405,7 +405,7 @@ export interface BackendProjectDocumentUploadResponse {
   analysis: BackendProjectDocumentAnalysis | null
 }
 
-export interface BackendRecommendationScoreBreakdown {
+interface BackendRecommendationScoreBreakdown {
   skillMatch: number
   availability: number
   performance: number
@@ -465,13 +465,7 @@ export interface BackendRecommendationAssignmentResponse {
   task: BackendTask
 }
 
-export interface BackendDocumentAnalysisRequest {
-  text: string
-  fileName: string
-  mimeType: string
-}
-
-export interface BackendDashboardProjectSummaryItem {
+interface BackendDashboardProjectSummaryItem {
   id: string
   title: string
   status: BackendProjectStatus
@@ -479,7 +473,7 @@ export interface BackendDashboardProjectSummaryItem {
   updated_at: string
 }
 
-export interface BackendDashboardTaskSummaryItem {
+interface BackendDashboardTaskSummaryItem {
   id: string
   project_id: string
   project_title: string
@@ -500,7 +494,7 @@ export interface BackendDashboardEmployeeWorkloadRecord {
   performance_score: number | null
 }
 
-export interface BackendDashboardAnalyzedProject {
+interface BackendDashboardAnalyzedProject {
   project_id: string
   title: string
   status: BackendProjectStatus
@@ -528,7 +522,7 @@ export interface BackendDashboardRecommendationRunSummary {
   top_candidate: BackendDashboardRecommendationTopCandidate | null
 }
 
-export interface BackendDashboardProjectProgressSummary {
+interface BackendDashboardProjectProgressSummary {
   project_id: string
   title: string
   status: BackendProjectStatus
@@ -539,7 +533,7 @@ export interface BackendDashboardProjectProgressSummary {
   updated_at: string
 }
 
-export interface BackendSupervisorDashboardProjectsSummary {
+interface BackendSupervisorDashboardProjectsSummary {
   total_projects: number
   active_projects: number
   completed_projects: number
@@ -548,7 +542,7 @@ export interface BackendSupervisorDashboardProjectsSummary {
   recently_updated_projects: BackendDashboardProjectSummaryItem[]
 }
 
-export interface BackendSupervisorDashboardTasksSummary {
+interface BackendSupervisorDashboardTasksSummary {
   total_tasks: number
   unassigned_tasks: number
   assigned_tasks: number
@@ -559,7 +553,7 @@ export interface BackendSupervisorDashboardTasksSummary {
   recent_tasks: BackendDashboardTaskSummaryItem[]
 }
 
-export interface BackendSupervisorDashboardEmployeesSummary {
+interface BackendSupervisorDashboardEmployeesSummary {
   total_employees: number
   available_employees: number
   high_workload_employees: number
@@ -568,14 +562,14 @@ export interface BackendSupervisorDashboardEmployeesSummary {
   top_workloads: BackendDashboardEmployeeWorkloadRecord[]
 }
 
-export interface BackendSupervisorDashboardDocumentsSummary {
+interface BackendSupervisorDashboardDocumentsSummary {
   total_uploaded_documents: number
   by_extraction_status: Record<BackendDocumentExtractionStatus, number>
   projects_with_completed_analysis: number
   recent_analyzed_projects: BackendDashboardAnalyzedProject[]
 }
 
-export interface BackendSupervisorDashboardRecommendationsSummary {
+interface BackendSupervisorDashboardRecommendationsSummary {
   projects_with_recommendation_runs: number
   latest_recommendation_run: BackendDashboardRecommendationRunSummary | null
   latest_top_ranked_candidate: BackendDashboardRecommendationTopCandidate | null
@@ -591,7 +585,7 @@ export interface BackendSupervisorDashboardResponse {
   projectProgress: BackendDashboardProjectProgressSummary[]
 }
 
-export interface BackendEmployeeDashboardWorkSummary {
+interface BackendEmployeeDashboardWorkSummary {
   assigned_tasks: number
   in_progress_tasks: number
   blocked_tasks: number
@@ -617,7 +611,7 @@ export interface BackendEmployeeDashboardAssignment {
   last_progress_at: string | null
 }
 
-export interface BackendEmployeeDashboardRecentProgressItem {
+interface BackendEmployeeDashboardRecentProgressItem {
   progress_id: string
   task_id: string
   task_title: string
@@ -629,7 +623,7 @@ export interface BackendEmployeeDashboardRecentProgressItem {
   created_at: string
 }
 
-export interface BackendEmployeeDashboardProfileSummary {
+interface BackendEmployeeDashboardProfileSummary {
   employee_id: string
   full_name: string
   bio: string | null
@@ -642,7 +636,7 @@ export interface BackendEmployeeDashboardProfileSummary {
   pending_skills: string[]
 }
 
-export interface BackendEmployeeDashboardAttentionSummary {
+interface BackendEmployeeDashboardAttentionSummary {
   blocked_tasks: BackendEmployeeDashboardAssignment[]
   unstarted_assigned_tasks: BackendEmployeeDashboardAssignment[]
   tasks_requiring_progress_update: BackendEmployeeDashboardAssignment[]
@@ -656,7 +650,7 @@ export interface BackendEmployeeDashboardResponse {
   attention: BackendEmployeeDashboardAttentionSummary
 }
 
-export interface BackendCurrentUserOrganizationMembershipSummary {
+interface BackendCurrentUserOrganizationMembershipSummary {
   id: string
   role: BackendOrganizationMembershipRole
   status: BackendOrganizationMembershipStatus
@@ -665,13 +659,13 @@ export interface BackendCurrentUserOrganizationMembershipSummary {
   created_at: string
 }
 
-export interface BackendCurrentUserOrganizationSummary {
+interface BackendCurrentUserOrganizationSummary {
   id: string
   name: string
   slug: string
 }
 
-export interface BackendCurrentUserOrganizationInvitationSummary {
+interface BackendCurrentUserOrganizationInvitationSummary {
   id: string
   expires_at: string
 }
@@ -797,7 +791,7 @@ export interface BackendOrganizationInvitationSummary {
   delivery_error: string | null
 }
 
-export type BackendInvitationDeliveryStatus = 'sent' | 'failed'
+type BackendInvitationDeliveryStatus = 'sent' | 'failed'
 
 /** Admin-only: a freshly issued acceptance link to share by hand. */
 export interface BackendInvitationLinkResponse {

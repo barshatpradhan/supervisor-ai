@@ -1,10 +1,9 @@
-import type { UserRole } from "./auth.js";
 import type { DocumentExtractionStatus } from "./document.js";
 import type { EmploymentType } from "./employee.js";
 import type { PriorityLevel, ProjectStatus } from "./project.js";
 import type { TaskStatus } from "./task.js";
 
-export interface DashboardProjectSummaryItem {
+interface DashboardProjectSummaryItem {
   id: string;
   title: string;
   status: ProjectStatus;
@@ -12,7 +11,7 @@ export interface DashboardProjectSummaryItem {
   updated_at: string;
 }
 
-export interface DashboardTaskSummaryItem {
+interface DashboardTaskSummaryItem {
   id: string;
   project_id: string;
   project_title: string;
@@ -72,7 +71,7 @@ export interface DashboardProjectProgressSummary {
   updated_at: string;
 }
 
-export interface SupervisorDashboardProjectsSummary {
+interface SupervisorDashboardProjectsSummary {
   total_projects: number;
   active_projects: number;
   completed_projects: number;
@@ -81,7 +80,7 @@ export interface SupervisorDashboardProjectsSummary {
   recently_updated_projects: DashboardProjectSummaryItem[];
 }
 
-export interface SupervisorDashboardTasksSummary {
+interface SupervisorDashboardTasksSummary {
   total_tasks: number;
   unassigned_tasks: number;
   assigned_tasks: number;
@@ -94,7 +93,7 @@ export interface SupervisorDashboardTasksSummary {
   recent_assignments: DashboardTaskSummaryItem[];
 }
 
-export interface SupervisorDashboardEmployeesSummary {
+interface SupervisorDashboardEmployeesSummary {
   total_employees: number;
   available_employees: number;
   high_workload_employees: number;
@@ -103,14 +102,14 @@ export interface SupervisorDashboardEmployeesSummary {
   top_workloads: DashboardEmployeeWorkloadRecord[];
 }
 
-export interface SupervisorDashboardDocumentsSummary {
+interface SupervisorDashboardDocumentsSummary {
   total_uploaded_documents: number;
   by_extraction_status: Record<DocumentExtractionStatus, number>;
   projects_with_completed_analysis: number;
   recent_analyzed_projects: DashboardAnalyzedProject[];
 }
 
-export interface SupervisorDashboardRecommendationsSummary {
+interface SupervisorDashboardRecommendationsSummary {
   projects_with_recommendation_runs: number;
   latest_recommendation_run: DashboardRecommendationRunSummary | null;
   latest_top_ranked_candidate: DashboardRecommendationTopCandidate | null;
@@ -126,9 +125,7 @@ export interface SupervisorDashboardResponse {
   projectProgress: DashboardProjectProgressSummary[];
 }
 
-export type SupervisorDashboardAuthorizedRole = Extract<UserRole, "admin" | "supervisor">;
-
-export interface EmployeeDashboardWorkSummary {
+interface EmployeeDashboardWorkSummary {
   assigned_tasks: number;
   in_progress_tasks: number;
   blocked_tasks: number;
@@ -180,7 +177,7 @@ export interface EmployeeDashboardProfileSummary {
   pending_skills: string[];
 }
 
-export interface EmployeeDashboardAttentionSummary {
+interface EmployeeDashboardAttentionSummary {
   blocked_tasks: EmployeeDashboardAssignment[];
   unstarted_assigned_tasks: EmployeeDashboardAssignment[];
   tasks_requiring_progress_update: EmployeeDashboardAssignment[];
@@ -194,4 +191,3 @@ export interface EmployeeDashboardResponse {
   attention: EmployeeDashboardAttentionSummary;
 }
 
-export type EmployeeDashboardAuthorizedRole = Extract<UserRole, "employee">;

@@ -6,12 +6,6 @@ export type PlatformRole = "platform_admin";
  */
 export type UserRole = LegacyUserRole;
 
-export interface SignupInput {
-  email: string;
-  password: string;
-  role: LegacyUserRole;
-}
-
 export interface LoginInput {
   email: string;
   password: string;

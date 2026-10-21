@@ -20,7 +20,7 @@ export interface PublicApprovedSkillsQuery {
   category?: string;
 }
 
-export interface PublicSkillResponse {
+interface PublicSkillResponse {
   id: string;
   name: string;
   normalizedName: string;
@@ -31,10 +31,6 @@ interface EmployeeSkillRow {
   skill_id: string;
   proficiency_level: number | null;
   years_of_experience: number | null;
-}
-
-interface ExistingEmployeeSkillRow extends EmployeeSkillRow {
-  employee_id: string;
 }
 
 interface EmployeeSkillLinkRow extends EmployeeSkillRow {
@@ -131,25 +127,6 @@ function createSkillProvisioningError(
 /** Same key as the database's skill_match_key(), so "Node.js" and "nodejs" dedupe. */
 function normalizeSkill(skill: string) {
   return skillMatchKey(skill);
-}
-
-function uniqueSkills(skills: string[]) {
-  const seen = new Set<string>();
-  const result: Array<{ name: string; normalizedName: string }> = [];
-
-  for (const skill of skills) {
-    const name = skill.replace(/\s+/g, " ").trim();
-    const normalizedName = normalizeSkill(name);
-
-    if (!name || seen.has(normalizedName)) {
-      continue;
-    }
-
-    seen.add(normalizedName);
-    result.push({ name, normalizedName });
-  }
-
-  return result;
 }
 
 function normalizeProficiencyLevel(value: number | undefined) {
@@ -343,24 +320,6 @@ async function replaceEmployeeSkillLinks(
       }
     );
   }
-}
-
-export async function listApprovedSkills() {
-  const { data, error } = await supabase
-    .from("skills")
-    .select(
-      "id, name, normalized_name, organization_id, is_approved, created_by, category, created_at"
-    )
-    .eq("is_approved", true)
-    .is("organization_id", null)
-    .order("name", { ascending: true })
-    .returns<SkillRow[]>();
-
-  if (error) {
-    throw new AppError("Unable to fetch approved skills.", 500);
-  }
-
-  return (data ?? []).map(mapSkill);
 }
 
 export async function listApprovedSkillsForOrganization(organizationId: string) {
@@ -727,80 +686,6 @@ export async function getSkillsByEmployeeIds(employeeIds: string[]) {
   }
 
   return skillMap;
-}
-
-export async function syncEmployeeSkills(
-  employeeId: string,
-  appUserId: string,
-  skills: string[],
-  organizationId?: string
-) {
-  const uniqueSkillNames = uniqueSkills(skills);
-  const { data: currentEmployeeSkills, error: currentEmployeeSkillsError } =
-    await supabase
-      .from("employee_skills")
-      .select("employee_id, skill_id, proficiency_level, years_of_experience")
-      .eq("employee_id", employeeId)
-      .returns<ExistingEmployeeSkillRow[]>();
-
-  if (currentEmployeeSkillsError) {
-    throw new AppError("Unable to fetch current employee skills.", 500);
-  }
-
-  const currentSkillById = new Map(
-    (currentEmployeeSkills ?? []).map((skill) => [skill.skill_id, skill])
-  );
-
-  if (uniqueSkillNames.length === 0) {
-    const { error: deleteError } = await supabase
-      .from("employee_skills")
-      .delete()
-      .eq("employee_id", employeeId);
-
-    if (deleteError) {
-      throw createSkillProvisioningError(
-        "Unable to update employee skills.",
-        "delete_existing_employee_skills",
-        deleteError,
-        {
-          employeeId,
-        }
-      );
-    }
-
-    return;
-  }
-
-  const resolvedSkills = await resolveEmployeeSkills(
-    appUserId,
-    uniqueSkillNames.map((skill) => ({
-      name: skill.name,
-      normalizedName: skill.normalizedName,
-      proficiencyLevel: DEFAULT_PROFICIENCY_LEVEL,
-      yearsOfExperience: null,
-    })),
-    organizationId
-  );
-
-  if (resolvedSkills.skillsToLink.length === 0) {
-    return;
-  }
-
-  const linkRows = buildEmployeeSkillLinkRows(
-    employeeId,
-    resolvedSkills.skillsToLink.map(({ input, skill }) => ({
-      input: {
-        ...input,
-        proficiencyLevel:
-          currentSkillById.get(skill.id)?.proficiency_level ?? DEFAULT_PROFICIENCY_LEVEL,
-        yearsOfExperience:
-          currentSkillById.get(skill.id)?.years_of_experience ?? null,
-      },
-      skill,
-    }))
-  );
-
-  await replaceEmployeeSkillLinks(employeeId, linkRows);
 }
 
 export async function replaceEmployeeSkillsWithDetails(

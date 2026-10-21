@@ -1,7 +1,7 @@
 import { supabase } from "../config/supabase.js";
 import { AppError } from "../utils/appError.js";
 
-export interface TeamMemberSummary {
+interface TeamMemberSummary {
   employee_id: string;
   full_name: string;
   job_title: string | null;

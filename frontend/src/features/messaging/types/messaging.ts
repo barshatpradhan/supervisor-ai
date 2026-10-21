@@ -2,8 +2,8 @@ import type { BackendOrganizationMembershipRole, BackendTaskStatus } from '../..
 
 // Mirrors backend/src/types/messaging.ts.
 
-export type ConversationKind = 'general' | 'project' | 'direct'
-export type MessageKind = 'text' | 'progress_request'
+type ConversationKind = 'general' | 'project' | 'direct'
+type MessageKind = 'text' | 'progress_request'
 
 export interface MessagingPerson {
   userId: string
@@ -49,7 +49,7 @@ export type TaskChip =
     }
   | { accessible: false }
 
-export interface MessageReaction {
+interface MessageReaction {
   emoji: string
   count: number
   reactedByMe: boolean

@@ -1,6 +1,6 @@
 import { AppError } from "./appError.js";
 
-export const MESSAGE_MAX_LENGTH = 4000;
+const MESSAGE_MAX_LENGTH = 4000;
 
 /** Mentions are stored in the body as <@user-uuid> and rendered as names by the client. */
 const MENTION_TOKEN = /<@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/gi;

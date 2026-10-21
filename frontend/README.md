@@ -234,8 +234,8 @@ The active design implementation is token-driven and follows a monday/Vibe-inspi
 
 | File | Purpose |
 | --- | --- |
-| `07-logo-final-locked.md` | Locked logo guidance. |
-| `08-color-system.md` | Current color token model, palette, and usage rules. |
+| `docs/07-logo-final-locked.md` | Locked logo guidance. |
+| `docs/08-color-system.md` | Current color token model, palette, and usage rules. |
 | `src/styles/tokens.css` | CSS custom properties, purpose aliases, light-theme surfaces, and Tailwind `@theme` exports. |
 | `src/index.css` | Tailwind import and global base styles. |
 

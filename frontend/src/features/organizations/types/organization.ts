@@ -2,12 +2,10 @@ import type {
   BackendCreateOrganizationRequest,
   BackendCurrentUserOrganizationListItem,
   BackendOrganizationMembershipRole,
-  BackendOrganizationMembershipStatus,
   BackendOrganizationCreationResponse,
 } from '../../../types/backend'
 
 export type OrganizationMembershipRole = BackendOrganizationMembershipRole
-export type OrganizationMembershipStatus = BackendOrganizationMembershipStatus
 export type CurrentUserOrganizationListItem = BackendCurrentUserOrganizationListItem
 export type CreateOrganizationRequest = BackendCreateOrganizationRequest
 export type OrganizationCreationResponse = BackendOrganizationCreationResponse

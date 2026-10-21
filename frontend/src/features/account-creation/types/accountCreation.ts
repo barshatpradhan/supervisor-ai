@@ -5,7 +5,7 @@ import type {
   SignupRequest,
 } from '../../../types/backend'
 
-export type EmploymentType = 'full_time' | 'part_time'
+type EmploymentType = 'full_time' | 'part_time'
 export type ManagedAccountRole = 'employee' | 'supervisor'
 
 export interface SkillSelectionItem {
@@ -106,7 +106,7 @@ export interface AdminUserCreationReviewData {
   skills: SkillSelectionItem[]
 }
 
-export type AccountCreationStepStatus = 'complete' | 'current' | 'upcoming'
+type AccountCreationStepStatus = 'complete' | 'current' | 'upcoming'
 
 export interface AccountCreationStep {
   description: string

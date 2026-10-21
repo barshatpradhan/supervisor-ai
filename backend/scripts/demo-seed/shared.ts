@@ -20,7 +20,7 @@ export function seedEmail(key: string) {
   return email;
 }
 
-export function isSeedEmail(email: string | null | undefined) {
+function isSeedEmail(email: string | null | undefined) {
   return Boolean(email && SEED_EMAIL_PATTERN.test(email.toLowerCase()));
 }
 

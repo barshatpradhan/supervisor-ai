@@ -2,7 +2,7 @@
  * The curated native emoji set for the composer and reactions: no library, no network.
  * Keep the characters in sync with backend/src/utils/emoji.ts, which validates reactions.
  */
-export interface EmojiOption {
+interface EmojiOption {
   char: string
   name: string
 }

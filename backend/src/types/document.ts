@@ -1,8 +1,3 @@
-export type SupportedDocumentMimeType =
-  | "application/pdf"
-  | "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-  | "text/plain";
-
 export type DocumentExtractionStatus = "pending" | "extracted" | "failed";
 
 export interface UploadedProjectDocumentFile {

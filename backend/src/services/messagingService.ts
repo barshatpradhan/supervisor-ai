@@ -127,7 +127,7 @@ function directPeerId(row: Pick<ConversationRow, "direct_key">, actorUserId: str
  * The access rule, before checking whether the project or peer is still active.
  * `onProject` says whether an employee currently has a live task in the conversation's project.
  */
-export function canSeeConversation(
+function canSeeConversation(
   actor: Pick<MessagingActor, "userId" | "role">,
   conversation: Pick<ConversationRow, "kind" | "direct_key">,
   onProject = false

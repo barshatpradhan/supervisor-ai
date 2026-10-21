@@ -16,7 +16,7 @@ export type OrganizationInvitationMutationResponse = BackendOrganizationInvitati
 export type CreateOrganizationInvitationRequest = BackendCreateOrganizationInvitationRequest
 export type InvitationLink = BackendInvitationLinkResponse
 
-export type InvitationRole = CreateOrganizationInvitationRequest['role']
+type InvitationRole = CreateOrganizationInvitationRequest['role']
 
 export interface InviteMemberFormValues {
   email: string

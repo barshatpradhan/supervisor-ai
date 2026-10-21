@@ -60,7 +60,7 @@ export type TaskChip =
     }
   | { accessible: false };
 
-export interface MessageReactionSummary {
+interface MessageReactionSummary {
   emoji: string;
   count: number;
   reactedByMe: boolean;

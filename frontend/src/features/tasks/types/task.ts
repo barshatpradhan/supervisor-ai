@@ -1,10 +1,8 @@
 import type {
   BackendAssignableEmployee,
-  BackendCreateTaskProgressRequest,
   BackendCreateTaskRequest,
   BackendPriorityLevel,
   BackendTask,
-  BackendTaskProgress,
   BackendTaskStatus,
 } from '../../../types/backend'
 
@@ -12,8 +10,6 @@ export type Task = BackendTask
 export type TaskStatus = BackendTaskStatus
 export type TaskPriority = BackendPriorityLevel
 export type CreateTaskRequest = BackendCreateTaskRequest
-export type CreateTaskProgressRequest = BackendCreateTaskProgressRequest
-export type TaskProgress = BackendTaskProgress
 export type AssignableEmployee = BackendAssignableEmployee
 
 export interface TaskAssignmentFilterValues {

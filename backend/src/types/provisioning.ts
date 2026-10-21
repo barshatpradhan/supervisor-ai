@@ -1,4 +1,4 @@
-import type { AuthSessionResponse, LegacyUserRole, PlatformRole } from "./auth.js";
+import type { LegacyUserRole, PlatformRole } from "./auth.js";
 
 export interface ProvisioningSkillInput {
   name: string;
@@ -57,4 +57,3 @@ export interface ProvisionedAdminUserResponse {
     | null;
 }
 
-export interface PublicEmployeeSignupResult extends AuthSessionResponse {}

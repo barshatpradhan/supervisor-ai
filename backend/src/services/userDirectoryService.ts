@@ -3,11 +3,11 @@ import type { OrganizationMembershipRole, OrganizationMembershipStatus } from ".
 import { AppError } from "../utils/appError.js";
 import { requireUuid } from "../utils/validation.js";
 
-export const DIRECTORY_PAGE_SIZE = 10;
+const DIRECTORY_PAGE_SIZE = 10;
 
 /** "none" selects users without an organization (or team). */
-export type DirectoryScopeFilter = string | "none";
-export type DirectoryRoleFilter = OrganizationMembershipRole | "platform_admin" | "unassigned";
+type DirectoryScopeFilter = string | "none";
+type DirectoryRoleFilter = OrganizationMembershipRole | "platform_admin" | "unassigned";
 
 export interface UserDirectoryQuery {
   organizationId?: DirectoryScopeFilter;
@@ -17,7 +17,7 @@ export interface UserDirectoryQuery {
   teamId?: DirectoryScopeFilter;
 }
 
-export interface UserDirectoryEntry {
+interface UserDirectoryEntry {
   /** One entry per user and organization; users without a membership get one entry. */
   key: string;
   user_id: string;

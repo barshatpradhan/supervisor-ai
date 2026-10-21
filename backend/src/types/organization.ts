@@ -26,11 +26,6 @@ export interface OrganizationMembership {
   created_at: string;
 }
 
-export interface OrganizationContext {
-  organization: Organization;
-  membership: OrganizationMembership;
-}
-
 export interface CreateOrganizationInput {
   name: string;
   slug: string;
@@ -120,7 +115,7 @@ export interface OrganizationInvitationSummary {
   delivery_error: string | null;
 }
 
-export interface CurrentUserOrganizationMembershipSummary {
+interface CurrentUserOrganizationMembershipSummary {
   id: string;
   role: OrganizationMembershipRole;
   status: OrganizationMembershipStatus;
@@ -129,13 +124,13 @@ export interface CurrentUserOrganizationMembershipSummary {
   created_at: string;
 }
 
-export interface CurrentUserOrganizationSummary {
+interface CurrentUserOrganizationSummary {
   id: string;
   name: string;
   slug: string;
 }
 
-export interface CurrentUserOrganizationInvitationSummary {
+interface CurrentUserOrganizationInvitationSummary {
   id: string;
   expires_at: string;
 }

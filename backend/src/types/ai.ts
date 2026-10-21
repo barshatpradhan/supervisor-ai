@@ -40,7 +40,7 @@ export interface EmployeeRecommendationScoreBreakdown {
   missingPreferredSkills?: string[];
 }
 
-export type EmployeeRecommendation = {
+type EmployeeRecommendation = {
   employeeId: string;
   fullName: string;
   score: number;

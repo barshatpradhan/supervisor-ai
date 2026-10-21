@@ -2,7 +2,7 @@ import { Sparkles } from 'lucide-react'
 import type { KeyboardEvent } from 'react'
 import { useRef } from 'react'
 
-export interface TabItem<TId extends string> {
+interface TabItem<TId extends string> {
   ai?: boolean
   count?: number
   id: TId
