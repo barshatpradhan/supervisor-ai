@@ -305,6 +305,35 @@ The backend now supports employee task execution without adding notifications or
 
 Progress is append-only. A task becomes `todo` (pending) at 0%, `in_progress` at 1–99%, and `completed` at 100%. Project progress is stored as completed estimated hours divided by total estimated hours, multiplied by 100. Completed tasks are excluded from workload calculations, increasing employee availability automatically.
 
+## Team messaging
+
+Members of an organization can chat under **Messages** in the sidebar (`/messages`). The API lives under `/api/v1/messaging` and is documented in the OpenAPI spec at `/api/docs`.
+
+**Conversations**
+
+- **General**: one per organization, created automatically. Every active member can read and post.
+- **Project channels**: one per project, created automatically when the project is created (existing projects were backfilled by the migration). Only active organization admins and supervisors can see them, the same people who can see projects today. A deleted project's channel becomes read-only.
+- **Direct messages**: between exactly two active members of the same organization. There is one per pair, whoever starts it.
+
+**Privacy: admins cannot read other people's direct messages.** No one, organization admins and supervisors included, can open a direct message they are not part of through the app or the API; the API answers 404. (Anyone with direct database access, such as the service-role key or the Supabase dashboard, can still read the tables.)
+
+**Messages** are plain text up to 4,000 characters, rendered as text and never as HTML. They support @mentions (only of people who can see the conversation), reactions from a curated emoji set, and editing and deleting your own messages. Deleting removes the text, mentions, reactions and task tag; only a "This message was deleted" placeholder remains.
+
+**Task tags and progress requests**
+
+- "Tag a task" attaches a task you can access. Each viewer sees it according to their own task access: people who cannot open the task see only "Restricted task", with no title, status or progress.
+- "Ask for update" (admins and supervisors) posts a progress request in your direct message with the task's assignee, mentions them, and logs a `task_progress_requested` activity entry. The assignee gets an "Update progress" button that opens the existing progress form. Chat never changes task data.
+
+**Unread state and polling.** There is no realtime connection; the browser polls:
+
+- The open conversation polls every 4 s, slowing to every 15 s after 2 quiet minutes.
+- The conversation list and the sidebar badge poll every 30 s.
+- Polling pauses while the tab is hidden.
+
+The two polling endpoints have their own per-user limit (240/min) instead of the shared per-IP API limit. Sending is limited to 30 messages per minute per user. These limits are in memory, per server instance.
+
+**Database.** The tables are added by `supabase/migrations/202610220001_team_messaging.sql`; `supabase/rollbacks/202610220001_team_messaging_down.sql` undoes it. Both are covered by `supabase/tests/`. To run the service tests against a disposable database with the migrations applied: `cd backend && npm run test:messaging`. They refuse to run against a non-local `SUPABASE_URL`.
+
 ## Production operations
 
 ```mermaid
