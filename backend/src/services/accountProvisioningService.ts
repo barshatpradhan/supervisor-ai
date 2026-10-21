@@ -96,6 +96,28 @@ function wrapProvisioningError(
   return new AppError(message, statusCode, true, { cause: error });
 }
 
+/** Turns a Supabase invite failure into a message the admin can act on. */
+function describeInviteFailure(error: { code?: string | null; message?: string | null } | null) {
+  const code = error?.code ?? "";
+  const reason = error?.message ?? "";
+
+  if (code === "email_exists" || /already (been )?registered/i.test(reason)) {
+    return "An account with this email already exists.";
+  }
+
+  if (code === "over_email_send_rate_limit" || /rate limit/i.test(reason)) {
+    return "The invitation email could not be sent: the email rate limit was reached. Try again later or raise the limit in Supabase.";
+  }
+
+  if (/sending (invite|confirmation|magic link)? ?email/i.test(reason)) {
+    return "The invitation email could not be sent. Check the SMTP settings in Supabase (Authentication → Emails) and that the email provider accepts Supabase's servers.";
+  }
+
+  return reason
+    ? `Unable to create managed account: ${reason}`
+    : "Unable to create managed account.";
+}
+
 function createCleanupState(): ProvisioningCleanupState {
   return {
     appUserId: null,
@@ -465,7 +487,7 @@ export async function provisionManagedUser(
 
     if (inviteError || !invitedUser.user) {
       throw wrapProvisioningError(
-        "Unable to create managed account.",
+        describeInviteFailure(inviteError),
         "invite_auth_user",
         inviteError ?? {
           message: "Missing invited auth user in Supabase response.",
