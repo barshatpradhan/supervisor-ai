@@ -118,6 +118,32 @@ function describeInviteFailure(error: { code?: string | null; message?: string |
     : "Unable to create managed account.";
 }
 
+/** Turns a Supabase sign-up failure into a message the person registering can act on. */
+function describeAccountCreationFailure(error: { code?: string | null; message?: string | null } | null) {
+  const code = error?.code ?? "";
+  const reason = error?.message ?? "";
+
+  if (code === "email_exists" || /already (been )?registered/i.test(reason)) {
+    return "An account with this email already exists. Sign in instead, or use a different email.";
+  }
+
+  if (code === "weak_password" || /password/i.test(reason)) {
+    return reason
+      ? `Choose a stronger password: ${reason}`
+      : "Choose a stronger password.";
+  }
+
+  if (code === "email_address_invalid" || /invalid.*email|email.*invalid/i.test(reason)) {
+    return "Enter a valid email address.";
+  }
+
+  if (code === "over_request_rate_limit" || /rate limit/i.test(reason)) {
+    return "Too many sign-up attempts. Please wait a few minutes and try again.";
+  }
+
+  return reason ? `Unable to create account: ${reason}` : "Unable to create account.";
+}
+
 function createCleanupState(): ProvisioningCleanupState {
   return {
     appUserId: null,
@@ -344,7 +370,7 @@ export async function signupEmployeeWithProvisioning(
 
     if (createUserError || !createdUser.user) {
       throw wrapProvisioningError(
-        "Unable to create account.",
+        describeAccountCreationFailure(createUserError),
         "create_auth_user",
         createUserError ?? {
           message: "Missing auth user in Supabase response.",
@@ -422,7 +448,7 @@ export async function registerCustomerAccount(
 
     if (createUserError || !createdUser.user) {
       throw wrapProvisioningError(
-        "Unable to create account.",
+        describeAccountCreationFailure(createUserError),
         "register_auth_user",
         createUserError ?? {
           message: "Missing auth user in Supabase response.",
