@@ -2,7 +2,6 @@ import type {
   BackendCreateManagedUserRequest,
   BackendProvisioningSkillInput,
   BackendPublicApprovedSkill,
-  SignupRequest,
 } from '../../../types/backend'
 
 type EmploymentType = 'full_time' | 'part_time'
@@ -16,18 +15,6 @@ export interface SkillSelectionItem {
   normalizedName: string
   proficiencyLevel: number
   yearsOfExperience: string
-}
-
-export interface EmployeeAccountFormValues {
-  bio: string
-  confirmPassword: string
-  email: string
-  employmentType: EmploymentType | ''
-  fullName: string
-  password: string
-  reviewConfirmed: boolean
-  selectedSkills: SkillSelectionItem[]
-  weeklyCapacityHours: string
 }
 
 export interface AdminUserCreationValues {
@@ -55,20 +42,6 @@ export interface ApprovedSkillCatalogState {
   skills: BackendPublicApprovedSkill[]
 }
 
-export type EmployeeSignupValidationErrors = Partial<Record<
-  | 'bio'
-  | 'confirmPassword'
-  | 'email'
-  | 'employmentType'
-  | 'fullName'
-  | 'password'
-  | 'reviewConfirmed'
-  | 'weeklyCapacityHours'
-  | `skill-${string}`
-  | 'skills',
-  string
->>
-
 export type AdminUserCreationValidationErrors = Partial<Record<
   | 'bio'
   | 'department'
@@ -82,20 +55,6 @@ export type AdminUserCreationValidationErrors = Partial<Record<
   | 'skills',
   string
 >>
-
-export interface EmployeeSignupReviewData {
-  account: {
-    email: string
-    passwordLabel: string
-  }
-  profile: {
-    bio: string
-    employmentTypeLabel: string
-    fullName: string
-    weeklyCapacityHours: string
-  }
-  skills: SkillSelectionItem[]
-}
 
 export interface AdminUserCreationReviewData {
   account: {
@@ -115,7 +74,7 @@ export interface AccountCreationStep {
   status: AccountCreationStepStatus
 }
 
-export function buildProvisioningSkillPayload(
+function buildProvisioningSkillPayload(
   skill: SkillSelectionItem,
 ): BackendProvisioningSkillInput {
   return {
@@ -125,23 +84,6 @@ export function buildProvisioningSkillPayload(
       skill.yearsOfExperience.trim().length === 0
         ? null
         : Number(skill.yearsOfExperience),
-  }
-}
-
-export function buildEmployeeSignupPayload(
-  values: EmployeeAccountFormValues,
-): SignupRequest {
-  return {
-    bio: values.bio.trim() || undefined,
-    email: values.email.trim(),
-    employment_type: values.employmentType || undefined,
-    full_name: values.fullName.trim(),
-    password: values.password,
-    skills: values.selectedSkills.map(buildProvisioningSkillPayload),
-    weekly_capacity_hours:
-      values.weeklyCapacityHours.trim().length === 0
-        ? undefined
-        : Number(values.weeklyCapacityHours),
   }
 }
 

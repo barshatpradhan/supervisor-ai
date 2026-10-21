@@ -8,12 +8,6 @@ export function listProjectDocuments(projectId: string) {
   return getJson<BackendProjectDocumentWithAnalysis[]>(`/projects/${projectId}/documents`)
 }
 
-export function getProjectDocument(projectId: string, documentId: string) {
-  return getJson<BackendProjectDocumentWithAnalysis>(
-    `/projects/${projectId}/documents/${documentId}`,
-  )
-}
-
 interface UploadProjectDocumentOptions {
   onProgress?: (progress: number) => void
   signal?: AbortSignal

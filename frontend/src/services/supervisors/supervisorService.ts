@@ -1,11 +1,9 @@
 import type {
   BackendAssignableEmployee,
   BackendCreateSupervisorProfileRequest,
-  BackendEmployeeProfile,
   BackendSupervisorEmployeeDirectoryQuery,
   BackendSupervisorProfile,
   BackendUpdateSupervisorProfileRequest,
-  BackendUpdateEmployeeWorkSettingsRequest,
 } from '../../types/backend'
 import { getJson, patchJson, postJson } from '../../lib/api'
 
@@ -33,12 +31,3 @@ export function updateSupervisorProfile(request: BackendUpdateSupervisorProfileR
   )
 }
 
-export function updateEmployeeWorkSettings(
-  employeeId: string,
-  request: BackendUpdateEmployeeWorkSettingsRequest,
-) {
-  return patchJson<BackendEmployeeProfile, BackendUpdateEmployeeWorkSettingsRequest>(
-    `/supervisors/employees/${employeeId}/work-settings`,
-    request,
-  )
-}

@@ -1,4 +1,4 @@
-import type { ProjectDocument, ProjectDocumentAnalysis, ProjectDocumentExtractionStatus } from '../types/projectDocument'
+import type { ProjectDocumentExtractionStatus } from '../types/projectDocument'
 
 const MAX_PROJECT_DOCUMENT_BYTES = 10 * 1024 * 1024
 const supportedMimeTypes = new Set([
@@ -12,12 +12,6 @@ const extractionStatusLabels: Record<ProjectDocumentExtractionStatus, string> = 
   extracted: 'Extracted',
   failed: 'Failed',
   pending: 'Pending',
-}
-
-const extractionStatusToneClasses: Record<ProjectDocumentExtractionStatus, string> = {
-  extracted: 'border-success-fg/30 bg-success-bg/60 text-success-text',
-  failed: 'border-danger-600/20 bg-danger-50 text-danger-700',
-  pending: 'border-warning-fg/30 bg-warning-bg/70 text-warning-text',
 }
 
 function getFileExtension(fileName: string) {
@@ -58,27 +52,7 @@ export function formatProjectDocumentFileSize(value: number) {
   return `${value} B`
 }
 
-export function formatProjectDocumentMimeType(value: ProjectDocument['mime_type']) {
-  switch (value) {
-    case 'application/pdf':
-      return 'PDF'
-    case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
-      return 'DOCX'
-    case 'text/plain':
-      return 'TXT'
-    default:
-      return value
-  }
-}
-
 export function getProjectDocumentExtractionStatusLabel(status: ProjectDocumentExtractionStatus) {
   return extractionStatusLabels[status]
 }
 
-export function getProjectDocumentExtractionStatusTone(status: ProjectDocumentExtractionStatus) {
-  return extractionStatusToneClasses[status]
-}
-
-export function formatProjectDocumentEstimatedHours(value: ProjectDocumentAnalysis['estimated_hours']) {
-  return `${Number(value)} hr${Number(value) === 1 ? '' : 's'}`
-}

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { SupervisorLogo } from '../ui/SupervisorLogo'
 
 /** Kept in step with the footer of the invitation email (backend/src/services/email/invitationTemplate.ts). */
-export const SITE_TAGLINE = 'Smarter workforce supervision, task planning and team insights.'
+const SITE_TAGLINE = 'Smarter workforce supervision, task planning and team insights.'
 
 interface SiteFooterProps {
   /** Extra links shown beside the brand, such as the landing page's section links. */

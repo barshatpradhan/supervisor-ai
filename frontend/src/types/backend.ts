@@ -227,25 +227,12 @@ export interface BackendEmployeeProfile {
   skills: BackendEmployeeSkill[]
 }
 
-export interface BackendCreateEmployeeProfileRequest {
-  full_name: string
-  bio?: string
-  employment_type?: 'full_time' | 'part_time'
-  weekly_capacity_hours?: number
-  skills?: string[]
-}
-
 export interface BackendUpdateEmployeeProfileRequest {
   full_name?: string
   job_title?: string | null
   department?: string | null
   bio?: string
   skills?: BackendProvisioningSkillInput[]
-}
-
-export interface BackendUpdateEmployeeWorkSettingsRequest {
-  employment_type?: 'full_time' | 'part_time'
-  weekly_capacity_hours?: number
 }
 
 export interface BackendSupervisorProfile {
@@ -368,7 +355,7 @@ export interface BackendCreateTaskProgressRequest {
   notes?: string
 }
 
-export interface BackendProjectDocument {
+interface BackendProjectDocument {
   id: string
   project_id: string
   original_filename: string
@@ -381,7 +368,7 @@ export interface BackendProjectDocument {
   updated_at: string
 }
 
-export interface BackendProjectDocumentAnalysis {
+interface BackendProjectDocumentAnalysis {
   id: string
   required_skills: string[]
   preferred_skills: string[]
@@ -504,7 +491,7 @@ interface BackendDashboardAnalyzedProject {
   analyzed_at: string
 }
 
-export interface BackendDashboardRecommendationTopCandidate {
+interface BackendDashboardRecommendationTopCandidate {
   employee_id: string
   employee_name: string
   rank: number
@@ -513,7 +500,7 @@ export interface BackendDashboardRecommendationTopCandidate {
   summary: string
 }
 
-export interface BackendDashboardRecommendationRunSummary {
+interface BackendDashboardRecommendationRunSummary {
   project_id: string
   project_title: string
   analysis_id: string | null

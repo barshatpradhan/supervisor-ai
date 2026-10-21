@@ -2,7 +2,7 @@ import type { BackendOrganizationMembershipRole } from '../../../types/backend'
 import type { ConversationMember, MessagingPerson } from '../types/messaging'
 
 const SUGGESTED_ROLES: readonly BackendOrganizationMembershipRole[] = ['organization_admin', 'supervisor']
-export const MAX_SUGGESTED_MENTIONS = 3
+const MAX_SUGGESTED_MENTIONS = 3
 
 /**
  * Who to suggest @mentioning when asking about a task in a project channel: the project creator

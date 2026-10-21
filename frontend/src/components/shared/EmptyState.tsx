@@ -50,14 +50,3 @@ export function EmptyState({
   )
 }
 
-export function ProjectsEmptyState(props: Omit<EmptyStateProps, 'kind'>) {
-  return <EmptyState {...props} kind="projects" />
-}
-
-export function TasksEmptyState(props: Omit<EmptyStateProps, 'kind'>) {
-  return <EmptyState {...props} kind="tasks" />
-}
-
-export function EmployeesEmptyState(props: Omit<EmptyStateProps, 'kind'>) {
-  return <EmptyState {...props} kind="employees" />
-}

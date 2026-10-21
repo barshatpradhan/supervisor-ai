@@ -35,25 +35,6 @@ export function normalizeSkillName(value: string) {
   return normalizeWhitespace(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 }
 
-export function dedupeSkillNames(skills: string[]) {
-  const seen = new Set<string>()
-  const uniqueSkills: string[] = []
-
-  for (const skill of skills) {
-    const normalizedDisplayName = normalizeWhitespace(skill)
-    const normalizedSkillName = normalizeSkillName(normalizedDisplayName)
-
-    if (!normalizedDisplayName || !normalizedSkillName || seen.has(normalizedSkillName)) {
-      continue
-    }
-
-    seen.add(normalizedSkillName)
-    uniqueSkills.push(normalizedDisplayName)
-  }
-
-  return uniqueSkills
-}
-
 export function dedupeProfileSkills(skills: EmployeeProfileSkillFormValue[]) {
   const seen = new Set<string>()
   return skills.flatMap((skill) => {

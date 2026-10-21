@@ -30,21 +30,6 @@ export function getInvitationStatusLabel(status: InvitationPublicStatus) {
   }
 }
 
-export function getInvitationStatusTone(status: InvitationPublicStatus) {
-  switch (status) {
-    case 'pending':
-      return 'border-warning-fg/30 bg-warning-bg/50 text-warning-text'
-    case 'expired':
-      return 'border-danger-100 bg-danger-50 text-danger-700'
-    case 'revoked':
-      return 'border-danger-100 bg-danger-50 text-danger-700'
-    case 'accepted':
-      return 'border-success-fg/30 bg-success-bg text-success-fg'
-    default:
-      return 'border-border-subtle bg-surface-card-alt text-ink-700'
-  }
-}
-
 export function deriveInvitationStatus(
   invitation: Pick<
     OrganizationInvitationSummary,

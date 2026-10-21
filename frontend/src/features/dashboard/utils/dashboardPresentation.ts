@@ -1,7 +1,5 @@
 import type {
   DashboardEmployeeWorkloadRecord,
-  DashboardRecommendationRunSummary,
-  DashboardRecommendationTopCandidate,
   EmployeeDashboardAssignment,
 } from '../types/dashboard'
 
@@ -50,24 +48,6 @@ export function getAvailabilityTone(value: number) {
   }
 
   return 'border-success-fg/30 bg-success-bg/60 text-success-text'
-}
-
-export function formatRecommendationRunLabel(run: DashboardRecommendationRunSummary | null) {
-  if (!run) {
-    return 'No recommendation runs yet'
-  }
-
-  return `${run.project_title} - ${formatDashboardDate(run.created_at)}`
-}
-
-export function formatTopCandidateLabel(
-  candidate: DashboardRecommendationTopCandidate | null,
-) {
-  if (!candidate) {
-    return 'No top-ranked candidate yet'
-  }
-
-  return `${candidate.employee_name} - ${formatDashboardScore(candidate.match_score)}`
 }
 
 export function formatDashboardHours(value: number) {

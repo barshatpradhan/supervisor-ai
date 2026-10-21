@@ -1,4 +1,4 @@
-import { Check, Sparkles, X } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 type ChipTone = 'neutral' | 'ai' | 'match' | 'missing'
@@ -21,12 +21,3 @@ export function Chip({ children, tone = 'neutral' }: { children: ReactNode; tone
   )
 }
 
-/** The small violet tag that marks a title as AI output. */
-export function AiBadge({ children = 'AI' }: { children?: ReactNode }) {
-  return (
-    <span className="helper inline-flex items-center gap-1 rounded-sm bg-ai-bg px-2 py-0.5 font-medium text-ai-fg">
-      <Sparkles aria-hidden="true" size={12} />
-      {children}
-    </span>
-  )
-}

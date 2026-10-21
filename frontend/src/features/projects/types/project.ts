@@ -19,4 +19,3 @@ export interface ProjectFormErrors {
   title?: string
 }
 
-export type ProjectPanelMode = 'create' | 'edit' | 'view'

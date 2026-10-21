@@ -61,9 +61,6 @@ export const EMOJI_GROUPS: readonly EmojiGroup[] = [
   ]),
 ]
 
-/** Quick reactions shown first under a message. */
-export const QUICK_REACTIONS = ['👍', '❤️', '😂', '🎉', '👀', '✅'] as const
-
 const namesByChar = new Map(EMOJI_GROUPS.flatMap((entry) => entry.emoji.map((option) => [option.char, option.name] as const)))
 
 export function emojiName(char: string) {

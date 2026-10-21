@@ -4,9 +4,6 @@ import type {
   AdminUserCreationReviewData,
   AdminUserCreationValidationErrors,
   AdminUserCreationValues,
-  EmployeeAccountFormValues,
-  EmployeeSignupReviewData,
-  EmployeeSignupValidationErrors,
   ManagedAccountRole,
   SkillSelectionItem,
 } from '../types/accountCreation'
@@ -15,7 +12,7 @@ function normalizeWhitespace(value: string) {
   return value.replace(/\s+/g, ' ').trim()
 }
 
-export function normalizeSkillName(value: string) {
+function normalizeSkillName(value: string) {
   return normalizeWhitespace(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 }
 
@@ -40,10 +37,6 @@ export function createSelectedSkill(
 export function hasDuplicateSkill(skills: SkillSelectionItem[], input: string) {
   const normalizedName = normalizeSkillName(input)
   return skills.some((skill) => skill.normalizedName === normalizedName)
-}
-
-export function removeSkill(skills: SkillSelectionItem[], clientId: string) {
-  return skills.filter((skill) => skill.clientId !== clientId)
 }
 
 export function updateSkill(
@@ -98,65 +91,6 @@ function validateSkillSelections(skills: SkillSelectionItem[]) {
   }
 
   return errors
-}
-
-export function validateEmployeeSignupStep(
-  values: EmployeeAccountFormValues,
-  stepIndex: number,
-): EmployeeSignupValidationErrors {
-  if (stepIndex === 0) {
-    const errors: EmployeeSignupValidationErrors = {}
-
-    if (!isValidEmail(values.email)) {
-      errors.email = 'Enter a valid email address.'
-    }
-
-    if (values.password.length < 8) {
-      errors.password = 'Password must be at least 8 characters.'
-    }
-
-    if (values.confirmPassword !== values.password) {
-      errors.confirmPassword = 'Passwords must match.'
-    }
-
-    return errors
-  }
-
-  if (stepIndex === 1) {
-    const errors: EmployeeSignupValidationErrors = {}
-
-    if (!normalizeWhitespace(values.fullName)) {
-      errors.fullName = 'Full name is required.'
-    }
-
-    if (!values.employmentType) {
-      errors.employmentType = 'Employment type is required.'
-    }
-
-    const weeklyCapacityError = validateWeeklyCapacity(values.weeklyCapacityHours)
-
-    if (weeklyCapacityError) {
-      errors.weeklyCapacityHours = weeklyCapacityError
-    }
-
-    if (values.bio.length > 800) {
-      errors.bio = 'Bio must be 800 characters or fewer.'
-    }
-
-    return errors
-  }
-
-  if (stepIndex === 2) {
-    return validateSkillSelections(values.selectedSkills)
-  }
-
-  if (stepIndex === 3 && !values.reviewConfirmed) {
-    return {
-      reviewConfirmed: 'Confirm the information before creating the account.',
-    }
-  }
-
-  return {}
 }
 
 export function validateAdminUserCreationStep(
@@ -222,35 +156,6 @@ export function validateAdminUserCreationStep(
   return {}
 }
 
-export function buildEmployeeSignupSteps(currentStepIndex: number): AccountCreationStep[] {
-  return [
-    {
-      description: 'Email and password',
-      id: 'account',
-      label: 'Account',
-      status: currentStepIndex > 0 ? 'complete' : currentStepIndex === 0 ? 'current' : 'upcoming',
-    },
-    {
-      description: 'Profile details',
-      id: 'profile',
-      label: 'Profile',
-      status: currentStepIndex > 1 ? 'complete' : currentStepIndex === 1 ? 'current' : 'upcoming',
-    },
-    {
-      description: 'Skills and experience',
-      id: 'skills',
-      label: 'Skills',
-      status: currentStepIndex > 2 ? 'complete' : currentStepIndex === 2 ? 'current' : 'upcoming',
-    },
-    {
-      description: 'Review and submit',
-      id: 'review',
-      label: 'Review',
-      status: currentStepIndex === 3 ? 'current' : currentStepIndex > 3 ? 'complete' : 'upcoming',
-    },
-  ]
-}
-
 export function buildAdminUserCreationSteps(
   currentStepIndex: number,
   role: ManagedAccountRole,
@@ -303,24 +208,6 @@ function formatEmploymentTypeLabel(value: '' | 'full_time' | 'part_time') {
   }
 
   return 'Not selected'
-}
-
-export function buildEmployeeSignupReviewData(
-  values: EmployeeAccountFormValues,
-): EmployeeSignupReviewData {
-  return {
-    account: {
-      email: values.email.trim(),
-      passwordLabel: `${values.password.length} characters`,
-    },
-    profile: {
-      bio: normalizeWhitespace(values.bio) || 'No bio provided',
-      employmentTypeLabel: formatEmploymentTypeLabel(values.employmentType),
-      fullName: normalizeWhitespace(values.fullName),
-      weeklyCapacityHours: `${values.weeklyCapacityHours.trim()} hours`,
-    },
-    skills: values.selectedSkills,
-  }
 }
 
 export function buildAdminUserCreationReviewData(
