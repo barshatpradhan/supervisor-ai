@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { tokenColor } from '../../../components/charts/chartColors'
 import { Avatar } from '../../../components/ui/Avatar'
@@ -14,13 +15,17 @@ export interface TaskBoardCard {
   priority: BackendPriorityLevel
   progress: number
   project: string
+  projectId: string
   status: BackendTaskStatus
   title: string
   updatedAt: string
 }
 
-/** Five status columns on surface-muted. Scrolls sideways when the screen is narrow. */
-export function TaskBoard({ tasks }: { tasks: TaskBoardCard[] }) {
+/**
+ * Five status columns on surface-muted. Scrolls sideways when the screen is narrow.
+ * `cardAction` adds a control under a card, outside its link (links can't be nested).
+ */
+export function TaskBoard({ cardAction, tasks }: { cardAction?: (task: TaskBoardCard) => ReactNode; tasks: TaskBoardCard[] }) {
   return (
     <div className="overflow-x-auto pb-2">
       <div className="grid min-w-[1180px] grid-cols-5 gap-4">
@@ -36,10 +41,15 @@ export function TaskBoard({ tasks }: { tasks: TaskBoardCard[] }) {
               {columnTasks.length === 0 ? (
                 <p className="helper m-0 rounded-card border border-dashed border-border-strong px-3 py-4 text-center text-text-secondary">No tasks</p>
               ) : null}
-              {columnTasks.map((task) => (
-                <Link
-                  className="flex flex-col gap-2.5 rounded-card border border-border-default bg-surface-card p-3.5 text-text-primary no-underline transition hover:border-border-strong hover:shadow-raised"
+              {columnTasks.map((task) => {
+                const action = cardAction?.(task)
+                return (
+                <div
+                  className="flex flex-col rounded-card border border-border-default bg-surface-card transition hover:border-border-strong hover:shadow-raised"
                   key={task.id}
+                >
+                <Link
+                  className="flex flex-col gap-2.5 rounded-card p-3.5 text-text-primary no-underline"
                   to={`/tasks/${task.id}`}
                 >
                   <span className="flex items-center justify-between gap-2">
@@ -59,7 +69,10 @@ export function TaskBoard({ tasks }: { tasks: TaskBoardCard[] }) {
                     <span className="num-xs shrink-0 text-text-tertiary">{formatShortDate(task.updatedAt)}</span>
                   </span>
                 </Link>
-              ))}
+                {action ? <div className="border-t border-border-default px-3.5 py-2">{action}</div> : null}
+                </div>
+                )
+              })}
             </section>
           )
         })}

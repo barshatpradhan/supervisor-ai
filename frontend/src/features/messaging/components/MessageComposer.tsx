@@ -1,4 +1,4 @@
-import { ListChecks, SendHorizontal, Smile, X } from 'lucide-react'
+import { AtSign, ListChecks, SendHorizontal, Smile, X } from 'lucide-react'
 import { useId, useRef, useState, type KeyboardEvent } from 'react'
 import type { MessagingPerson, TaggedTask } from '../types/messaging'
 import { activeMentionQuery, draftToBody, MESSAGE_MAX_LENGTH } from '../utils/messageBody'
@@ -13,17 +13,26 @@ interface MessageComposerProps {
   onSend: (body: string, task: TaggedTask | null) => void
   /** When set, the composer is disabled and shows why. */
   disabledReason?: string | null
+  /** A task to start with already tagged ("Ask about this task"). */
+  initialTask?: TaggedTask | null
+  /** People offered as one-click @mentions. Suggestions only: nobody is mentioned until chosen. */
+  suggestedMentions?: readonly MessagingPerson[]
+  /** In a project channel, limits the task picker to that project. */
+  taskProjectId?: string | null
 }
 
 export function MessageComposer({
   conversationTitle,
   disabledReason = null,
+  initialTask = null,
   mentionable,
   onSend,
   organizationId,
+  suggestedMentions = [],
+  taskProjectId = null,
 }: MessageComposerProps) {
   const [draft, setDraft] = useState('')
-  const [task, setTask] = useState<TaggedTask | null>(null)
+  const [task, setTask] = useState<TaggedTask | null>(initialTask)
   const [mentioned, setMentioned] = useState<MessagingPerson[]>([])
   const [caret, setCaret] = useState(0)
   const [highlight, setHighlight] = useState(0)
@@ -58,6 +67,23 @@ export function MessageComposer({
     setMentioned((current) => (current.some((entry) => entry.userId === person.userId) ? current : [...current, person]))
     setHighlight(0)
   }
+
+  function addSuggestedMention(person: MessagingPerson) {
+    const separator = draft.length > 0 && !/\s$/.test(draft) ? ' ' : ''
+    const next = `${draft}${separator}@${person.name} `
+    setDraft(next)
+    setCaret(next.length)
+    setMentioned((current) => (current.some((entry) => entry.userId === person.userId) ? current : [...current, person]))
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus()
+      textareaRef.current?.setSelectionRange(next.length, next.length)
+    })
+  }
+
+  // Offer each suggestion until it is in the draft.
+  const openSuggestions = suggestedMentions.filter(
+    (person) => !(mentioned.some((entry) => entry.userId === person.userId) && draft.includes(`@${person.name}`)),
+  )
 
   function submit() {
     if (!canSend) return
@@ -127,6 +153,24 @@ export function MessageComposer({
         </div>
       ) : null}
 
+      {openSuggestions.length > 0 ? (
+        <div aria-label="Suggested people to mention" className="mb-2 flex flex-wrap items-center gap-1.5" role="group">
+          <span className="text-xs text-text-tertiary">Suggested:</span>
+          {openSuggestions.map((person) => (
+            <button
+              aria-label={`Mention ${person.name}`}
+              className="inline-flex items-center gap-1 rounded-pill border border-border-default bg-surface-card px-2 py-0.5 text-xs font-semibold text-text-primary hover:border-border-primary hover:bg-primary-50 focus-visible:outline-2 focus-visible:outline-focus-ring"
+              key={person.userId}
+              onClick={() => addSuggestedMention(person)}
+              type="button"
+            >
+              <AtSign aria-hidden="true" size={12} />
+              {person.name}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       {showSuggestions ? (
         <ul
           aria-label="Mention someone"
@@ -160,7 +204,7 @@ export function MessageComposer({
           <EmojiPicker label="Insert emoji" onSelect={(emoji) => insertAtCaret(emoji)}>
             <Smile aria-hidden="true" size={18} />
           </EmojiPicker>
-          <TaskTagPicker onSelect={setTask} organizationId={organizationId} />
+          <TaskTagPicker onSelect={setTask} organizationId={organizationId} projectId={taskProjectId} />
         </div>
         <label className="sr-only" htmlFor={`${listId}-input`}>Message {conversationTitle}</label>
         <textarea

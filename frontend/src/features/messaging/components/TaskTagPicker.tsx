@@ -1,30 +1,26 @@
-import { useQuery } from '@tanstack/react-query'
 import { ListChecks } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
-import { listTasks } from '../../tasks/services/taskService'
+import { useTaggableTasks } from '../hooks/useMessagingQueries'
 import type { TaggedTask } from '../types/messaging'
 
 interface TaskTagPickerProps {
   organizationId: string
   onSelect: (task: TaggedTask) => void
+  /** In a project channel, only that project's tasks can be tagged. */
+  projectId?: string | null
 }
 
 /**
  * "Tag a task": searches the caller's own task list (GET /tasks), which the backend already
- * limits to the tasks they can access.
+ * limits to the tasks they can access (employees: only their own).
  */
-export function TaskTagPicker({ onSelect, organizationId }: TaskTagPickerProps) {
+export function TaskTagPicker({ onSelect, organizationId, projectId = null }: TaskTagPickerProps) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
   const panelId = useId()
 
-  const tasks = useQuery({
-    enabled: open,
-    queryFn: listTasks,
-    queryKey: ['messaging', organizationId, 'taggable-tasks'],
-    staleTime: 60_000,
-  })
+  const tasks = useTaggableTasks(organizationId, open)
 
   useEffect(() => {
     if (!open) return
@@ -37,6 +33,7 @@ export function TaskTagPicker({ onSelect, organizationId }: TaskTagPickerProps) 
 
   const query = search.trim().toLowerCase()
   const matches = (tasks.data ?? [])
+    .filter((task) => !projectId || task.project_id === projectId)
     .filter((task) => !query || task.title.toLowerCase().includes(query))
     .slice(0, 20)
 
@@ -78,6 +75,7 @@ export function TaskTagPicker({ onSelect, organizationId }: TaskTagPickerProps) 
           />
           {tasks.isPending ? <p className="m-0 p-2 text-sm text-text-secondary" role="status">Loading tasks…</p> : null}
           {tasks.isError ? <p className="m-0 p-2 text-sm text-danger-fg" role="alert">Tasks could not be loaded.</p> : null}
+          {projectId ? <p className="m-0 px-2 pb-1 text-xs text-text-tertiary">Tasks in this project you can access</p> : null}
           {tasks.isSuccess && matches.length === 0 ? <p className="m-0 p-2 text-sm text-text-secondary">No matching tasks.</p> : null}
           <ul className="m-0 max-h-56 list-none overflow-y-auto p-0">
             {matches.map((task) => (

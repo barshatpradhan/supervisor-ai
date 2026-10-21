@@ -14,6 +14,11 @@ export interface MessagingMember extends MessagingPerson {
   role: BackendOrganizationMembershipRole
 }
 
+/** Someone who can open a conversation right now (no email addresses). */
+export interface ConversationMember extends MessagingMember {
+  isProjectCreator: boolean
+}
+
 export interface ConversationSummary {
   id: string
   kind: ConversationKind
@@ -64,6 +69,8 @@ export interface Message {
   mentions: MessagingPerson[]
   reactions: MessageReaction[]
   task: TaskChip | null
+  /** From before the viewer joined the channel; visible only because it tags a task now assigned to them. */
+  shownForTask: boolean
 }
 
 export interface MessagePage {

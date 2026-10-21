@@ -1,5 +1,6 @@
 import { deleteJson, getJson, patchJson, postJson } from '../../../lib/api'
 import type {
+  ConversationMember,
   ConversationSummary,
   DirectConversation,
   Message,
@@ -26,6 +27,11 @@ export function getUnreadSummary() {
 
 export function listMessagingMembers() {
   return getJson<MessagingMember[]>(`${base}/members`)
+}
+
+/** People who can open this conversation right now, for @mentions. */
+export function listConversationMembers(conversationId: string) {
+  return getJson<ConversationMember[]>(`${conversationPath(conversationId)}/members`)
 }
 
 export function openDirectConversation(userId: string) {

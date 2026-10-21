@@ -31,6 +31,7 @@ function serverMessage(overrides: Partial<Message>): Message {
     reactions: [],
     sender: { userId: 'me', name: 'Me' },
     task: null,
+    shownForTask: false,
     updatedAt: '2026-10-21T10:00:00.000Z',
     ...overrides,
   }

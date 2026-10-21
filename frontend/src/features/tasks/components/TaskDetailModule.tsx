@@ -10,6 +10,7 @@ import { PriorityTag } from '../../../components/ui/PriorityTag'
 import { ProgressBar } from '../../../components/ui/ProgressBar'
 import { StateBlock } from '../../../components/ui/StateBlock'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
+import { AskAboutTaskLink } from '../../messaging/components/AskAboutTaskLink'
 import { useOrganization } from '../../organizations/hooks/useOrganization'
 import { useEmployeeNames } from '../hooks/useEmployeeNames'
 import { useTaskManager } from '../hooks/useTaskManager'
@@ -94,8 +95,20 @@ export function TaskDetailModule() {
     <div className="flex flex-col gap-6">
       <PageHeader
         actions={
-          manager.canUpdateSelectedTask && !manager.isProgressMode ? (
-            <Button onClick={manager.startProgressUpdate}>Update progress</Button>
+          !manager.canManageTasks || (manager.canUpdateSelectedTask && !manager.isProgressMode) ? (
+          <>
+            {!manager.canManageTasks ? (
+              <AskAboutTaskLink
+                organizationId={activeOrganization?.id ?? null}
+                projectId={task.project_id}
+                taskId={task.id}
+                taskTitle={task.title}
+              />
+            ) : null}
+            {manager.canUpdateSelectedTask && !manager.isProgressMode ? (
+              <Button onClick={manager.startProgressUpdate}>Update progress</Button>
+            ) : null}
+          </>
           ) : null
         }
         back={back}

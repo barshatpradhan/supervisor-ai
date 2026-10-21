@@ -75,6 +75,14 @@ export function MessageItem({
             {timeFormat.format(created)}
           </time>
           {message.editedAt && !isDeleted ? <span className="text-xs text-text-tertiary">(edited)</span> : null}
+          {message.shownForTask ? (
+            <span
+              className="rounded-pill bg-primary-50 px-2 py-0.5 text-xs font-semibold text-primary-700"
+              title="Sent before you joined this channel. You can see it because it tags a task now assigned to you."
+            >
+              Earlier message about your task
+            </span>
+          ) : null}
         </div>
 
         {message.kind === 'progress_request' && !isDeleted ? (

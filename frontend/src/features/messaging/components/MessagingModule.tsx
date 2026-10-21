@@ -2,11 +2,11 @@ import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { useMutation } from '@tanstack/react-query'
 import { X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { StateBlock } from '../../../components/ui/StateBlock'
 import { useAuth } from '../../auth/hooks/useAuth'
 import { useOrganization } from '../../organizations/hooks/useOrganization'
-import { useConversations, useMessagingMembers } from '../hooks/useMessagingQueries'
+import { useConversations, useMessagingMembers, useTaggableTasks } from '../hooks/useMessagingQueries'
 import { openDirectConversation } from '../services/messagingService'
 import { ConversationList } from './ConversationList'
 import { MessageThread } from './MessageThread'
@@ -24,6 +24,12 @@ export function MessagingModule() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [newMessageOpen, setNewMessageOpen] = useState(false)
 
+  // "Ask about this task" opens /messages/:id?task=<taskId>. The task is tagged only if it is one
+  // of the caller's own accessible tasks and, in a project channel, belongs to that project.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const askTaskId = searchParams.get('task')
+  const taggableTasks = useTaggableTasks(organizationId, Boolean(askTaskId))
+
   const openDirect = useMutation({
     mutationFn: openDirectConversation,
     onSuccess: async (direct) => {
@@ -40,6 +46,12 @@ export function MessagingModule() {
   }, [conversationId, firstConversationId, navigate])
 
   const active = conversations.data?.find((conversation) => conversation.id === conversationId) ?? null
+  const askTask = askTaskId
+    ? taggableTasks.data?.find(
+        (task) => task.id === askTaskId && (active?.kind !== 'project' || task.project_id === active.projectId),
+      ) ?? null
+    : null
+  const prefillTask = askTask ? { id: askTask.id, title: askTask.title } : null
 
   // A DM opened from elsewhere ("Ask for update") may not be in a list fetched earlier.
   const { isFetching, refetch } = conversations
@@ -80,9 +92,15 @@ export function MessagingModule() {
               currentRole={activeMembershipRole}
               currentUserId={user?.id ?? null}
               key={active.id}
-              members={members.data}
               onOpenConversations={() => setDrawerOpen(true)}
+              onPrefillUsed={() =>
+                setSearchParams((params) => {
+                  params.delete('task')
+                  return params
+                }, { replace: true })
+              }
               organizationId={organizationId}
+              prefillTask={prefillTask}
             />
           ) : (
             <div className="p-6">

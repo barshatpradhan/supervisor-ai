@@ -8,6 +8,8 @@ import { Dialog } from '../../../components/ui/Dialog'
 import { PageHeader } from '../../../components/ui/PageHeader'
 import { Segmented } from '../../../components/ui/Segmented'
 import { StateBlock } from '../../../components/ui/StateBlock'
+import { AskAboutTaskLink } from '../../messaging/components/AskAboutTaskLink'
+import { useOrganization } from '../../organizations/hooks/useOrganization'
 import { useEmployeeNames } from '../hooks/useEmployeeNames'
 import { useTaskManager } from '../hooks/useTaskManager'
 import { taskStatusLabels } from '../utils/taskPresentation'
@@ -26,6 +28,7 @@ const filterOptions = [
 
 export function TasksModule() {
   const manager = useTaskManager()
+  const { activeOrganization } = useOrganization()
   const employeeNames = useEmployeeNames(manager.canManageTasks)
   const [filter, setFilter] = useState<TaskFilter>('all')
 
@@ -40,6 +43,7 @@ export function TasksModule() {
           priority: task.priority,
           progress: getTaskProgress(task),
           project: task.projectLabel,
+          projectId: task.project_id,
           status: task.status,
           title: task.title,
           updatedAt: task.updated_at,
@@ -98,7 +102,23 @@ export function TasksModule() {
           <Card aria-label="Status mix" padding="sm">
             <StackedBar data={statusMix} />
           </Card>
-          <TaskBoard tasks={cards} />
+          <TaskBoard
+            cardAction={
+              // Employees ask about their own tasks in the project channel; admins and supervisors
+              // use "Ask for update" in chat instead.
+              manager.canManageTasks
+                ? undefined
+                : (card) => (
+                    <AskAboutTaskLink
+                      organizationId={activeOrganization?.id ?? null}
+                      projectId={card.projectId}
+                      taskId={card.id}
+                      taskTitle={card.title}
+                    />
+                  )
+            }
+            tasks={cards}
+          />
         </>
       )}
 

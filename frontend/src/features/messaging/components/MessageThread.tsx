@@ -7,10 +7,12 @@ import { Button } from '../../../components/ui/Button'
 import { StateBlock } from '../../../components/ui/StateBlock'
 import { queryKeys } from '../../../lib/api/queryKeys'
 import type { BackendOrganizationMembershipRole } from '../../../types/backend'
+import { useConversationMembers } from '../hooks/useMessagingQueries'
 import { useMessageThread } from '../hooks/useMessageThread'
 import { requestTaskProgress } from '../services/messagingService'
-import type { ConversationSummary, MessagingMember } from '../types/messaging'
+import type { ConversationSummary, TaggedTask } from '../types/messaging'
 import { bodyToDraft } from '../utils/messageBody'
+import { suggestedMentionsFor } from '../utils/suggestedMentions'
 import { MessageComposer } from './MessageComposer'
 import { MessageItem } from './MessageItem'
 
@@ -19,8 +21,11 @@ interface MessageThreadProps {
   organizationId: string
   currentUserId: string | null
   currentRole: BackendOrganizationMembershipRole | null
-  members: MessagingMember[] | undefined
   onOpenConversations: () => void
+  /** "Ask about this task": start with this task tagged and suggest people to mention. */
+  prefillTask?: TaggedTask | null
+  /** Called once a message has been sent, so the prefill is not applied again. */
+  onPrefillUsed?: () => void
 }
 
 const CHANNEL_ROLES: readonly BackendOrganizationMembershipRole[] = ['organization_admin', 'supervisor']
@@ -29,23 +34,28 @@ export function MessageThread({
   conversation,
   currentRole,
   currentUserId,
-  members,
   onOpenConversations,
+  onPrefillUsed,
   organizationId,
+  prefillTask = null,
 }: MessageThreadProps) {
   const queryClient = useQueryClient()
   const thread = useMessageThread(organizationId, conversation.id, currentUserId)
+  const conversationMembers = useConversationMembers(organizationId, conversation.id)
+  const members = conversationMembers.data
   const [sentNotice, setSentNotice] = useState<{ name: string; conversationId: string } | null>(null)
   const [askError, setAskError] = useState<string | null>(null)
   const listEndRef = useRef<HTMLDivElement>(null)
 
-  // Who could be @mentioned: people who can see this conversation.
-  const mentionable = useMemo(() => {
-    const others = (members ?? []).filter((member) => member.userId !== currentUserId)
-    if (conversation.kind === 'general') return others
-    if (conversation.kind === 'project') return others.filter((member) => CHANNEL_ROLES.includes(member.role))
-    return conversation.directPeer ? [conversation.directPeer] : []
-  }, [conversation, currentUserId, members])
+  // Who could be @mentioned: the server's list of people who can open this conversation right now.
+  const mentionable = useMemo(
+    () => (members ?? []).filter((member) => member.userId !== currentUserId),
+    [currentUserId, members],
+  )
+  const suggestedMentions = useMemo(
+    () => (prefillTask && conversation.kind === 'project' ? suggestedMentionsFor(members ?? [], currentUserId) : []),
+    [conversation.kind, currentUserId, members, prefillTask],
+  )
 
   const askForUpdate = useMutation({
     mutationFn: requestTaskProgress,
@@ -66,6 +76,8 @@ export function MessageThread({
   }, [lastId, pendingCount])
 
   const canAskForUpdate = currentRole !== null && CHANNEL_ROLES.includes(currentRole)
+  // Project pages are for admins and supervisors only.
+  const canOpenProject = canAskForUpdate
   const TitleIcon = conversation.kind === 'general' ? Hash : conversation.kind === 'project' ? FolderKanban : null
   const disabledReason = conversation.readOnly
     ? conversation.kind === 'project'
@@ -86,7 +98,7 @@ export function MessageThread({
         </button>
         {TitleIcon ? <TitleIcon aria-hidden="true" className="text-text-secondary" size={18} /> : <Avatar name={conversation.title} size={28} />}
         <h2 className="m-0 min-w-0 flex-1 truncate text-base font-semibold text-text-primary" id="thread-title">{conversation.title}</h2>
-        {conversation.kind === 'project' && conversation.projectId ? (
+        {conversation.kind === 'project' && conversation.projectId && canOpenProject ? (
           <Link className="text-sm font-semibold text-text-link" to={`/projects/${conversation.projectId}`}>Open project</Link>
         ) : null}
       </header>
@@ -181,9 +193,17 @@ export function MessageThread({
       <MessageComposer
         conversationTitle={conversation.title}
         disabledReason={disabledReason}
+        initialTask={prefillTask}
+        // Remount when a prefill arrives, so it starts tagged.
+        key={prefillTask?.id ?? 'no-prefill'}
         mentionable={mentionable}
-        onSend={thread.send}
+        onSend={(body, task) => {
+          thread.send(body, task)
+          if (prefillTask) onPrefillUsed?.()
+        }}
         organizationId={organizationId}
+        suggestedMentions={suggestedMentions}
+        taskProjectId={conversation.kind === 'project' ? conversation.projectId : null}
       />
     </section>
   )

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MessageComposer } from './MessageComposer'
@@ -78,6 +78,45 @@ describe('MessageComposer', () => {
     await userEvent.type(input, 'Any news?{Enter}')
     expect(onSend).toHaveBeenCalledWith('Any news?', { id: 'task-1', title: 'Ship the API' })
     await waitFor(() => expect(screen.queryByText('Tagged: Ship the API')).not.toBeInTheDocument())
+  })
+
+  it('in a project channel, offers only that project\'s tasks for tagging', async () => {
+    listTasks.mockResolvedValue([
+      { id: 'task-1', project_id: 'project-a', title: 'Ship the API' },
+      { id: 'task-2', project_id: 'project-b', title: 'Ship the docs' },
+    ])
+    renderComposer({ taskProjectId: 'project-a' })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Tag a task' }))
+    expect(await screen.findByRole('button', { name: 'Ship the API' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ship the docs' })).not.toBeInTheDocument()
+    expect(screen.getByText('Tasks in this project you can access')).toBeInTheDocument()
+  })
+
+  it('starts with a prefilled task and offers suggested mentions without adding them', async () => {
+    const lee = { userId: '6c4f1e2a-3b5d-4e7f-9a1b-2c3d4e5f6a7b', name: 'Lee Supervisor' }
+    const { input, onSend } = renderComposer({
+      initialTask: { id: 'task-1', title: 'Ship the API' },
+      mentionable: [ann, lee],
+      suggestedMentions: [lee],
+    })
+
+    expect(screen.getByText('Tagged: Ship the API')).toBeInTheDocument()
+    const suggestions = screen.getByRole('group', { name: 'Suggested people to mention' })
+    expect(input).toHaveValue('')
+
+    await userEvent.click(within(suggestions).getByRole('button', { name: 'Mention Lee Supervisor' }))
+    expect(input).toHaveValue('@Lee Supervisor ')
+    expect(screen.queryByRole('group', { name: 'Suggested people to mention' })).not.toBeInTheDocument()
+
+    await userEvent.type(input, 'is this blocked?{Enter}')
+    expect(onSend).toHaveBeenCalledWith(`<@${lee.userId}> is this blocked?`, { id: 'task-1', title: 'Ship the API' })
+  })
+
+  it('autocompletes only the people it is given', async () => {
+    const { input } = renderComposer({ mentionable: [ann] })
+    await userEvent.type(input, '@')
+    expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual(['Ann Lee'])
   })
 
   it('is replaced by an explanation when the conversation is read-only', () => {

@@ -34,6 +34,9 @@ export const queryKeys = {
     conversations: (organizationId: string) => ['messaging', organizationId, 'conversations'] as const,
     unread: (organizationId: string) => ['messaging', organizationId, 'unread'] as const,
     members: (organizationId: string) => ['messaging', organizationId, 'members'] as const,
+    conversationMembers: (organizationId: string, conversationId: string) =>
+      ['messaging', organizationId, 'conversation-members', conversationId] as const,
+    taggableTasks: (organizationId: string) => ['messaging', organizationId, 'taggable-tasks'] as const,
     thread: (organizationId: string, conversationId: string) =>
       ['messaging', organizationId, 'thread', conversationId] as const,
     changes: (organizationId: string, conversationId: string) =>
