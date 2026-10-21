@@ -5,7 +5,9 @@ import { SiteFooter } from '../components/layout/SiteFooter'
 import { getNavigationItems } from '../config/navigation'
 import { useAuth } from '../features/auth/hooks/useAuth'
 import { OrganizationSwitcher } from '../features/organizations/components/OrganizationSwitcher'
+import { useUnreadSummary } from '../features/messaging/hooks/useMessagingQueries'
 import { useOrganization } from '../features/organizations/hooks/useOrganization'
+import { hasPermission } from '../lib/permissions'
 import { useCurrentUserName } from '../hooks/useCurrentUserName'
 
 const routeTitles: [prefix: string, title: string][] = [
@@ -13,6 +15,7 @@ const routeTitles: [prefix: string, title: string][] = [
   ['/ai-recommendations', 'AI Recommendations'],
   ['/dashboard', 'Dashboard'],
   ['/employees', 'Team'],
+  ['/messages', 'Messages'],
   ['/forbidden', 'Access restricted'],
   ['/organization/invitations', 'Invitations'],
   ['/platform-admin', 'Platform'],
@@ -32,10 +35,16 @@ export function AppLayout() {
   const { logout, user } = useAuth()
   const { activeMembershipRole, activeOrganization } = useOrganization()
   const userName = useCurrentUserName(activeMembershipRole, activeOrganization?.id ?? null)
-  const navigationItems = getNavigationItems({
+  const canMessage = hasPermission({
+    permission: 'messages:use',
     organizationRole: activeMembershipRole,
     platformRole: user?.platformRole ?? null,
   })
+  const unread = useUnreadSummary(activeOrganization?.id ?? null, canMessage)
+  const navigationItems = getNavigationItems({
+    organizationRole: activeMembershipRole,
+    platformRole: user?.platformRole ?? null,
+  }).map((item) => (item.href === '/messages' ? { ...item, badge: unread.data?.totalUnread ?? 0 } : item))
 
   // Each page renders its own H1; the shell only names the browser tab.
   useEffect(() => {

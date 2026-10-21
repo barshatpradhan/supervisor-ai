@@ -49,11 +49,28 @@ export function Sidebar({ activePath, items, onNavigate, variant = 'rail' }: Sid
                       : 'text-text-secondary hover:bg-primary-50 hover:text-text-primary',
                   ].join(' ')}
                   onClick={onNavigate}
+                  aria-label={item.badge ? `${item.label}, ${item.badge} unread` : undefined}
                   title={isRail ? item.label : undefined}
                   to={item.href}
                 >
-                  <Icon aria-hidden="true" className={item.ai && !isActive ? 'text-ai-fg' : ''} size={18} />
+                  <span className="relative inline-flex">
+                    <Icon aria-hidden="true" className={item.ai && !isActive ? 'text-ai-fg' : ''} size={18} />
+                    {item.badge && isRail ? (
+                      <span aria-hidden="true" className="absolute -right-1.5 -top-1.5 size-2.5 rounded-pill bg-primary-600 ring-2 ring-surface-card xl:hidden" />
+                    ) : null}
+                  </span>
                   <span className={isRail ? 'sr-only xl:not-sr-only' : ''}>{item.label}</span>
+                  {item.badge ? (
+                    <span
+                      aria-hidden="true"
+                      className={[
+                        'ml-auto min-w-5 rounded-pill bg-primary-600 px-1.5 text-center text-xs font-semibold leading-5 text-text-on-primary',
+                        isRail ? 'hidden xl:inline-block' : 'inline-block',
+                      ].join(' ')}
+                    >
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  ) : null}
                 </NavLink>
               </li>
             )

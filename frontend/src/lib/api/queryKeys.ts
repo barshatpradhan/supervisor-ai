@@ -29,4 +29,14 @@ export const queryKeys = {
     employee: (organizationId: string) => ['dashboard', 'employee', organizationId] as const,
     supervisor: (organizationId: string) => ['dashboard', 'supervisor', organizationId] as const,
   },
+  messaging: {
+    all: (organizationId: string) => ['messaging', organizationId] as const,
+    conversations: (organizationId: string) => ['messaging', organizationId, 'conversations'] as const,
+    unread: (organizationId: string) => ['messaging', organizationId, 'unread'] as const,
+    members: (organizationId: string) => ['messaging', organizationId, 'members'] as const,
+    thread: (organizationId: string, conversationId: string) =>
+      ['messaging', organizationId, 'thread', conversationId] as const,
+    changes: (organizationId: string, conversationId: string) =>
+      ['messaging', organizationId, 'changes', conversationId] as const,
+  },
 } as const

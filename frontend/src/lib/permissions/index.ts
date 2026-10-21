@@ -7,6 +7,7 @@ export type Permission =
   | 'admin:users:write'
   | 'employees:read'
   | 'invitations:manage'
+  | 'messages:use'
   | 'projects:manage'
   | 'recommendations:manage'
   | 'tasks:manage'
@@ -16,6 +17,7 @@ const permissionRoles: Record<Permission, readonly BackendOrganizationMembership
   'admin:users:write': [],
   'employees:read': ['organization_admin', 'supervisor'],
   'invitations:manage': ['organization_admin'],
+  'messages:use': ['organization_admin', 'supervisor', 'employee'],
   'projects:manage': ['organization_admin', 'supervisor'],
   'recommendations:manage': ['organization_admin', 'supervisor'],
   'tasks:manage': ['organization_admin', 'supervisor'],

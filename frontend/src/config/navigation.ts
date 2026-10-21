@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   ListChecks,
   Mail,
+  MessageSquare,
   ShieldCheck,
   Sparkles,
   UserPlus,
@@ -15,6 +16,8 @@ import type { BackendOrganizationMembershipRole, BackendPlatformRole } from '../
 
 export interface NavigationItem {
   ai?: boolean
+  /** Unread count shown beside the label. */
+  badge?: number
   href: string
   icon: LucideIcon
   label: string
@@ -28,6 +31,7 @@ const navigation: readonly NavigationDefinition[] = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/projects', icon: FolderKanban, label: 'Projects', permission: 'projects:manage' },
   { href: '/tasks', icon: ListChecks, label: 'Tasks' },
+  { href: '/messages', icon: MessageSquare, label: 'Messages', permission: 'messages:use' },
   { ai: true, href: '/ai-recommendations', icon: Sparkles, label: 'AI Recommendations', permission: 'recommendations:manage' },
   { href: '/organization/invitations', icon: Mail, label: 'Invitations', permission: 'invitations:manage' },
   { href: '/profile', icon: UserRound, label: 'Profile' },

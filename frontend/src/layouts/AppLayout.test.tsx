@@ -5,6 +5,7 @@ import { AppLayout } from './AppLayout'
 
 const useAuthMock = vi.fn()
 const useOrganizationMock = vi.fn()
+const useUnreadSummaryMock = vi.fn()
 
 vi.mock('../features/auth/hooks/useAuth', () => ({
   useAuth: () => useAuthMock(),
@@ -12,6 +13,10 @@ vi.mock('../features/auth/hooks/useAuth', () => ({
 
 vi.mock('../features/organizations/hooks/useOrganization', () => ({
   useOrganization: () => useOrganizationMock(),
+}))
+
+vi.mock('../features/messaging/hooks/useMessagingQueries', () => ({
+  useUnreadSummary: () => useUnreadSummaryMock(),
 }))
 
 vi.mock('../hooks/useCurrentUserName', () => ({
@@ -24,6 +29,7 @@ vi.mock('../features/organizations/components/OrganizationSwitcher', () => ({
 
 describe('AppLayout', () => {
   beforeEach(() => {
+    useUnreadSummaryMock.mockReturnValue({ data: undefined })
     useAuthMock.mockReturnValue({
       logout: vi.fn(),
       user: {
@@ -83,5 +89,21 @@ describe('AppLayout', () => {
     expect(screen.queryByRole('link', { name: 'Invitations' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Team' })).toHaveAttribute('href', '/employees')
     expect(screen.queryByRole('link', { name: 'Employees' })).not.toBeInTheDocument()
+  })
+
+  it('shows Messages with its unread count', () => {
+    useUnreadSummaryMock.mockReturnValue({ data: { totalUnread: 3, totalMentions: 1, conversations: [] } })
+
+    render(
+      <MemoryRouter initialEntries={['/dashboard']}>
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route element={<div>Dashboard body</div>} path="/dashboard" />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('link', { name: 'Messages, 3 unread' })).toHaveAttribute('href', '/messages')
   })
 })

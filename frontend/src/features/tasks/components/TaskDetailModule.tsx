@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { ChevronDown } from 'lucide-react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { Avatar } from '../../../components/ui/Avatar'
 import { Button } from '../../../components/ui/Button'
 import { Card, CardHeader } from '../../../components/ui/Card'
@@ -36,6 +36,20 @@ export function TaskDetailModule() {
   const manager = useTaskManager(taskId)
   const employeeNames = useEmployeeNames(manager.canManageTasks)
   const task = manager.taskList.find((entry) => entry.id === taskId) ?? null
+
+  // /tasks/:id?update=progress (the "Update progress" link on a chat progress request) opens the
+  // existing progress form once, subject to the same permission check as the button.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const wantsProgressUpdate = searchParams.get('update') === 'progress'
+  const { canUpdateSelectedTask, isProgressMode, startProgressUpdate } = manager
+  useEffect(() => {
+    if (!wantsProgressUpdate || !task) return
+    if (canUpdateSelectedTask && !isProgressMode) startProgressUpdate()
+    setSearchParams((params) => {
+      params.delete('update')
+      return params
+    }, { replace: true })
+  }, [canUpdateSelectedTask, isProgressMode, setSearchParams, startProgressUpdate, task, wantsProgressUpdate])
 
   if (manager.isPageLoading && !manager.hasTasks) {
     return (

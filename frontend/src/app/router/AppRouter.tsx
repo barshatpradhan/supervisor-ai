@@ -12,6 +12,7 @@ import { EmployeesPage } from '../../pages/EmployeesPage'
 import { ForbiddenPage } from '../../pages/ForbiddenPage'
 import { InvitationAcceptPage } from '../../pages/InvitationAcceptPage'
 import { LoginPage } from '../../pages/LoginPage'
+import { MessagesPage } from '../../pages/MessagesPage'
 import { ForgotPasswordPage } from '../../pages/ForgotPasswordPage'
 import { ResetPasswordPage } from '../../pages/ResetPasswordPage'
 import { LandingPage } from '../../pages/LandingPage'
@@ -57,6 +58,8 @@ export function AppRouter() {
             <Route element={<TasksPage />} path="/tasks" />
             <Route element={<TaskDetailPage />} path="/tasks/:taskId" />
             <Route element={<ProfilePage />} path="/profile" />
+            <Route element={<MessagesPage />} path="/messages" />
+            <Route element={<MessagesPage />} path="/messages/:conversationId" />
           </Route>
           <Route element={<OrganizationRoute allowedRoles={['organization_admin', 'supervisor']} />}>
             <Route element={<ProjectsPage />} path="/projects" />
