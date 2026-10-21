@@ -7,6 +7,7 @@ import type {
   MessageKind,
   MessagePage,
   MessageView,
+  ConversationMember,
   MessagingActor,
   MessagingMember,
   MessagingPerson,
@@ -38,8 +39,13 @@ import { logActivity } from "./activityLogService.js";
  *
  * Access rules:
  *   general  - every active organization member
- *   project  - active organization_admin and supervisor members; read-only once the project is deleted
+ *   project  - active organization_admin and supervisor members (read-only once the project is
+ *              deleted), plus employees with at least one live task assigned in the live project.
+ *              Employees see only messages from their earliest current assignment onward.
  *   direct   - only its two participants; read-only once the other member is no longer active
+ *
+ * Employee project access is computed by messaging_project_channel_access() on every request.
+ * Nothing is cached, so unassigning someone's last task in a project removes their access at once.
  */
 
 const PAGE_SIZE_DEFAULT = 30;
@@ -61,7 +67,7 @@ interface ConversationRow {
   project_id: string | null;
   direct_key: string | null;
   last_message_at: string | null;
-  projects: { title: string; deleted_at: string | null } | null;
+  projects: { title: string; deleted_at: string | null; created_by_user_id: string } | null;
 }
 
 interface MessageRow {
@@ -89,10 +95,19 @@ interface TaskRow {
 interface AccessibleConversation {
   row: ConversationRow;
   readOnly: boolean;
+  /** The viewer sees only messages created after this. Null means the full history. */
+  historySince: string | null;
+}
+
+/** A project channel an employee may use, from messaging_project_channel_access(). */
+interface ProjectChannelAccess {
+  conversation_id: string;
+  project_id: string;
+  access_since: string;
 }
 
 const CONVERSATION_SELECT =
-  "id, organization_id, kind, project_id, direct_key, last_message_at, projects ( title, deleted_at )";
+  "id, organization_id, kind, project_id, direct_key, last_message_at, projects ( title, deleted_at, created_by_user_id )";
 
 function fail(operation: string, error: { code?: string; message?: string } | null, message: string): never {
   logger.error("messaging_query_failed", { operation, code: error?.code, error: error?.message });
@@ -108,19 +123,46 @@ function directPeerId(row: Pick<ConversationRow, "direct_key">, actorUserId: str
   return ids.find((id) => id !== actorUserId) ?? actorUserId;
 }
 
-/** The pure access rule, before checking whether the project or peer is still active. */
+/**
+ * The access rule, before checking whether the project or peer is still active.
+ * `onProject` says whether an employee currently has a live task in the conversation's project.
+ */
 export function canSeeConversation(
   actor: Pick<MessagingActor, "userId" | "role">,
-  conversation: Pick<ConversationRow, "kind" | "direct_key">
+  conversation: Pick<ConversationRow, "kind" | "direct_key">,
+  onProject = false
 ) {
   switch (conversation.kind) {
     case "general":
       return true;
     case "project":
-      return CHANNEL_ROLES.includes(actor.role);
+      return CHANNEL_ROLES.includes(actor.role) || (actor.role === "employee" && onProject);
     case "direct":
       return conversation.direct_key?.split(":").includes(actor.userId) ?? false;
   }
+}
+
+/** Project channels the employee may use right now. Admins and supervisors don't need this. */
+async function employeeProjectAccess(actor: MessagingActor, conversationId?: string) {
+  const access = new Map<string, ProjectChannelAccess>();
+  if (actor.role !== "employee") return access;
+
+  const { data, error } = await supabase.rpc("messaging_project_channel_access", {
+    p_user_id: actor.userId,
+    p_organization_id: actor.organizationId,
+    p_conversation_id: conversationId ?? null,
+  });
+  if (error) fail("project_channel_access", error, "Unable to check conversation access.");
+
+  for (const row of (data ?? []) as ProjectChannelAccess[]) access.set(row.conversation_id, row);
+  return access;
+}
+
+/** The later of two optional timestamps. */
+function laterOf(left: string | null, right: string | null) {
+  if (!left) return right;
+  if (!right) return left;
+  return Date.parse(left) >= Date.parse(right) ? left : right;
 }
 
 // People ------------------------------------------------------------------------------------------
@@ -181,6 +223,70 @@ export async function listMembers(actor: MessagingActor): Promise<MessagingMembe
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
+/** User ids of employees with a live task in this live project, optionally limited to `userIds`. */
+async function projectEmployeeUserIds(organizationId: string, projectId: string, userIds?: string[]) {
+  const onProject = new Set<string>();
+  if (userIds?.length === 0) return onProject;
+
+  let query = supabase
+    .from("tasks")
+    .select("employees!inner ( user_id, organization_id ), projects!inner ( organization_id, deleted_at )")
+    .eq("project_id", projectId)
+    .is("deleted_at", null)
+    .eq("employees.organization_id", organizationId)
+    .eq("projects.organization_id", organizationId)
+    .is("projects.deleted_at", null);
+  if (userIds) query = query.in("employees.user_id", userIds);
+
+  const { data, error } = await query.returns<Array<{ employees: { user_id: string } }>>();
+  if (error) fail("project_employees", error, "Unable to load conversation members.");
+
+  for (const row of data) onProject.add(row.employees.user_id);
+  return onProject;
+}
+
+/**
+ * Everyone who can open this conversation right now, with their organization role. Limit the
+ * check to `userIds` when only a few people matter (mention validation).
+ */
+async function conversationMembers(actor: MessagingActor, row: ConversationRow, userIds?: string[]) {
+  if (row.kind === "general") return activeMembers(actor.organizationId, userIds);
+
+  if (row.kind === "direct") {
+    const participants = row.direct_key?.split(":") ?? [];
+    return activeMembers(
+      actor.organizationId,
+      userIds ? participants.filter((userId) => userIds.includes(userId)) : participants
+    );
+  }
+
+  if (!row.project_id) return new Map<string, OrganizationMembershipRole>();
+
+  const [members, onProject] = await Promise.all([
+    activeMembers(actor.organizationId, userIds),
+    projectEmployeeUserIds(actor.organizationId, row.project_id, userIds),
+  ]);
+
+  return new Map(
+    [...members].filter(([userId, role]) => canSeeConversation({ userId, role }, row, onProject.has(userId)))
+  );
+}
+
+/** The people in one conversation, for @mention autocomplete. Names and roles only, no email addresses. */
+export async function listConversationMembers(
+  actor: MessagingActor,
+  conversationId: string
+): Promise<ConversationMember[]> {
+  const { row } = await loadConversation(actor, conversationId);
+  const members = await conversationMembers(actor, row);
+  const names = await resolvePeople(actor.organizationId, members.keys());
+  const creatorId = row.kind === "project" ? row.projects?.created_by_user_id ?? null : null;
+
+  return [...members]
+    .map(([userId, role]) => ({ ...person(names, userId), role, isProjectCreator: userId === creatorId }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
 // Conversations -----------------------------------------------------------------------------------
 
 async function loadConversation(
@@ -188,21 +294,28 @@ async function loadConversation(
   conversationId: string,
   options: { forWrite?: boolean } = {}
 ): Promise<AccessibleConversation> {
-  const { data, error } = await supabase
-    .from("conversations")
-    .select(CONVERSATION_SELECT)
-    .eq("id", conversationId)
-    .eq("organization_id", actor.organizationId)
-    .maybeSingle<ConversationRow>();
+  // The employee access check runs alongside the load, so it adds no round trip.
+  const [{ data, error }, projectAccess] = await Promise.all([
+    supabase
+      .from("conversations")
+      .select(CONVERSATION_SELECT)
+      .eq("id", conversationId)
+      .eq("organization_id", actor.organizationId)
+      .maybeSingle<ConversationRow>(),
+    employeeProjectAccess(actor, conversationId),
+  ]);
 
   if (error) fail("load_conversation", error, "Unable to load the conversation.");
-  if (!data || !canSeeConversation(actor, data)) notFound();
+  const access = data ? projectAccess.get(data.id) : undefined;
+  if (!data || !canSeeConversation(actor, data, access !== undefined)) notFound();
 
   let readOnly = false;
+  let historySince: string | null = null;
 
   if (data.kind === "project") {
     if (!data.projects) notFound();
     readOnly = data.projects.deleted_at !== null;
+    historySince = access?.access_since ?? null;
   }
 
   if (data.kind === "direct" && options.forWrite) {
@@ -219,11 +332,14 @@ async function loadConversation(
     );
   }
 
-  return { row: data, readOnly };
+  return { row: data, readOnly, historySince };
 }
 
-/** Every conversation the actor can see, without previews or unread counts. */
-async function listAccessibleConversationRows(actor: MessagingActor) {
+const PROJECT_CHANNEL_SELECT =
+  "id, organization_id, kind, project_id, direct_key, last_message_at, projects!inner ( title, deleted_at, created_by_user_id )";
+
+/** Every conversation the actor can see, with their history cutoff, without previews or unread counts. */
+async function listAccessibleConversationRows(actor: MessagingActor): Promise<AccessibleConversation[]> {
   const general = supabase
     .from("conversations")
     .select(CONVERSATION_SELECT)
@@ -231,10 +347,10 @@ async function listAccessibleConversationRows(actor: MessagingActor) {
     .eq("kind", "general")
     .returns<ConversationRow[]>();
 
-  const projects = CHANNEL_ROLES.includes(actor.role)
+  const allProjects = CHANNEL_ROLES.includes(actor.role)
     ? supabase
         .from("conversations")
-        .select("id, organization_id, kind, project_id, direct_key, last_message_at, projects!inner ( title, deleted_at )")
+        .select(PROJECT_CHANNEL_SELECT)
         .eq("organization_id", actor.organizationId)
         .eq("kind", "project")
         .is("projects.deleted_at", null)
@@ -247,38 +363,70 @@ async function listAccessibleConversationRows(actor: MessagingActor) {
     .eq("user_id", actor.userId)
     .returns<Array<{ conversation_id: string }>>();
 
-  const [generalResult, projectResult, participationResult] = await Promise.all([general, projects, participations]);
+  const [generalResult, projectResult, participationResult, projectAccess] = await Promise.all([
+    general,
+    allProjects,
+    participations,
+    employeeProjectAccess(actor),
+  ]);
 
   if (generalResult.error) fail("list_general", generalResult.error, "Unable to load conversations.");
   if (projectResult?.error) fail("list_project_channels", projectResult.error, "Unable to load conversations.");
   if (participationResult.error) fail("list_participations", participationResult.error, "Unable to load conversations.");
 
   const directIds = participationResult.data.map((row) => row.conversation_id);
-  let directs: ConversationRow[] = [];
+  const employeeProjectIds = [...projectAccess.keys()];
 
-  if (directIds.length > 0) {
-    const { data, error } = await supabase
-      .from("conversations")
-      .select(CONVERSATION_SELECT)
-      .eq("organization_id", actor.organizationId)
-      .eq("kind", "direct")
-      .in("id", directIds)
-      .returns<ConversationRow[]>();
-    if (error) fail("list_direct", error, "Unable to load conversations.");
-    directs = data.filter((row) => canSeeConversation(actor, row));
+  const [directResult, employeeProjectResult] = await Promise.all([
+    directIds.length > 0
+      ? supabase
+          .from("conversations")
+          .select(CONVERSATION_SELECT)
+          .eq("organization_id", actor.organizationId)
+          .eq("kind", "direct")
+          .in("id", directIds)
+          .returns<ConversationRow[]>()
+      : null,
+    employeeProjectIds.length > 0
+      ? supabase
+          .from("conversations")
+          .select(PROJECT_CHANNEL_SELECT)
+          .eq("organization_id", actor.organizationId)
+          .eq("kind", "project")
+          .in("id", employeeProjectIds)
+          .is("projects.deleted_at", null)
+          .returns<ConversationRow[]>()
+      : null,
+  ]);
+
+  if (directResult?.error) fail("list_direct", directResult.error, "Unable to load conversations.");
+  if (employeeProjectResult?.error) {
+    fail("list_employee_projects", employeeProjectResult.error, "Unable to load conversations.");
   }
 
-  return [...generalResult.data, ...(projectResult?.data ?? []), ...directs];
+  const fullHistory = (row: ConversationRow): AccessibleConversation => ({ row, readOnly: false, historySince: null });
+
+  return [
+    ...generalResult.data.map(fullHistory),
+    ...(projectResult?.data ?? []).map(fullHistory),
+    ...(employeeProjectResult?.data ?? []).map((row) => ({
+      row,
+      readOnly: false,
+      historySince: projectAccess.get(row.id)?.access_since ?? null,
+    })),
+    ...(directResult?.data ?? []).filter((row) => canSeeConversation(actor, row)).map(fullHistory),
+  ];
 }
 
-async function unreadCounts(actor: MessagingActor, conversationIds: string[]) {
+/** Unread counts, each from the later of joining the organization and that conversation's history cutoff. */
+async function unreadCounts(actor: MessagingActor, conversations: AccessibleConversation[]) {
   const counts = new Map<string, { unreadCount: number; unreadMentions: number }>();
-  if (conversationIds.length === 0) return counts;
+  if (conversations.length === 0) return counts;
 
-  const { data, error } = await supabase.rpc("messaging_unread_counts", {
+  const { data, error } = await supabase.rpc("messaging_unread_counts_since", {
     p_user_id: actor.userId,
-    p_conversation_ids: conversationIds,
-    p_since: actor.memberSince,
+    p_conversation_ids: conversations.map((conversation) => conversation.row.id),
+    p_since: conversations.map((conversation) => laterOf(actor.memberSince, conversation.historySince)),
   });
 
   if (error) fail("unread_counts", error, "Unable to load unread counts.");
@@ -295,14 +443,14 @@ async function unreadCounts(actor: MessagingActor, conversationIds: string[]) {
 }
 
 export async function getUnreadSummary(actor: MessagingActor): Promise<UnreadSummary> {
-  const rows = await listAccessibleConversationRows(actor);
-  const counts = await unreadCounts(actor, rows.map((row) => row.id));
-  const conversations = [...counts].map(([id, count]) => ({ id, ...count }));
+  const conversations = await listAccessibleConversationRows(actor);
+  const counts = await unreadCounts(actor, conversations);
+  const summary = [...counts].map(([id, count]) => ({ id, ...count }));
 
   return {
-    totalUnread: conversations.reduce((sum, item) => sum + item.unreadCount, 0),
-    totalMentions: conversations.reduce((sum, item) => sum + item.unreadMentions, 0),
-    conversations,
+    totalUnread: summary.reduce((sum, item) => sum + item.unreadCount, 0),
+    totalMentions: summary.reduce((sum, item) => sum + item.unreadMentions, 0),
+    conversations: summary,
   };
 }
 
@@ -312,21 +460,24 @@ function previewText(body: string, names: Map<string, string>) {
 }
 
 export async function listConversations(actor: MessagingActor): Promise<ConversationSummary[]> {
-  const rows = await listAccessibleConversationRows(actor);
-  const ids = rows.map((row) => row.id);
+  const conversations = await listAccessibleConversationRows(actor);
 
   const [counts, previews] = await Promise.all([
-    unreadCounts(actor, ids),
+    unreadCounts(actor, conversations),
     Promise.all(
-      rows.map(async (row) => {
-        const { data, error } = await supabase
+      conversations.map(async ({ row, historySince }) => {
+        let query = supabase
           .from("messages")
-          .select("body, sender_user_id")
+          .select("body, sender_user_id, created_at")
           .eq("conversation_id", row.id)
-          .is("deleted_at", null)
+          .is("deleted_at", null);
+        // Never preview a message from before the viewer's access began.
+        if (historySince) query = query.gt("created_at", historySince);
+
+        const { data, error } = await query
           .order("created_at", { ascending: false })
           .limit(1)
-          .maybeSingle<{ body: string; sender_user_id: string | null }>();
+          .maybeSingle<{ body: string; sender_user_id: string | null; created_at: string }>();
         if (error) fail("conversation_preview", error, "Unable to load conversations.");
         return [row.id, data] as const;
       })
@@ -334,6 +485,7 @@ export async function listConversations(actor: MessagingActor): Promise<Conversa
   ]);
 
   const previewById = new Map(previews);
+  const rows = conversations.map((conversation) => conversation.row);
   const peerIds = rows.filter((row) => row.kind === "direct").map((row) => directPeerId(row, actor.userId));
   const mentionedIds = [...previewById.values()].flatMap((preview) => (preview ? parseMentionUserIds(preview.body) : []));
   const senderIds = [...previewById.values()].flatMap((preview) => (preview?.sender_user_id ? [preview.sender_user_id] : []));
@@ -343,7 +495,7 @@ export async function listConversations(actor: MessagingActor): Promise<Conversa
     activeMembers(actor.organizationId, peerIds),
   ]);
 
-  const summaries = rows.map((row): ConversationSummary => {
+  const summaries = conversations.map(({ row, historySince }): ConversationSummary => {
     const preview = previewById.get(row.id) ?? null;
     const peer = row.kind === "direct" ? person(names, directPeerId(row, actor.userId)) : null;
     const count = counts.get(row.id) ?? { unreadCount: 0, unreadMentions: 0 };
@@ -354,7 +506,8 @@ export async function listConversations(actor: MessagingActor): Promise<Conversa
       title: row.kind === "general" ? "General" : row.kind === "project" ? row.projects?.title ?? "Project" : peer?.name ?? "Direct message",
       projectId: row.project_id,
       directPeer: peer,
-      lastMessageAt: row.last_message_at,
+      // With a history cutoff, activity from before it must not show either.
+      lastMessageAt: historySince ? preview?.created_at ?? null : row.last_message_at,
       lastMessagePreview: preview
         ? {
             senderName: preview.sender_user_id ? person(names, preview.sender_user_id).name : null,
@@ -552,7 +705,36 @@ async function resolveTaskChips(actor: MessagingActor, taskIds: string[]) {
 
 // Messages ----------------------------------------------------------------------------------------
 
-async function hydrateMessages(actor: MessagingActor, rows: MessageRow[]): Promise<MessageView[]> {
+/**
+ * Messages from before an employee's history cutoff that they may still read: those in this
+ * project channel tagging a live task of the project that is currently assigned to them.
+ * Only called when the viewer has a cutoff (employees in project channels).
+ */
+async function taskTaggedMessageIds(actor: MessagingActor, conversationId: string) {
+  const { data, error } = await supabase.rpc("messaging_task_tagged_message_ids", {
+    p_user_id: actor.userId,
+    p_organization_id: actor.organizationId,
+    p_conversation_id: conversationId,
+  });
+  if (error) fail("task_tagged_messages", error, "Unable to load messages.");
+  return new Set(((data ?? []) as Array<{ message_id: string }>).map((row) => row.message_id));
+}
+
+/** PostgREST filter: after the cutoff, or one of the earlier messages about the viewer's own tasks. */
+function historyFilter(historySince: string, taggedIds: Set<string>) {
+  const afterCutoff = `created_at.gt."${historySince}"`;
+  return taggedIds.size > 0 ? `${afterCutoff},id.in.(${[...taggedIds].join(",")})` : afterCutoff;
+}
+
+function isBeforeCutoff(row: Pick<MessageRow, "created_at">, historySince: string | null) {
+  return historySince !== null && Date.parse(row.created_at) <= Date.parse(historySince);
+}
+
+async function hydrateMessages(
+  actor: MessagingActor,
+  rows: MessageRow[],
+  historySince: string | null = null
+): Promise<MessageView[]> {
   const liveIds = rows.filter((row) => row.deleted_at === null).map((row) => row.id);
 
   const [mentions, reactions, taskRefs] = liveIds.length
@@ -616,6 +798,8 @@ async function hydrateMessages(actor: MessagingActor, rows: MessageRow[]): Promi
       reactions: [...grouped].map(([emoji, entry]) => ({ emoji, ...entry })),
       // A tag whose task was later deleted still renders, as an unavailable chip.
       task: hasTaskRef ? (taskId ? chips.get(taskId) ?? { accessible: false } : { accessible: false }) : null,
+      // Only visible because it tags a task now assigned to the viewer.
+      shownForTask: isBeforeCutoff(row, historySince),
     };
   });
 }
@@ -625,7 +809,8 @@ export async function listMessages(
   conversationId: string,
   options: { cursor?: unknown; limit?: number } = {}
 ): Promise<MessagePage> {
-  await loadConversation(actor, conversationId);
+  const { historySince } = await loadConversation(actor, conversationId);
+  const taggedIds = historySince ? await taskTaggedMessageIds(actor, conversationId) : new Set<string>();
 
   const cursor = decodeMessageCursor(options.cursor);
   const limit = Math.min(Math.max(options.limit ?? PAGE_SIZE_DEFAULT, 1), PAGE_SIZE_MAX);
@@ -639,6 +824,8 @@ export async function listMessages(
     .order("id", { ascending: false })
     .limit(limit + 1);
 
+  if (historySince) query = query.or(historyFilter(historySince, taggedIds));
+
   if (cursor) {
     query = query.or(`created_at.lt."${cursor.createdAt}",and(created_at.eq."${cursor.createdAt}",id.lt.${cursor.id})`);
   }
@@ -650,7 +837,7 @@ export async function listMessages(
   const last = page[page.length - 1];
 
   return {
-    messages: await hydrateMessages(actor, page),
+    messages: await hydrateMessages(actor, page, historySince),
     nextCursor: data.length > limit && last ? encodeMessageCursor({ createdAt: last.created_at, id: last.id }) : null,
   };
 }
@@ -664,14 +851,18 @@ export async function listMessageChanges(
   const since = Date.parse(updatedSince);
   if (Number.isNaN(since)) throw new AppError("updatedSince must be a timestamp.", 400);
 
-  await loadConversation(actor, conversationId);
+  const { historySince } = await loadConversation(actor, conversationId);
+  const taggedIds = historySince ? await taskTaggedMessageIds(actor, conversationId) : new Set<string>();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("messages")
     .select(MESSAGE_COLUMNS)
     .eq("conversation_id", conversationId)
     .eq("organization_id", actor.organizationId)
-    .gt("updated_at", new Date(since - CHANGES_OVERLAP_MS).toISOString())
+    .gt("updated_at", new Date(since - CHANGES_OVERLAP_MS).toISOString());
+  if (historySince) query = query.or(historyFilter(historySince, taggedIds));
+
+  const { data, error } = await query
     .order("updated_at", { ascending: true })
     .limit(CHANGES_LIMIT + 1)
     .returns<MessageRow[]>();
@@ -685,45 +876,64 @@ export async function listMessageChanges(
   );
 
   return {
-    messages: await hydrateMessages(actor, changes),
+    messages: await hydrateMessages(actor, changes, historySince),
     syncedAt,
     hasMore: data.length > CHANGES_LIMIT,
   };
 }
 
-async function loadMessage(actor: MessagingActor, conversationId: string, messageId: string) {
+/**
+ * A message in a conversation the actor has already loaded. Messages before their history cutoff
+ * are 404, unless they tag a task now assigned to the actor.
+ */
+async function loadMessage(
+  actor: MessagingActor,
+  conversation: AccessibleConversation,
+  messageId: string
+) {
   const { data, error } = await supabase
     .from("messages")
     .select(MESSAGE_COLUMNS)
     .eq("id", messageId)
-    .eq("conversation_id", conversationId)
+    .eq("conversation_id", conversation.row.id)
     .eq("organization_id", actor.organizationId)
     .maybeSingle<MessageRow>();
 
   if (error) fail("load_message", error, "Unable to load the message.");
   if (!data) throw new AppError("Message not found.", 404);
+  if (
+    isBeforeCutoff(data, conversation.historySince) &&
+    !(await taskTaggedMessageIds(actor, conversation.row.id)).has(data.id)
+  ) {
+    throw new AppError("Message not found.", 404);
+  }
   return data;
 }
 
-async function hydrateOne(actor: MessagingActor, conversationId: string, messageId: string) {
-  const [message] = await hydrateMessages(actor, [await loadMessage(actor, conversationId, messageId)]);
-  return message;
+async function hydrateOne(actor: MessagingActor, conversation: AccessibleConversation, messageId: string) {
+  const message = await loadMessage(actor, conversation, messageId);
+  const [view] = await hydrateMessages(actor, [message], conversation.historySince);
+  return view;
 }
 
-/** Everyone mentioned must be able to see the conversation, or the mention would point nowhere. */
+/**
+ * Everyone mentioned must be able to open the conversation right now, or the mention would point
+ * nowhere. Rejected with a clear error rather than dropped.
+ */
 async function validateMentions(actor: MessagingActor, conversation: ConversationRow, body: string) {
   const mentioned = parseMentionUserIds(body);
   if (mentioned.length === 0) return mentioned;
 
-  const members = await activeMembers(actor.organizationId, mentioned);
-  const allowed = mentioned.every((userId) => {
-    const role = members.get(userId);
-    if (!role) return false;
-    return canSeeConversation({ userId, role }, conversation);
-  });
+  const members = await conversationMembers(actor, conversation, mentioned);
+  const outsiders = mentioned.filter((userId) => !members.has(userId));
 
-  if (!allowed) {
-    throw new AppError("You can only mention people who can see this conversation.", 400);
+  if (outsiders.length > 0) {
+    const names = await resolvePeople(actor.organizationId, outsiders);
+    const who = outsiders.map((userId) => names.get(userId) ?? "Someone").join(", ");
+    throw new AppError(
+      `${who} can't see this conversation, so you can't mention ${outsiders.length === 1 ? "them" : "these people"} here.`,
+      400
+    );
   }
 
   return mentioned;
@@ -807,8 +1017,13 @@ export async function sendMessage(
   const body = normalizeMessageBody(input.body);
   const mentions = await validateMentions(actor, conversation, body);
 
-  if (input.taskId && !(await accessibleTasks(actor, [input.taskId])).has(input.taskId)) {
-    throw new AppError("Task not found.", 404);
+  if (input.taskId) {
+    // Employees can tag only their own tasks; admins and supervisors any task in the organization.
+    const task = (await accessibleTasks(actor, [input.taskId])).get(input.taskId);
+    if (!task) throw new AppError("Task not found.", 404);
+    if (conversation.kind === "project" && task.project_id !== conversation.project_id) {
+      throw new AppError("In a project channel you can only tag tasks from that project.", 400);
+    }
   }
 
   const row = await postMessage(actor, conversation, {
@@ -835,8 +1050,9 @@ export async function editMessage(
   messageId: string,
   rawBody: unknown
 ): Promise<MessageView> {
-  const { row: conversation } = await loadConversation(actor, conversationId, { forWrite: true });
-  const message = await loadMessage(actor, conversationId, messageId);
+  const access = await loadConversation(actor, conversationId, { forWrite: true });
+  const conversation = access.row;
+  const message = await loadMessage(actor, access, messageId);
 
   assertOwnLiveMessage(actor, message, "edit");
   if (message.deleted_at) throw new AppError("This message was deleted.", 409);
@@ -858,7 +1074,7 @@ export async function editMessage(
   const mentionError = await insertMentions(messageId, mentions);
   if (mentionError) fail("edit_message_mentions", mentionError, "Unable to edit the message.");
 
-  return hydrateOne(actor, conversationId, messageId);
+  return hydrateOne(actor, access, messageId);
 }
 
 /** Soft delete: the row stays for ordering, but its text, mentions, reactions and task tag are gone. */
@@ -867,8 +1083,8 @@ export async function deleteMessage(
   conversationId: string,
   messageId: string
 ): Promise<MessageView> {
-  await loadConversation(actor, conversationId);
-  const message = await loadMessage(actor, conversationId, messageId);
+  const access = await loadConversation(actor, conversationId);
+  const message = await loadMessage(actor, access, messageId);
 
   assertOwnLiveMessage(actor, message, "delete");
 
@@ -887,16 +1103,16 @@ export async function deleteMessage(
     }
   }
 
-  return hydrateOne(actor, conversationId, messageId);
+  return hydrateOne(actor, access, messageId);
 }
 
 async function reactionTarget(actor: MessagingActor, conversationId: string, messageId: string, emoji: string) {
   if (!isAllowedEmoji(emoji)) throw new AppError("That emoji isn't available for reactions.", 400);
 
-  await loadConversation(actor, conversationId, { forWrite: true });
-  const message = await loadMessage(actor, conversationId, messageId);
+  const access = await loadConversation(actor, conversationId, { forWrite: true });
+  const message = await loadMessage(actor, access, messageId);
   if (message.deleted_at) throw new AppError("You can't react to a deleted message.", 409);
-  return message;
+  return access;
 }
 
 async function touchMessage(actor: MessagingActor, messageId: string) {
@@ -909,7 +1125,7 @@ async function touchMessage(actor: MessagingActor, messageId: string) {
 }
 
 export async function addReaction(actor: MessagingActor, conversationId: string, messageId: string, emoji: string) {
-  await reactionTarget(actor, conversationId, messageId, emoji);
+  const access = await reactionTarget(actor, conversationId, messageId, emoji);
 
   const { error } = await supabase
     .from("message_reactions")
@@ -917,11 +1133,11 @@ export async function addReaction(actor: MessagingActor, conversationId: string,
   if (error) fail("add_reaction", error, "Unable to add the reaction.");
 
   await touchMessage(actor, messageId);
-  return hydrateOne(actor, conversationId, messageId);
+  return hydrateOne(actor, access, messageId);
 }
 
 export async function removeReaction(actor: MessagingActor, conversationId: string, messageId: string, emoji: string) {
-  await reactionTarget(actor, conversationId, messageId, emoji);
+  const access = await reactionTarget(actor, conversationId, messageId, emoji);
 
   const { error } = await supabase
     .from("message_reactions")
@@ -932,15 +1148,15 @@ export async function removeReaction(actor: MessagingActor, conversationId: stri
   if (error) fail("remove_reaction", error, "Unable to remove the reaction.");
 
   await touchMessage(actor, messageId);
-  return hydrateOne(actor, conversationId, messageId);
+  return hydrateOne(actor, access, messageId);
 }
 
 /** Moves the read marker forward to `messageId` (or now). It never moves backwards. */
 export async function markConversationRead(actor: MessagingActor, conversationId: string, messageId?: string) {
-  await loadConversation(actor, conversationId);
+  const access = await loadConversation(actor, conversationId);
 
   const readAt = messageId
-    ? (await loadMessage(actor, conversationId, messageId)).created_at
+    ? (await loadMessage(actor, access, messageId)).created_at
     : new Date().toISOString();
 
   const { data: existing, error: existingError } = await supabase

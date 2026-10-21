@@ -5,6 +5,7 @@ import {
   editMessage,
   getOrCreateDirectConversation,
   getUnreadSummary,
+  listConversationMembers,
   listConversations,
   listMembers,
   listMessageChanges,
@@ -65,6 +66,10 @@ export const unreadSummaryHandler = handle("Unread summary fetched successfully.
 );
 
 export const listMembersHandler = handle("Members fetched successfully.", (_req, actor) => listMembers(actor));
+
+export const listConversationMembersHandler = handle("Conversation members fetched successfully.", (req, actor) =>
+  listConversationMembers(actor, conversationIdFrom(req))
+);
 
 export const openDirectConversationHandler = handle("Direct conversation opened successfully.", (req, actor) => {
   const body = requireBody(req.body);

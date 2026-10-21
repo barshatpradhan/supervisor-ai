@@ -31,7 +31,7 @@ export const messagingSchemas = {
     properties: {
       body: { type: "string", minLength: 1, maxLength: 4000, description: "Plain text. Mention a member with <@user-uuid>." },
       clientId: { type: "string", format: "uuid", description: "Client-generated id; a retry with the same id returns the original message." },
-      taskId: { type: "string", format: "uuid", description: "Tag a task the sender can access." },
+      taskId: { type: "string", format: "uuid", description: "Tag a task the sender can access. In a project channel it must belong to that project." },
     },
   },
   TaskChip: {
@@ -63,7 +63,10 @@ export const messagingPaths = {
     get: {
       tags: ["Messaging"],
       summary: "List the caller's conversations with unread counts and a last-message preview",
-      description: "General for every member; project channels for organization admins and supervisors; the caller's own direct messages.",
+      description:
+        "General for every member; every live project channel for organization admins and supervisors; for employees, " +
+        "the channels of projects where they have at least one live task (messages from their earliest current assignment onward); " +
+        "the caller's own direct messages.",
       responses: { "200": ok("Conversations") },
     },
   },
@@ -85,13 +88,26 @@ export const messagingPaths = {
       responses: { "200": ok("Direct conversation"), "400": badRequest, "404": { description: "Not an active member of this organization" } },
     },
   },
+  "/messaging/conversations/{conversationId}/members": {
+    get: {
+      tags: ["Messaging"],
+      summary: "People who can open this conversation right now, for @mention autocomplete",
+      description:
+        "Each entry has only userId, name, role and isProjectCreator; no email addresses. A project channel lists active " +
+        "organization admins and supervisors plus employees with a live task in the project.",
+      parameters: [conversationId],
+      responses: { "200": ok("Conversation members"), "404": notFound },
+    },
+  },
   "/messaging/conversations/{conversationId}/messages": {
     get: {
       tags: ["Messaging"],
       summary: "Page messages newest first, or poll for changes",
       description:
         "Without updatedSince: a page of messages, newest first; pass nextCursor as cursor for older ones. " +
-        "With updatedSince: messages created or changed since then (edits, deletes, reactions), oldest change first; pass syncedAt back on the next poll.",
+        "With updatedSince: messages created or changed since then (edits, deletes, reactions), oldest change first; pass syncedAt back on the next poll. " +
+        "Employees in a project channel get messages from their access date onward, plus earlier messages that tag a task now assigned to them; " +
+        "those carry shownForTask: true and are returned whole (text, sender, mentions, reactions, task chip).",
       parameters: [
         conversationId,
         { name: "cursor", in: "query", schema: { type: "string" } },

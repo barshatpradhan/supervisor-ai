@@ -22,6 +22,12 @@ export interface MessagingMember extends MessagingPerson {
   role: OrganizationMembershipRole;
 }
 
+/** Someone who can open a conversation right now. Deliberately no email address. */
+export interface ConversationMember extends MessagingMember {
+  /** True for the person who created the conversation's project (project channels only). */
+  isProjectCreator: boolean;
+}
+
 export interface ConversationSummary {
   id: string;
   kind: ConversationKind;
@@ -76,6 +82,12 @@ export interface MessageView {
   mentions: MessagingPerson[];
   reactions: MessageReactionSummary[];
   task: TaskChip | null;
+  /**
+   * True for a message from before the viewer's history cutoff that they see only because it tags
+   * a task now assigned to them. It is returned whole (text, sender, mentions, reactions, chip);
+   * the messages around it stay hidden.
+   */
+  shownForTask: boolean;
 }
 
 export interface MessagePage {

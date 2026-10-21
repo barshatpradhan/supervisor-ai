@@ -3,6 +3,7 @@ import {
   addReactionHandler,
   deleteMessageHandler,
   editMessageHandler,
+  listConversationMembersHandler,
   listConversationsHandler,
   listMembersHandler,
   listMessagesHandler,
@@ -45,6 +46,7 @@ router.get("/unread-summary", pollLimiter, unreadSummaryHandler);
 router.get("/members", listMembersHandler);
 router.get("/conversations", listConversationsHandler);
 router.post("/conversations/direct", writeLimiter, openDirectConversationHandler);
+router.get("/conversations/:conversationId/members", listConversationMembersHandler);
 router.get("/conversations/:conversationId/messages", pollLimiter, listMessagesHandler);
 router.post("/conversations/:conversationId/messages", sendLimiter, sendMessageHandler);
 router.patch("/conversations/:conversationId/messages/:messageId", writeLimiter, editMessageHandler);
