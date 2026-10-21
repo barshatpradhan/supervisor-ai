@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { PageShell } from '../components/layout/PageShell'
+import { SiteFooter } from '../components/layout/SiteFooter'
 import { getNavigationItems } from '../config/navigation'
 import { useAuth } from '../features/auth/hooks/useAuth'
 import { OrganizationSwitcher } from '../features/organizations/components/OrganizationSwitcher'
@@ -52,9 +53,10 @@ export function AppLayout() {
       userEmail={user?.email ?? null}
       userName={userName}
     >
-      <main className="mx-auto w-full max-w-[1240px] px-4 py-6 sm:px-6 xl:px-8 xl:py-8">
+      <main className="mx-auto w-full max-w-[1240px] flex-1 px-4 py-6 sm:px-6 xl:px-8 xl:py-8">
         <Outlet />
       </main>
+      <SiteFooter />
     </PageShell>
   )
 }

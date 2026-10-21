@@ -21,8 +21,8 @@ export function AuthPageFrame({
   title,
 }: AuthPageFrameProps) {
   return (
-    <main className="min-h-screen bg-surface-page px-4 py-8 text-ink-900 sm:px-6">
-      <div className={`mx-auto flex min-h-[calc(100vh-4rem)] w-full ${maxWidthClassName} flex-col justify-center`}>
+    <main className="flex flex-1 flex-col bg-surface-page px-4 py-8 text-ink-900 sm:px-6">
+      <div className={`mx-auto flex w-full flex-1 ${maxWidthClassName} flex-col justify-center`}>
         <div className="mb-8">
           <SupervisorLogo />
         </div>

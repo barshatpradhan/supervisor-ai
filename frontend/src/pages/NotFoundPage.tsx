@@ -15,7 +15,7 @@ export function NotFoundPage() {
   }, [])
 
   return (
-    <main className="grid min-h-screen place-items-center bg-surface-page px-5 py-12 text-ink-900 sm:px-8">
+    <main className="grid flex-1 place-items-center bg-surface-page px-5 py-12 text-ink-900 sm:px-8">
       <section aria-labelledby="not-found-title" className="w-full max-w-xl rounded-2xl border border-border-subtle bg-surface-card p-8 text-center shadow-sm sm:p-12">
         <SearchX aria-hidden="true" className="mx-auto size-12 text-primary-600" />
         <p className="mt-6 text-6xl font-bold tracking-tight text-primary-700 sm:text-7xl">404</p>

@@ -9,6 +9,7 @@ import { AiNote } from '../components/ui/AiNote'
 import { Chip } from '../components/ui/Chip'
 import { StatusBadge } from '../components/ui/StatusBadge'
 import { SupervisorLogo } from '../components/ui/SupervisorLogo'
+import { SiteFooter } from '../components/layout/SiteFooter'
 import { RecommendationCard } from '../features/ai-recommendations/components/RecommendationCard'
 import { useAuth } from '../features/auth/hooks/useAuth'
 import type { BackendRecommendation } from '../types/backend'
@@ -508,13 +509,7 @@ export function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t border-border-default bg-surface-card">
-        <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-8 sm:px-8 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-col gap-2">
-            <SupervisorLogo />
-            <p className="helper m-0 text-text-tertiary">© {new Date().getFullYear()} Supervisor AI</p>
-          </div>
-          <nav aria-label="Footer navigation" className="flex flex-wrap gap-x-5 gap-y-2">
+      <SiteFooter>
             {navLinks.map(([href, label]) => (
               <a className="label text-text-secondary no-underline hover:text-text-primary" href={href} key={href}>{label}</a>
             ))}
@@ -524,9 +519,7 @@ export function LandingPage() {
                 <Link className="label text-text-secondary no-underline hover:text-text-primary" to="/register">Create organization</Link>
               </>
             ) : null}
-          </nav>
-        </div>
-      </footer>
+      </SiteFooter>
     </div>
   )
 }

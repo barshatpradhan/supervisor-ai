@@ -103,7 +103,7 @@ export function InvitationAcceptancePage() {
   const isPending = invitation?.status === 'pending'
 
   return (
-    <main className="min-h-screen bg-surface-canvas px-4 py-8 text-text-primary sm:px-6">
+    <main className="flex-1 bg-surface-canvas px-4 py-8 text-text-primary sm:px-6">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-8">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <Link aria-label="Supervisor AI home" to="/"><SupervisorLogo /></Link>

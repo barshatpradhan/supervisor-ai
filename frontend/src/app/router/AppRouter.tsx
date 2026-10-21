@@ -3,6 +3,7 @@ import { RoleGuard } from '../../features/auth/components/RoleGuard'
 import { ProtectedRoute } from '../../features/auth/components/ProtectedRoute'
 import { OrganizationRoute } from '../../features/organizations/components/OrganizationRoute'
 import { AppLayout } from '../../layouts/AppLayout'
+import { PublicLayout } from '../../layouts/PublicLayout'
 import { AdminUserCreatePage } from '../../pages/AdminUserCreatePage'
 import { AiRecommendationsPage } from '../../pages/AiRecommendationsPage'
 import { DashboardPage } from '../../pages/DashboardPage'
@@ -31,12 +32,14 @@ export function AppRouter() {
   return (
     <Routes>
       <Route element={<LandingPage />} path="/" />
-      <Route element={<InvitationAcceptPage />} path="/invitations/accept" />
-      <Route element={<LoginPage />} path="/login" />
-      <Route element={<ForgotPasswordPage />} path="/forgot-password" />
-      <Route element={<ResetPasswordPage />} path="/reset-password" />
-      <Route element={<RegisterOrganizerPage />} path="/register" />
-      <Route element={<SignupPage />} path="/signup" />
+      <Route element={<PublicLayout />}>
+        <Route element={<InvitationAcceptPage />} path="/invitations/accept" />
+        <Route element={<LoginPage />} path="/login" />
+        <Route element={<ForgotPasswordPage />} path="/forgot-password" />
+        <Route element={<ResetPasswordPage />} path="/reset-password" />
+        <Route element={<RegisterOrganizerPage />} path="/register" />
+        <Route element={<SignupPage />} path="/signup" />
+      </Route>
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route element={<RoleGuard allowedRoles={['admin']} />}>
@@ -71,7 +74,9 @@ export function AppRouter() {
           </Route>
         </Route>
       </Route>
-      <Route element={<NotFoundPage />} path="*" />
+      <Route element={<PublicLayout />}>
+        <Route element={<NotFoundPage />} path="*" />
+      </Route>
     </Routes>
   )
 }
