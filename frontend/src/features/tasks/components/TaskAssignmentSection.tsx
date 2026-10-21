@@ -17,7 +17,9 @@ interface TaskAssignmentSectionProps {
 }
 
 const inputClassName =
-  'min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-primary-600 focus:ring-3 focus:ring-primary-200'
+  'min-h-11 w-full min-w-0 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-primary-600 focus:ring-3 focus:ring-primary-200'
+
+const VISIBLE_SKILLS = 3
 
 function formatEmploymentType(value: AssignableEmployee['employment_type']) {
   return value === 'full_time' ? 'Full-time' : 'Part-time'
@@ -31,12 +33,17 @@ function formatPerformanceScore(value: number | null) {
   return `${Number(value).toFixed(value % 1 === 0 ? 0 : 1)} / 100`
 }
 
-function formatYearsOfExperience(value: number | null) {
-  if (value === null) {
-    return 'Experience not specified'
-  }
+function formatSkillDetail(skill: AssignableEmployee['skills'][number]) {
+  const years = skill.years_of_experience
+  return years === null
+    ? `Level ${skill.proficiency_level}`
+    : `Level ${skill.proficiency_level}, ${years} yr${years === 1 ? '' : 's'}`
+}
 
-  return `${value} yr${value === 1 ? '' : 's'}`
+function availabilityTone(value: number) {
+  if (value >= 50) return 'bg-success-bg text-success-text'
+  if (value >= 20) return 'bg-warning-bg text-warning-text'
+  return 'bg-danger-bg text-danger-fg'
 }
 
 function getAssignmentActionLabel(task: TaskDisplay, selectedEmployeeId: string) {
@@ -66,32 +73,18 @@ export function TaskAssignmentSection({
   const employees = directory.data ?? []
 
   return (
-    <section className="space-y-5 rounded-lg border border-border-subtle bg-surface-card-alt p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-normal text-primary-700">
-              Assignment
-            </p>
-            <h3 className="mt-2 text-lg font-bold text-ink-900">Assign or reassign task</h3>
-          </div>
-          <p className="max-w-2xl text-sm leading-6 text-ink-600">
-            Review live employee availability, workload, and skills before
-            confirming the assignment.
-          </p>
-        </div>
-        <div className="rounded-lg border border-border-subtle bg-surface-card px-4 py-3 text-sm text-ink-700">
-          <p className="font-semibold text-ink-900">Current assignee</p>
-          <p className="mt-1">{task.assignedEmployeeLabel}</p>
-        </div>
-      </div>
+    <section aria-label="Assign or reassign task" className="flex flex-col gap-4">
+      <p className="text-sm text-ink-600">
+        Current assignee:{' '}
+        <span className="font-semibold text-ink-900">{task.assignedEmployeeLabel}</span>
+      </p>
 
       {assignmentError ? (
         <ErrorState message={assignmentError} title="Unable to update assignment" />
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-1">
-        <label className="grid gap-2 text-sm font-semibold text-ink-800">
+      <div className="grid grid-cols-2 gap-3">
+        <label className="col-span-2 grid gap-1.5 text-xs font-semibold text-ink-700">
           Search employee
           <input
             className={inputClassName}
@@ -102,7 +95,7 @@ export function TaskAssignmentSection({
           />
         </label>
 
-        <label className="grid gap-2 text-sm font-semibold text-ink-800">
+        <label className="col-span-2 grid gap-1.5 text-xs font-semibold text-ink-700">
           Filter by skill
           <input
             className={inputClassName}
@@ -113,8 +106,8 @@ export function TaskAssignmentSection({
           />
         </label>
 
-        <label className="grid gap-2 text-sm font-semibold text-ink-800">
-          Minimum availability
+        <label className="grid min-w-0 gap-1.5 text-xs font-semibold text-ink-700">
+          Min. availability %
           <input
             className={inputClassName}
             max="100"
@@ -127,7 +120,7 @@ export function TaskAssignmentSection({
           />
         </label>
 
-        <label className="grid gap-2 text-sm font-semibold text-ink-800">
+        <label className="grid min-w-0 gap-1.5 text-xs font-semibold text-ink-700">
           Employment type
           <select
             className={inputClassName}
@@ -145,8 +138,8 @@ export function TaskAssignmentSection({
         </label>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-ink-600">
-        <span>
+      <div className="flex min-h-9 flex-wrap items-center justify-between gap-2 text-sm text-ink-600">
+        <span aria-live="polite">
           {directory.isRefreshing
             ? 'Refreshing employee directory...'
             : `${employees.length} employee match${employees.length === 1 ? '' : 'es'} found`}
@@ -186,101 +179,81 @@ export function TaskAssignmentSection({
       ) : null}
 
       {!directory.isLoading && !directory.error && employees.length > 0 ? (
-        <fieldset className="grid gap-4" disabled={isSubmitting}>
+        <fieldset
+          className="-mx-1 flex max-h-[28rem] flex-col gap-2 overflow-y-auto px-1 py-1"
+          disabled={isSubmitting}
+        >
           <legend className="sr-only">Select an employee to assign this task</legend>
           {employees.map((employee) => {
             const isSelected = selectedEmployeeId === employee.id
-            const skillList = employee.skills.slice(0, 6)
+            const isCurrent = task.assigned_employee_id === employee.id
+            const visibleSkills = employee.skills.slice(0, VISIBLE_SKILLS)
+            const hiddenSkills = employee.skills.slice(VISIBLE_SKILLS)
 
             return (
               <label
                 key={employee.id}
                 className={[
-                  'grid cursor-pointer gap-4 rounded-lg border bg-surface-card p-4 transition',
+                  'flex cursor-pointer items-start gap-3 rounded-lg border bg-surface-card p-3 transition',
                   isSelected
                     ? 'border-primary-600 ring-3 ring-primary-100'
                     : 'border-border-subtle hover:border-primary-300',
                 ].join(' ')}
               >
-                <div className="flex items-start gap-3">
-                  <input
-                    checked={isSelected}
-                    className="mt-1 h-4 w-4 accent-primary-600"
-                    name="task-assignee"
-                    onChange={() => onSelectionChange(employee.id)}
-                    type="radio"
-                    value={employee.id}
-                  />
-                  <div className="min-w-0 flex-1 space-y-3">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
-                        <p className="text-base font-semibold text-ink-900">{employee.full_name}</p>
-                        <p className="text-sm text-ink-600">
-                          {formatEmploymentType(employee.employment_type)}
-                        </p>
-                      </div>
-                      <div className="grid gap-2 text-right text-sm text-ink-700 sm:text-left">
-                        <span className="rounded-full bg-success-bg px-3 py-1 font-semibold text-success-text">
-                          {employee.availability_percentage}% available
+                <input
+                  checked={isSelected}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-primary-600"
+                  name="task-assignee"
+                  onChange={() => onSelectionChange(employee.id)}
+                  type="radio"
+                  value={employee.id}
+                />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold text-ink-900">
+                      <span className="truncate">{employee.full_name}</span>
+                      {isCurrent ? (
+                        <span className="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-700">
+                          Current
                         </span>
-                      </div>
-                    </div>
-
-                    <dl className="grid gap-3 text-sm text-ink-700 sm:grid-cols-2 2xl:grid-cols-4">
-                      <div>
-                        <dt className="text-xs font-semibold uppercase tracking-normal text-ink-500">
-                          Workload
-                        </dt>
-                        <dd className="mt-1 font-medium text-ink-900">
-                          {employee.workload_percentage}%
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs font-semibold uppercase tracking-normal text-ink-500">
-                          Weekly capacity
-                        </dt>
-                        <dd className="mt-1 font-medium text-ink-900">
-                          {employee.weekly_capacity_hours} hrs
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs font-semibold uppercase tracking-normal text-ink-500">
-                          Performance
-                        </dt>
-                        <dd className="mt-1 font-medium text-ink-900">
-                          {formatPerformanceScore(employee.performance_score)}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs font-semibold uppercase tracking-normal text-ink-500">
-                          Skills
-                        </dt>
-                        <dd className="mt-1 font-medium text-ink-900">
-                          {employee.skills.length}
-                        </dd>
-                      </div>
-                    </dl>
-
-                    <div className="flex flex-wrap gap-2">
-                      {skillList.length > 0 ? (
-                        skillList.map((skill) => (
-                          <span
-                            key={`${employee.id}-${skill.name}`}
-                            className="rounded-full border border-border-subtle bg-surface-card-alt px-3 py-1 text-xs font-medium text-ink-700"
-                          >
-                            {skill.name}
-                            <span className="text-ink-500">
-                              {` · L${skill.proficiency_level} · ${formatYearsOfExperience(
-                                skill.years_of_experience,
-                              )}`}
-                            </span>
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-sm text-ink-500">No skills listed.</span>
-                      )}
-                    </div>
+                      ) : null}
+                    </p>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${availabilityTone(employee.availability_percentage)}`}
+                    >
+                      {employee.availability_percentage}% available
+                    </span>
                   </div>
+
+                  <p className="text-xs leading-5 text-ink-600">
+                    {formatEmploymentType(employee.employment_type)} · {employee.weekly_capacity_hours} h/week
+                    {' · '}Workload {employee.workload_percentage}%
+                    {' · '}Performance {formatPerformanceScore(employee.performance_score)}
+                  </p>
+
+                  {employee.skills.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {visibleSkills.map((skill) => (
+                        <span
+                          key={`${employee.id}-${skill.name}`}
+                          className="rounded-full border border-border-subtle bg-surface-card-alt px-2 py-0.5 text-xs text-ink-700"
+                          title={formatSkillDetail(skill)}
+                        >
+                          {skill.name} · L{skill.proficiency_level}
+                        </span>
+                      ))}
+                      {hiddenSkills.length > 0 ? (
+                        <span
+                          className="px-1 py-0.5 text-xs text-ink-500"
+                          title={hiddenSkills.map((skill) => skill.name).join(', ')}
+                        >
+                          +{hiddenSkills.length} more
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-ink-500">No skills listed.</p>
+                  )}
                 </div>
               </label>
             )
@@ -288,18 +261,17 @@ export function TaskAssignmentSection({
         </fieldset>
       ) : null}
 
-      <div className="flex flex-col gap-3 border-t border-border-subtle pt-5 sm:flex-row sm:items-center sm:justify-end">
-        <Button
-          disabled={!canSubmitAssignment || isSubmitting}
-          onClick={() => {
-            void onAssign()
-          }}
-        >
-          {isSubmitting
-            ? 'Saving assignment...'
-            : getAssignmentActionLabel(task, selectedEmployeeId)}
-        </Button>
-      </div>
+      <Button
+        className="w-full"
+        disabled={!canSubmitAssignment || isSubmitting}
+        onClick={() => {
+          void onAssign()
+        }}
+      >
+        {isSubmitting
+          ? 'Saving assignment...'
+          : getAssignmentActionLabel(task, selectedEmployeeId)}
+      </Button>
     </section>
   )
 }

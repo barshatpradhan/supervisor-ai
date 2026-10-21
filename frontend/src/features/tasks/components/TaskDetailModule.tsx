@@ -180,7 +180,7 @@ export function TaskDetailModule() {
                 Choose an owner yourself
                 <ChevronDown aria-hidden="true" className="text-text-secondary transition group-open:rotate-180" size={18} />
               </summary>
-              <div className="px-4 pb-4">
+              <div className="border-t border-border-subtle px-5 pb-5 pt-4">
                 <TaskAssignmentSection
                   assignmentError={manager.assignmentMutationState.formError}
                   canSubmitAssignment={manager.canSubmitAssignment}
