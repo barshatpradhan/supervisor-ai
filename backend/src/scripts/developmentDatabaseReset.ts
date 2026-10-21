@@ -1,6 +1,9 @@
 export const PROJECT_DOCUMENT_BUCKET = "project-documents";
 
 export const RESET_DELETE_ORDER = [
+  // Messaging child tables (participants, reactions, mentions, task refs, reads) cascade from these.
+  "messages",
+  "conversations",
   "activity_logs",
   "ai_recommendations",
   "task_progress",

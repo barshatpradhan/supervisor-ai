@@ -1,4 +1,5 @@
 import { supabase } from "../config/supabase.js";
+import { logger } from "../utils/logger.js";
 
 export type ActivityEventType =
   | "task_progress_updated"
@@ -6,7 +7,8 @@ export type ActivityEventType =
   | "project_progress_updated"
   | "employee_dashboard_viewed"
   | "supervisor_dashboard_viewed"
-  | "invitation_link_copied";
+  | "invitation_link_copied"
+  | "task_progress_requested";
 
 /** Audit metadata is deliberately identifiers and calculated values only. */
 export async function logActivity(input: {
@@ -28,6 +30,6 @@ export async function logActivity(input: {
 
   // Auditing must not make a completed business operation unavailable.
   if (error) {
-    console.warn(JSON.stringify({ scope: "activity_log", event: "write_failed", type: input.eventType, code: error.code }));
+    logger.warn("activity_log_write_failed", { type: input.eventType, code: error.code });
   }
 }
