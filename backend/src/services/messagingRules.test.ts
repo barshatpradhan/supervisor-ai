@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { NextFunction, Request, Response } from "express";
-import { createUserRateLimiter, isMessagingPollRequest } from "../middleware/securityMiddleware.js";
+import { createUserRateLimiter, isMessagingPollRequest } from "../middleware/rateLimiter.js";
 import { AppError } from "../utils/appError.js";
 import { isAllowedEmoji } from "../utils/emoji.js";
 import {

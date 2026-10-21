@@ -18,7 +18,7 @@ import {
   requireOrganizationRole,
   resolveOrganizationContext,
 } from "../middleware/organizationMiddleware.js";
-import { createUserRateLimiter } from "../middleware/securityMiddleware.js";
+import { createUserRateLimiter } from "../middleware/rateLimiter.js";
 
 const MINUTE = 60_000;
 
