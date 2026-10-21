@@ -9,8 +9,11 @@ import {
   issueInvitationAcceptanceLink,
   resendOrganizationInvitation,
 } from "./organizationService.js";
+import { requireDisposableDatabase } from "../testing/requireDisposableDatabase.js";
 
-// Integration tests against the configured Supabase project, like taskService.test.ts.
+requireDisposableDatabase("invitationDelivery.test.ts");
+
+// Integration tests against a disposable Supabase database (npm run test:integration).
 // Brevo is simulated with a mocked fetch, so no email is ever sent.
 
 const BREVO_ENV = {

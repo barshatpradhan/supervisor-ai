@@ -1,4 +1,4 @@
-import type { OrganizationInvitationEmailInput } from "./emailService.js";
+import type { OrganizationInvitationEmailInput } from "./types.js";
 
 const BRAND_NAME = "Supervisor AI";
 const BRAND_BLUE = "#2D6FF7";

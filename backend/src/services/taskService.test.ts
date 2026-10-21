@@ -3,6 +3,9 @@ import crypto from "node:crypto";
 import test from "node:test";
 import { supabase } from "../config/supabase.js";
 import { createTask, listTasks } from "./taskService.js";
+import { requireDisposableDatabase } from "../testing/requireDisposableDatabase.js";
+
+requireDisposableDatabase("taskService.test.ts");
 
 interface ListedTask {
   id: string;

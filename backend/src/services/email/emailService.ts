@@ -1,16 +1,6 @@
 import { AppError } from "../../utils/appError.js";
 import { buildInvitationEmail } from "./invitationTemplate.js";
-
-export interface OrganizationInvitationEmailInput {
-  to: string;
-  organizationName: string;
-  invitedRole: "employee" | "supervisor";
-  invitedByName?: string;
-  acceptanceUrl: string;
-  expiresAt: string;
-  invitationId?: string;
-  organizationId?: string;
-}
+import type { OrganizationInvitationEmailInput } from "./types.js";
 
 export interface EmailService {
   sendOrganizationInvitation(input: OrganizationInvitationEmailInput): Promise<void>;
