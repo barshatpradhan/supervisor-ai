@@ -1,4 +1,5 @@
 import { AppError } from "../../utils/appError.js";
+import { buildInvitationEmail } from "./invitationTemplate.js";
 
 export interface OrganizationInvitationEmailInput {
   to: string;
@@ -24,6 +25,7 @@ class BrevoEmailService implements EmailService {
 
   async sendOrganizationInvitation(input: OrganizationInvitationEmailInput) {
     try {
+      const email = buildInvitationEmail(input);
       const response = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
         headers: {
@@ -34,16 +36,9 @@ class BrevoEmailService implements EmailService {
         body: JSON.stringify({
           sender: { email: this.fromEmail, name: this.fromName },
           to: [{ email: input.to }],
-          subject: `You've been invited to join ${input.organizationName}`,
-          htmlContent: [
-            `<p><strong>You've been invited to join ${escapeHtml(input.organizationName)}</strong></p>`,
-            input.invitedByName
-              ? `<p>${escapeHtml(input.invitedByName)} has invited you to join ${escapeHtml(input.organizationName)} as a ${escapeHtml(input.invitedRole)}.</p>`
-              : `<p>You have been invited to join ${escapeHtml(input.organizationName)} as a ${escapeHtml(input.invitedRole)}.</p>`,
-            `<p><a href="${escapeHtml(input.acceptanceUrl)}">Accept Invitation</a></p>`,
-            `<p>This invitation expires on ${escapeHtml(input.expiresAt)}.</p>`,
-            "<p>If you weren't expecting this invitation, you can ignore this email.</p>",
-          ].join(""),
+          subject: email.subject,
+          htmlContent: email.html,
+          textContent: email.text,
         }),
       });
 
@@ -104,16 +99,6 @@ async function readProviderResponse(response: Response, recipient: string) {
 
   if (!body) return "<empty response body>";
   return body.split(recipient).join("[recipient]").slice(0, MAX_PROVIDER_RESPONSE_LENGTH);
-}
-
-function escapeHtml(value: string) {
-  return value.replace(/[&<>'"]/g, (character) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    "'": "&#39;",
-    '"': "&quot;",
-  })[character] ?? character);
 }
 
 export function createEmailService(): EmailService {
