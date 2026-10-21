@@ -14,6 +14,7 @@ import {
 import { ensureProjectExistsInOrganization } from "./projectService.js";
 import { getAppUserByAuthId } from "./userService.js";
 import { logActivity } from "./activityLogService.js";
+import { nextAssignedAt } from "./taskAssignmentRules.js";
 import { incrementMetric } from "../middleware/observabilityMiddleware.js";
 
 const TASK_SELECT = `
@@ -52,6 +53,7 @@ interface OrganizationScopedTaskRow {
   id: string;
   project_id: string;
   assigned_employee_id: string | null;
+  assigned_at: string | null;
   status: TaskStatus;
   completed_at?: string | null;
 }
@@ -118,6 +120,7 @@ async function getTaskForOrganization(taskId: string, organizationId: string) {
         id,
         project_id,
         assigned_employee_id,
+        assigned_at,
         status,
         completed_at,
         projects!inner (
@@ -632,7 +635,7 @@ export async function assignTask(
     .from("tasks")
     .update({
       assigned_employee_id: employeeId ?? null,
-      assigned_at: employeeId ? new Date().toISOString() : null,
+      assigned_at: nextAssignedAt(existingTask, employeeId ?? null),
     })
     .eq("id", taskId)
     .is("deleted_at", null)
