@@ -27,6 +27,11 @@ import { replaceEmployeeSkillsWithDetails } from "./skillService.js";
 import { createSupervisorProfileRecordForOrganization } from "./supervisorService.js";
 import { logActivity } from "./activityLogService.js";
 import { createEmailService } from "./email/emailService.js";
+import {
+  INVITATION_EMAIL_LIMIT_MESSAGES,
+  releaseInvitationEmail,
+  reserveInvitationEmail,
+} from "./email/invitationEmailQuota.js";
 import { buildOrganizationInvitationAcceptanceUrl } from "./email/invitationUrl.js";
 import { getAppUserByAuthId, getAuthOnboardingStateForAppUser } from "./userService.js";
 
@@ -356,14 +361,30 @@ function summarizeDeliveryError(error: unknown, recipient: string) {
     .slice(0, INVITATION_DELIVERY_ERROR_MAX_LENGTH);
 }
 
-/** Sends the invitation email and reports the outcome instead of throwing. */
+/**
+ * Sends the invitation email and reports the outcome instead of throwing. Counts against the
+ * inviter's and the app's daily invitation email caps; when a cap is reached nothing is sent and
+ * the delivery is recorded as failed with the reason, so the admin can copy the link instead.
+ */
 async function deliverInvitationEmail(
+  senderUserId: string,
   input: Parameters<ReturnType<typeof createEmailService>["sendOrganizationInvitation"]>[0]
 ): Promise<InvitationDeliveryOutcome> {
+  const capped = reserveInvitationEmail(senderUserId);
+  if (capped) {
+    logOrganizationEvent("organization_invitation_email_capped", {
+      invitationId: input.invitationId,
+      organizationId: input.organizationId,
+      reason: capped,
+    });
+    return { status: "failed", error: INVITATION_EMAIL_LIMIT_MESSAGES[capped] };
+  }
+
   try {
     await createEmailService().sendOrganizationInvitation(input);
     return { status: "sent", error: null };
   } catch (error) {
+    releaseInvitationEmail(senderUserId);
     const summary = summarizeDeliveryError(error, input.to);
     logOrganizationEvent("organization_invitation_delivery_failed", {
       invitationId: input.invitationId,
@@ -1340,7 +1361,7 @@ export async function createOrganizationInvitation(
     });
   }
 
-  const delivery = await deliverInvitationEmail({
+  const delivery = await deliverInvitationEmail(inviter.id, {
     to: normalizedEmail,
     organizationName: organization.name,
     invitedRole: input.role,
@@ -1698,7 +1719,7 @@ export async function resendOrganizationInvitation(
   const acceptanceUrl = buildInvitationAcceptanceUrl(rawToken);
 
   const organization = await getOrganizationById(organizationId);
-  const delivery = await deliverInvitationEmail({
+  const delivery = await deliverInvitationEmail(inviter.id, {
     to: invitation.email,
     organizationName: organization.name,
     invitedRole: invitation.role,

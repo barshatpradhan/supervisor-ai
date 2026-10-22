@@ -8,6 +8,13 @@ export function isValidUserRole(value: unknown): value is UserRole {
   return typeof value === "string" && VALID_ROLES.includes(value as UserRole);
 }
 
+/** True when an application user with this id exists. */
+export async function appUserExists(userId: string) {
+  const { data, error } = await supabase.from("users").select("id").eq("id", userId).maybeSingle<{ id: string }>();
+  if (error) throw new AppError("Unable to look up the user.", 500, true, { cause: error });
+  return Boolean(data);
+}
+
 export async function listAppUsers() {
   const { data, error } = await supabase
     .from("users")

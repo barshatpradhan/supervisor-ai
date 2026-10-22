@@ -77,6 +77,23 @@ export const authPaths = {
   "/invitations/{token}/accept": {
     post: { summary: "Accept an invitation as the signed-in user", description: "Limited per IP.", parameters: [token], responses: { "200": success, "401": { $ref: "#/components/responses/Unauthorized" }, "429": tooMany } },
   },
+  "/admin/invitation-email-allowances": {
+    post: {
+      summary: "Platform admin: raise one user's invitation email limit for the rest of today (UTC)",
+      description:
+        "Adds extra organization invitation emails for one user until 00:00 UTC. The app-wide daily invitation " +
+        "total still applies, so the password-reset email reserve is never used up.",
+      requestBody: {
+        required: true,
+        content: json({
+          type: "object",
+          required: ["userId", "additionalEmails"],
+          properties: { userId: { type: "string", format: "uuid" }, additionalEmails: { type: "integer", minimum: 1, maximum: 1000 } },
+        }),
+      },
+      responses: { "200": success, "400": validation, "403": { $ref: "#/components/responses/Forbidden" }, "404": { description: "User not found" } },
+    },
+  },
   "/admin/users": {
     post: { summary: "Platform admin: create a user and send their invitation email", description: "Limited per platform admin.", responses: { "201": success, "400": validation, "403": { $ref: "#/components/responses/Forbidden" }, "429": tooMany } },
   },

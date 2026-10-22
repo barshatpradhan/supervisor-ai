@@ -38,6 +38,20 @@ if (isProduction && corsOrigins.some((origin) => origin === "*" || origin.starts
 }
 if (isProduction) required("GEMINI_API_KEY");
 
+// Daily email budget shared by password-reset and organization invitation emails (the SMTP
+// provider's free plan allows 300 a day). Invitations get what the reset reserve leaves.
+const emailDailyQuota = integer("EMAIL_DAILY_QUOTA", 300);
+const resetDailyTotalMax = integer("AUTH_RL_RESET_DAILY_TOTAL_MAX", 100);
+const invitationEmailDailyTotalMax = integer(
+  "INVITATION_EMAIL_DAILY_TOTAL_MAX",
+  Math.max(1, emailDailyQuota - resetDailyTotalMax)
+);
+if (invitationEmailDailyTotalMax + resetDailyTotalMax > emailDailyQuota) {
+  throw new Error(
+    "INVITATION_EMAIL_DAILY_TOTAL_MAX plus AUTH_RL_RESET_DAILY_TOTAL_MAX must not exceed EMAIL_DAILY_QUOTA."
+  );
+}
+
 export const env = Object.freeze({
   nodeEnv,
   isProduction,
@@ -74,7 +88,7 @@ export const env = Object.freeze({
     resetEmailWindowMs: integer("AUTH_RL_RESET_EMAIL_WINDOW_MS", HOUR),
     resetEmailMax: integer("AUTH_RL_RESET_EMAIL_MAX", 3),
     resetEmailDailyMax: integer("AUTH_RL_RESET_EMAIL_DAILY_MAX", 5),
-    resetDailyTotalMax: integer("AUTH_RL_RESET_DAILY_TOTAL_MAX", 100),
+    resetDailyTotalMax,
     resetConfirmIpMax: integer("AUTH_RL_RESET_CONFIRM_IP_MAX", 10),
     invitationWindowMs: integer("AUTH_RL_INVITATION_WINDOW_MS", 15 * MINUTE),
     invitationInspectIpMax: integer("AUTH_RL_INVITATION_INSPECT_IP_MAX", 30),
@@ -84,5 +98,11 @@ export const env = Object.freeze({
     adminCreateUserMax: integer("AUTH_RL_ADMIN_CREATE_USER_MAX", 20),
     /** Retry-After sent when Supabase Auth itself rate-limits a sign-in. */
     upstreamRetryAfterSeconds: integer("AUTH_RL_UPSTREAM_RETRY_AFTER_SECONDS", 60),
+  }),
+  /** Organization invitation emails per UTC day (sent through the transactional email provider). */
+  invitationEmailLimits: Object.freeze({
+    emailDailyQuota,
+    perUserDailyMax: integer("INVITATION_EMAIL_DAILY_PER_USER_MAX", 25),
+    dailyTotalMax: invitationEmailDailyTotalMax,
   }),
 });

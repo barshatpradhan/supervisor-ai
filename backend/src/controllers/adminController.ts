@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import {
+  appUserExists,
   countOrganizations,
   isValidUserRole,
   listAppUsers,
@@ -12,6 +13,7 @@ import {
   rejectSkill,
 } from "../services/skillService.js";
 import { listUserDirectory, parseUserDirectoryQuery } from "../services/userDirectoryService.js";
+import { grantInvitationEmailAllowance } from "../services/email/invitationEmailQuota.js";
 import type { AdminProvisionUserInput } from "../types/provisioning.js";
 import { AppError } from "../utils/appError.js";
 import { sendSuccess } from "../utils/apiResponse.js";
@@ -101,6 +103,27 @@ export async function rejectSkillHandler(
     await rejectSkill(skillId);
 
     return sendSuccess(res, 200, "Skill rejected successfully.");
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
+ * Platform admin: let one user send more organization invitation emails today (UTC). The extra
+ * emails still count toward the app's daily invitation total, which protects the email reserve
+ * for password resets.
+ */
+export async function grantInvitationEmailAllowanceHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    const body = requireBody(req.body);
+    const userId = requireUuid(body.userId, "userId");
+    const additionalEmails = body.additionalEmails;
+    if (typeof additionalEmails !== "number" || !Number.isInteger(additionalEmails) || additionalEmails < 1 || additionalEmails > 1000) {
+      throw new AppError("additionalEmails must be a whole number from 1 to 1000.", 400);
+    }
+    if (!(await appUserExists(userId))) throw new AppError("User not found.", 404);
+
+    return sendSuccess(res, 200, "Invitation email allowance granted for today.", grantInvitationEmailAllowance(userId, additionalEmails));
   } catch (error) {
     return next(error);
   }

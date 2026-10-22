@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  grantInvitationEmailAllowanceHandler,
   createUserHandler,
   approveSkillHandler,
   getDashboardMetrics,
@@ -43,5 +44,6 @@ router.get("/users", getUsers);
 router.get("/users/directory", getUserDirectory);
 router.post("/users", adminCreateUserRateLimit, validateAdminCreateUserRequest, createUserHandler);
 router.patch("/users/:userId/role", updateUserRole);
+router.post("/invitation-email-allowances", grantInvitationEmailAllowanceHandler);
 
 export default router;

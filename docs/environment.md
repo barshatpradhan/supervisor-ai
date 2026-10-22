@@ -40,6 +40,9 @@ The backend reads environment configuration at startup and fails fast if `SUPABA
 | `AUTH_RL_ADMIN_CREATE_USER_WINDOW_MS` | No | `3600000` | Platform-admin user creation window (1 h). |
 | `AUTH_RL_ADMIN_CREATE_USER_MAX` | No | `20` | Users a platform admin can create per window. |
 | `AUTH_RL_UPSTREAM_RETRY_AFTER_SECONDS` | No | `60` | Retry-After sent when Supabase Auth itself rate-limits a sign-in. |
+| `EMAIL_DAILY_QUOTA` | No | `300` | Emails per day the transactional provider allows (shared by password resets and invitations). |
+| `INVITATION_EMAIL_DAILY_PER_USER_MAX` | No | `25` | Organization invitation emails each inviting user can send per UTC day. |
+| `INVITATION_EMAIL_DAILY_TOTAL_MAX` | No | `EMAIL_DAILY_QUOTA - AUTH_RL_RESET_DAILY_TOTAL_MAX` (200) | Invitation emails for the whole app per UTC day. Startup fails if this plus `AUTH_RL_RESET_DAILY_TOTAL_MAX` exceeds `EMAIL_DAILY_QUOTA`. |
 | `TRANSACTIONAL_EMAIL_PROVIDER` | Required for invitations | — | Invitation email provider selector: `brevo` for real delivery or explicit `console` for offline development/tests. |
 | `BREVO_API_KEY` | Conditional | — | Required when Brevo is selected. Backend-only secret. |
 | `INVITATION_EMAIL_FROM` | Conditional | — | Required when Brevo is selected. Must be a sender verified in Brevo (Senders & IPs). |
