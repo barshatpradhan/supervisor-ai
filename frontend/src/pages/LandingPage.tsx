@@ -12,7 +12,9 @@ import { SupervisorLogo } from '../components/ui/SupervisorLogo'
 import { SiteFooter } from '../components/layout/SiteFooter'
 import { RecommendationCard } from '../features/ai-recommendations/components/RecommendationCard'
 import { useAuth } from '../features/auth/hooks/useAuth'
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion'
 import type { BackendRecommendation } from '../types/backend'
+import { AvatarShowcase } from './landing/AvatarShowcase'
 
 // Everything below is illustrative sample data for the product previews.
 const sampleCandidates = [
@@ -123,18 +125,6 @@ function SectionHeading({ id, subtitle, title }: { id?: string; subtitle?: strin
 
 const heroStages = ['Upload', 'Analyze', 'Rank', 'Assign'] as const
 const STAGE_MS = 2600
-
-function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(() => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
-  useEffect(() => {
-    const query = window.matchMedia?.('(prefers-reduced-motion: reduce)')
-    if (!query) return
-    const update = () => setReduced(query.matches)
-    query.addEventListener('change', update)
-    return () => query.removeEventListener('change', update)
-  }, [])
-  return reduced
-}
 
 /**
  * A looping walkthrough of the real flow, built from the app's own components:
@@ -383,12 +373,19 @@ export function LandingPage() {
       </header>
 
       <main id="main-content">
-        <section className="mx-auto grid max-w-7xl items-center gap-12 px-4 pb-16 pt-14 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:pb-24 lg:pt-20">
+        <section className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] items-center gap-12 px-4 pb-16 pt-14 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:pb-24 lg:pt-20">
           <div className="flex flex-col gap-6">
-            <span className="label inline-flex w-fit items-center gap-1.5 rounded-pill bg-ai-bg px-3 py-1 text-ai-fg">
-              <Sparkles aria-hidden="true" size={14} />
-              AI-assisted staffing for project teams
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="label inline-flex w-fit items-center gap-1.5 rounded-pill bg-ai-bg px-3 py-1 text-ai-fg">
+                <Sparkles aria-hidden="true" size={14} />
+                AI-assisted staffing for project teams
+              </span>
+              <a className="label inline-flex w-fit items-center gap-1.5 rounded-pill border border-border-default bg-surface-card px-3 py-1 text-text-primary no-underline hover:bg-surface-muted" href="#profile-pictures">
+                <span className="rounded-pill bg-primary-600 px-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-on-primary">New</span>
+                Profile pictures
+                <ArrowRight aria-hidden="true" size={14} />
+              </a>
+            </div>
             <h1 className="m-0 max-w-2xl text-4xl font-semibold tracking-tight text-text-primary sm:text-5xl lg:text-6xl">
               Turn project requirements into better team assignments
             </h1>
@@ -447,6 +444,16 @@ export function LandingPage() {
             >
               <WorkloadPreview />
             </ProductRow>
+            <div className="scroll-mt-24" id="profile-pictures">
+              <ProductRow
+                points={['12 illustrated characters with 6 skin tones', 'Pick a background colour and an accessory', 'Shown in the header, on tasks and in messages']}
+                reverse
+                text="Everyone can choose a friendly illustrated avatar on their profile, so a busy board is easy to scan. Until they do, a colour-coded initials disc keeps people recognisable."
+                title="New: faces your team will recognise"
+              >
+                <AvatarShowcase />
+              </ProductRow>
+            </div>
           </div>
         </section>
 

@@ -13,6 +13,12 @@
   to { opacity: 1; transform: none; }
 }
 
+/* Landing profile-picture ad: movement only, so content is visible even if the animation never runs. */
+@keyframes ad-in {
+  from { transform: translateY(6px) scale(0.98); }
+  to { transform: none; }
+}
+
 /* Design-system type styles. Numbers are always mono with tabular figures. */
 @utility stat-xl {
   font-family: var(--font-mono);
