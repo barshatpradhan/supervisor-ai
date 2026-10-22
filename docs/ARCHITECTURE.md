@@ -240,7 +240,42 @@ A **hand-written**, not auto-generated, OpenAPI 3.1 document covering only 6 of 
 
 ### 2.11 `frontend/src/features/`
 
-Each feature folder generally follows `components/`, `hooks/`, `services/`, `types/`, `utils/` (not all present in every feature); route entry points live only in top-level `pages/`. Notable cross-feature imports are called out explicitly — this codebase is *not* strictly feature-isolated.
+Each feature folder generally follows `components/`, `hooks/`, `services/`, `types/`, `utils/` (not all present in every feature); route entry points live only in top-level `pages/`. Cross-feature imports are limited to the list in [Allowed cross-feature imports](#allowed-cross-feature-imports).
+
+#### Allowed cross-feature imports
+
+Placement rule: code used by exactly one feature lives in that feature; code used by two or more
+features lives in a shared folder (`components/`, `hooks/`, `services/`, `lib/`, `types/`). The
+imports below cross feature boundaries on purpose and are allowed. A new cross-feature import
+should either move the shared code to a shared folder or be added to this list in the same change.
+(Generated from the import graph on 2026-10-21; see `docs/AUDIT_STRUCTURE.md`.)
+
+**1. The app shell is not a feature.** `app/`, `layouts/` and `pages/` may import any feature's
+entry components and hooks (route components, providers, guards, `OrganizationSwitcher`, the
+messaging unread badge hook).
+
+**2. App-wide context, importable from anywhere.**
+
+| Feature | Files | Why |
+|---|---|---|
+| auth | `hooks/useAuth.ts`, `utils/tokenStorage.ts` | The signed-in user is app-wide state. `services/api.ts` reads the token from `tokenStorage`. |
+| organizations | `hooks/useOrganization.ts`, `utils/organizationRequestContext.ts`, `utils/organizationPresentation.ts`, `utils/roleRedirect.ts`, `services/organizationService.ts` | The active organization and role are app-wide state; `services/api.ts` adds the organization header from `organizationRequestContext`. |
+
+**3. Domain dependencies.**
+
+| Importer | Imports from | Files | Why |
+|---|---|---|---|
+| admin-users | account-creation | `components/AccountCreationStepIndicator.tsx`, `components/ProvisioningSkillStep.tsx`, `hooks/useApprovedSkillCatalog.ts`, `types/accountCreation.ts`, `utils/accountCreationForm.ts` | account-creation is the reusable account wizard; admin-users is its only consumer today. |
+| auth | invitations | `utils/invitationNavigation.ts` | Login and registration return invited users to their invitation. |
+| tasks | messaging | `components/AskAboutTaskLink.tsx` | "Ask about this task" opens the project channel. |
+| ai-recommendations | projects | `components/RecommendationAssignmentDialog.tsx`, `hooks/useProjectAssignmentTasks.ts`, `services/projectService.ts`, `services/projectDocumentService.ts` | Recommendations are generated for and assigned within projects. |
+| tasks | projects | `hooks/useProjects.ts`, `hooks/useProjectDocuments.ts`, `hooks/useProjectRecommendations.ts` | The task board filters by project and "Suggested owners" reads the project's recommendations. |
+| dashboard | tasks | `components/TaskStatusBadge.tsx`, `utils/taskBoard.ts`, `utils/taskPresentation.ts` | Dashboards show task status and progress the same way the task board does. |
+| team | tasks | `hooks/useTasks.ts`, `hooks/useAssignableEmployees.ts` | Team workload is computed from tasks and assignable employees. |
+| messaging, projects | tasks | `services/taskService.ts` | Tagging tasks in chat and picking tasks to assign from recommendations. |
+
+Anything not on this list is a placement bug. If one of these grows a third consumer, move it to a
+shared folder instead of extending the table.
 
 **`features/auth/`** — `hooks/authContext.ts`+`useAuth.ts` (context/hook pair). `components/AuthProvider.tsx` is the real context provider: hydrates from a stored token via `getCurrentUser()` on mount, listens for a `supervisor-ai:auth-session-expired` window event to clear session, and implements `login`/`signup`/`register`/`registerInvitation` (all persist tokens via `tokenStorage` then set `user`/`onboarding` state) and `logout` (clears tokens, clears the React Query cache, navigates to `/login`). `LoginForm.tsx`, `RegisterForm.tsx` (dual-purpose — detects an embedded invitation `token=` in `returnTo` and calls `registerInvitation` instead of `register`, via ad hoc regex parsing rather than a shared utility), `ForgotPasswordForm.tsx`/`ResetPasswordForm.tsx` (call `services/authService.ts` directly, bypassing `AuthProvider`/context since these are unauthenticated flows), `ProtectedRoute.tsx`, `RoleGuard.tsx` (treats `platformRole === 'platform_admin'` as an implicit `'admin'` role). `services/authService.ts` holds every auth API call (login, signup, register, invitation registration, current user, password reset). `utils/tokenStorage.ts` owns all `localStorage` token access and the session-expiry custom event.
 
