@@ -1,4 +1,5 @@
 import { authPaths, authResponses } from "./authOpenApi.js";
+import { avatarPaths, avatarSchemas } from "./avatarsOpenApi.js";
 import { messagingPaths, messagingSchemas } from "./messagingOpenApi.js";
 
 export const openApiDocument = {
@@ -12,6 +13,7 @@ export const openApiDocument = {
       ProgressUpdate: { type: "object", required: ["progressPercentage"], properties: { progressPercentage: { type: "integer", minimum: 0, maximum: 100 }, notes: { type: "string", maxLength: 4000 } } },
       Success: { type: "object", required: ["success", "message"], properties: { success: { type: "boolean", const: true }, message: { type: "string" }, data: {} } },
       ...messagingSchemas,
+      ...avatarSchemas,
     },
     responses: {
       Unauthorized: { description: "Missing or invalid JWT", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
@@ -30,5 +32,6 @@ export const openApiDocument = {
     "/supervisors/dashboard": { get: { summary: "Supervisor dashboard", responses: { "200": { description: "Dashboard" } } } },
     ...authPaths,
     ...messagingPaths,
+    ...avatarPaths,
   },
 } as const;
