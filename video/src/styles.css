@@ -1,0 +1,13 @@
+/* The app's own stylesheet (Tailwind, design tokens and avatar.css), compiled for the video. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=block');
+@import '../../frontend/src/index.css';
+
+@source '../../frontend/src';
+@source './';
+
+/* Frames are rendered one at a time, so nothing may depend on wall-clock CSS transitions. */
+.video-root *,
+.video-root *::before,
+.video-root *::after {
+  transition: none !important;
+}

@@ -1,0 +1,35 @@
+{
+  "name": "supervisor-ai-video",
+  "private": true,
+  "type": "module",
+  "description": "Remotion source for the Supervisor AI promo video. Renders the app's real components with fictional demo data.",
+  "scripts": {
+    "studio": "remotion studio",
+    "render:master": "remotion render Master16x9 out/master-16x9.mp4 --concurrency=2",
+    "render:vertical": "remotion render Vertical9x16 out/vertical-9x16.mp4 --concurrency=2",
+    "render:cut15": "remotion render Cut15 out/cut-15s.mp4 --concurrency=2",
+    "still": "remotion still Master16x9",
+    "srt": "node scripts/export-srt.ts",
+    "test": "node --test src/data/demo.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.520",
+    "@remotion/cli": "4.0.520",
+    "@remotion/tailwind-v4": "4.0.520",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "remotion": "4.0.520",
+    "tailwindcss": "4.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.0",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "typescript": "6.0.3"
+  },
+  "overrides": {
+    "tailwindcss": "4.3.2",
+    "@tailwindcss/webpack": "4.3.2"
+  }
+}
