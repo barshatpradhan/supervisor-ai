@@ -5,6 +5,23 @@ Read-only audit of file organization, dead code, type placement and tests. Nothi
 - Branch: `feature/messaging-project-channels` (commit `04460f3`), audited 2026-10-21.
 - Scope: `frontend/src`, `backend/src`, `backend/scripts`, repository root, `supabase/`.
 
+## Status (updated as batches land)
+
+Applied on branch `chore/structure-cleanup`, one commit per batch, each with tsc, lint, tests and build passing in both packages and knip rerun:
+
+| Batch | Commit | Result |
+|---|---|---|
+| F. Test safety and list | `22a543b` | Two database tests guarded and moved to `npm run test:integration`; two pure tests added to `npm test` (23 → 33); real 401 test; email import cycle gone (madge: no cycles). |
+| C. Backend dead code and stray files | `7e3f570` | Backend knip: no issues. |
+| A. Dead frontend files | `2a3bb21` | 20 files and the dead functions removed; frontend knip: no unused files, exports or types. |
+| B. Unused dependencies | `bdf9cd1` | Six packages removed. **`recharts` is kept on purpose** (planned charts), so knip still lists it. |
+| D. Service placement | `7d49059` | Single-feature services and hooks moved into their features; services convention documented. |
+| E. Single route layer | `0ae48f8` | `features/*/pages` wrappers removed; routes unchanged. |
+| H, I | not applied | Replaced by "Allowed cross-feature imports" in `docs/ARCHITECTURE.md` (`2d409d3`). |
+| G. Task progress single source | **not started** | Characterization tests are in place first (`taskProgress.characterization.test.ts`, run with `npm run test:integration`); waiting for approval. |
+
+Known flaky test: `InviteMemberDialog` "Sending invitation" checks a short-lived pending state and can fail when the machine is under heavy load; it passes on rerun. Not changed by the cleanup.
+
 ## How this was produced
 
 | Tool | Result |
