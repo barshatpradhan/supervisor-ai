@@ -52,7 +52,7 @@ export function TasksModule() {
           title: task.title,
           updatedAt: task.updated_at,
         })),
-    [employeeNames, filter, manager.taskList],
+    [employeeAvatars, employeeNames, filter, manager.taskList, ownAvatar],
   )
 
   const statusMix = boardStatuses.map((status) => ({
