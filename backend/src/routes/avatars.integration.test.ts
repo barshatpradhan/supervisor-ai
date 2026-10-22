@@ -117,6 +117,7 @@ before(async () => {
 
   projectChannel = (await supabase.from("conversations").select("id").eq("project_id", projectA).single<{ id: string }>()).data!.id;
   generalA = (await supabase.from("conversations").select("id").eq("organization_id", orgA).eq("kind", "general").single<{ id: string }>()).data!.id;
+  await setUpPeopleLists();
 });
 
 (supabase.auth as unknown as { getUser: unknown }).getUser = async (token: string) => {
@@ -168,7 +169,7 @@ function avatarCarriers(value: unknown, found: Array<Record<string, unknown>> = 
   return found;
 }
 
-const everyone = () => [sam, aisha, ben, lena, olga];
+const everyone = () => [sam, aisha, ben, lena, olga, nia, pat];
 const byUserId = (userId: unknown) => everyone().find((person) => person.userId === userId);
 
 /**
@@ -200,7 +201,8 @@ describe("messaging", () => {
     const members = await call(aisha, "GET", "/messaging/members", { organizationId: orgA });
     assert.equal(members.status, 200);
     const carriers = assertAvatarsBesideNames(members, "members");
-    assert.deepEqual(new Set(carriers.map((carrier) => carrier.userId)), new Set([sam, aisha, ben, lena].map((person) => person.userId)));
+    // Nia has no profile, so messaging shows her by her email's local part: that is her visible name here.
+    assert.deepEqual(new Set(carriers.map((carrier) => carrier.userId)), new Set([sam, aisha, ben, lena, nia].map((person) => person.userId)));
     assert.ok(!members.lookedUp.includes(olga.userId));
 
     const channelMembers = await call(sam, "GET", `/messaging/conversations/${projectChannel}/members`, { organizationId: orgA });
@@ -267,5 +269,165 @@ describe("messaging", () => {
     const wrongOrg = await call(olga, "GET", "/messaging/members", { organizationId: orgA });
     assert.equal(wrongOrg.status, 403);
     assert.deepEqual(wrongOrg.lookedUp, []);
+  });
+});
+
+// Directory-style lists -----------------------------------------------------------------------------
+let nia: Fixture; // org A member with an avatar but no profile: lists show her email, not a name
+let pat: Fixture; // platform admin with no organization
+let teamId = "";
+
+/** Called at the end of the main fixture hook, so organization A exists first. */
+async function setUpPeopleLists() {
+  nia = await createUser("nia", "Nia Email-only", "p02-s3-c3-a3");
+  await insert("organization_members", { organization_id: orgA, user_id: nia.userId, role: "employee", status: "active" });
+  pat = await createUser("pat", "Pat Platform", "p09-s5-c4-a0");
+  await realFrom("users").update({ platform_role: "platform_admin" }).eq("id", pat.userId);
+
+  const lead = (await supabase.from("supervisors").select("id").eq("user_id", sam.userId).eq("organization_id", orgA).single<{ id: string }>()).data!;
+  teamId = (await insert<{ id: string }>("teams", { organization_id: orgA, name: `Scanner team ${suffix}`, lead_supervisor_id: lead.id })).id;
+  await insert("team_members", { team_id: teamId, employee_id: aisha.employeeId });
+  await insert("team_members", { team_id: teamId, employee_id: ben.employeeId });
+
+  const document = await insert<{ id: string }>("project_documents", {
+    project_id: projectA, uploaded_by_user_id: sam.userId, storage_path: `test/${suffix}.pdf`, original_filename: "requirements.pdf",
+    mime_type: "application/pdf", size_bytes: 1024, extraction_status: "extracted",
+  });
+  await insert("project_document_analyses", {
+    document_id: document.id, project_id: projectA, required_skills: ["Node.js"], preferred_skills: ["Offline sync"], estimated_hours: 56, summary: "Scanner rollout",
+  });
+}
+
+describe("people lists for managers", () => {
+  test("assignable employees carry avatars, looked up for exactly the employees listed", async () => {
+    const result = await call(sam, "GET", "/supervisors/employees", { organizationId: orgA });
+    assert.equal(result.status, 200, JSON.stringify(result.data));
+    const rows = result.data as Array<{ id: string; full_name: string; avatarVariant: string | null }>;
+    for (const person of [aisha, ben, lena]) {
+      const row = rows.find((entry) => entry.id === person.employeeId);
+      assert.ok(row?.full_name, person.name);
+      assert.equal(row.avatarVariant, person.avatar, person.name);
+    }
+    assert.deepEqual(new Set(result.lookedUp), new Set([aisha.userId, ben.userId, lena.userId]));
+  });
+
+  test("organization members: avatars beside profile names; email-only members stay initials and aren't looked up", async () => {
+    const result = await call(sam, "GET", `/organizations/${orgA}/members`, { organizationId: orgA });
+    assert.equal(result.status, 200, JSON.stringify(result.data));
+    const rows = result.data as Array<{ user_id: string; employee_full_name: string | null; supervisor_full_name: string | null; avatarVariant: string | null }>;
+    assert.equal(rows.length, 5);
+    for (const row of rows) {
+      const person = byUserId(row.user_id)!;
+      const named = Boolean(row.employee_full_name || row.supervisor_full_name);
+      assert.equal(row.avatarVariant, named ? person.avatar : null, person.name);
+    }
+    assert.equal(rows.find((row) => row.user_id === nia.userId)?.avatarVariant, null);
+    assert.deepEqual(new Set(result.lookedUp), new Set([sam.userId, aisha.userId, ben.userId, lena.userId]));
+  });
+
+  test("teams: the lead and members carry avatars", async () => {
+    const result = await call(sam, "GET", `/organizations/${orgA}/teams`, { organizationId: orgA });
+    assert.equal(result.status, 200, JSON.stringify(result.data));
+    const team = (result.data as Array<{ id: string; lead: { avatarVariant: string | null }; members: Array<{ avatarVariant: string | null }> }>).find((entry) => entry.id === teamId)!;
+    assert.equal(team.lead.avatarVariant, sam.avatar);
+    assert.deepEqual(team.members.map((member) => member.avatarVariant).sort(), [aisha.avatar, ben.avatar].sort());
+    assert.deepEqual(new Set(result.lookedUp), new Set([sam.userId, aisha.userId, ben.userId]));
+  });
+
+  test("recommendations carry avatars, and a changed avatar shows on the next load without regenerating", async () => {
+    const generated = await call(sam, "POST", `/projects/${projectA}/recommendations`, { organizationId: orgA });
+    assert.ok([200, 201].includes(generated.status), JSON.stringify(generated.data));
+    const run = generated.data as { recommendationRunId: string; recommendations: Array<{ employeeId: string; avatarVariant: string | null }> };
+    for (const person of [aisha, ben, lena]) {
+      assert.equal(run.recommendations.find((entry) => entry.employeeId === person.employeeId)?.avatarVariant, person.avatar, person.name);
+    }
+
+    await realFrom("users").update({ avatar_variant: "p11-s6-c5-a2" }).eq("id", aisha.userId);
+    try {
+      const latest = await call(sam, "GET", `/projects/${projectA}/recommendations`, { organizationId: orgA });
+      assert.equal(latest.status, 200, JSON.stringify(latest.data));
+      const again = latest.data as typeof run;
+      assert.equal(again.recommendationRunId, run.recommendationRunId, "same run, not regenerated");
+      assert.equal(again.recommendations.find((entry) => entry.employeeId === aisha.employeeId)?.avatarVariant, "p11-s6-c5-a2");
+      const { data: stored } = await realFrom("ai_recommendations").select("score_breakdown, summary").eq("recommendation_run_id", run.recommendationRunId);
+      assert.ok(!JSON.stringify(stored).includes("avatar"), "avatars are never stored with the run");
+    } finally {
+      await realFrom("users").update({ avatar_variant: aisha.avatar }).eq("id", aisha.userId);
+    }
+  });
+
+  test("platform user directory: avatars for named entries on the page only", async () => {
+    const result = await call(pat, "GET", `/admin/users/directory?organizationId=${orgA}`);
+    assert.equal(result.status, 200, JSON.stringify(result.data));
+    const items = (result.data as { items: Array<{ user_id: string; full_name: string | null; avatarVariant: string | null }> }).items;
+    assert.equal(items.length, 5);
+    for (const item of items) {
+      const person = byUserId(item.user_id)!;
+      assert.equal(item.avatarVariant, item.full_name ? person.avatar : null, person.name);
+    }
+    assert.equal(items.find((item) => item.user_id === nia.userId)?.avatarVariant, null);
+    assert.ok(!result.lookedUp.includes(nia.userId));
+    assert.ok(result.lookedUp.every((id) => items.some((item) => item.user_id === id && item.full_name)));
+  });
+});
+
+describe("an employee", () => {
+  test("sees avatars only beside names she can already see, and can't reach the managers' lists", async () => {
+    const allowed = [
+      "/messaging/members",
+      "/messaging/conversations",
+      `/messaging/conversations/${projectChannel}/members`,
+      `/messaging/conversations/${projectChannel}/messages`,
+      "/tasks",
+      "/employees/me",
+      "/employees/me/tasks",
+      "/dashboard/employee",
+    ];
+    for (const path of allowed) {
+      const result = await call(aisha, "GET", path, { organizationId: orgA });
+      assert.equal(result.status, 200, `${path}: ${JSON.stringify(result.data)}`);
+      assertAvatarsBesideNames(result, `employee ${path}`);
+    }
+    const forbidden = [
+      "/supervisors/employees",
+      `/organizations/${orgA}/members`,
+      `/organizations/${orgA}/teams`,
+      `/projects/${projectA}/recommendations`,
+      "/admin/users/directory",
+      "/dashboard/supervisor",
+    ];
+    for (const path of forbidden) {
+      const result = await call(aisha, "GET", path, { organizationId: orgA });
+      assert.equal(result.status, 403, path);
+      assert.deepEqual(result.lookedUp, [], `${path}: nothing looked up before the role check`);
+    }
+  });
+});
+
+describe("public routes", () => {
+  test("never carry or look up an avatar, signed in or not", async () => {
+    const token = `public-${suffix}-${crypto.randomUUID()}`;
+    await insert("organization_invitations", {
+      organization_id: orgA, email: `invitee-${suffix}@example.test`, role: "employee", invited_by_user_id: sam.userId,
+      token_hash: crypto.createHash("sha256").update(token).digest("hex"),
+    });
+    const routes: Array<[string, string, unknown?]> = [
+      ["GET", "/public/skills"],
+      ["GET", "/public/skills/categories"],
+      ["GET", `/invitations/${token}`],
+      ["GET", `/invitations/not-a-real-token-${suffix}`],
+      ["POST", `/invitations/not-a-real-token-${suffix}/register`, { password: "Correct-Horse-9" }],
+      ["POST", `/invitations/not-a-real-token-${suffix}/accept`, {}],
+      ["GET", "/health"],
+    ];
+    for (const viewer of [null, sam]) {
+      for (const [method, path, body] of routes) {
+        const result = await call(viewer, method, path, { body });
+        // /health may be 503 locally (no storage service); it still must not carry avatars.
+        assert.ok(result.status < 500 || path === "/health", `${path}: ${result.status} ${JSON.stringify(result.data)}`);
+        assert.equal(JSON.stringify(result.data ?? null).includes("avatarVariant"), false, `${path} carries avatarVariant`);
+        assert.deepEqual(result.lookedUp, [], `${path} looked up avatars`);
+      }
+    }
   });
 });

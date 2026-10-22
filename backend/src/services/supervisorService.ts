@@ -7,10 +7,12 @@ import type {
 import { AppError } from "../utils/appError.js";
 import { enrichEmployeesWithCapacityMetrics } from "./employeeMetricsService.js";
 import { getSkillsByEmployeeIds } from "./skillService.js";
+import { avatarFor, getAvatarVariants } from "./avatarService.js";
 import { getAppUserByAuthId } from "./userService.js";
 
 interface EmployeeDirectoryRow {
   id: string;
+  user_id: string;
   full_name: string;
   employment_type: "full_time" | "part_time";
   availability_percentage: number | null;
@@ -195,7 +197,7 @@ export async function listAssignableEmployees(
   let employeeQuery = supabase
     .from("employees")
     .select(
-      "id, full_name, employment_type, availability_percentage, workload_percentage, weekly_capacity_hours, performance_score"
+      "id, user_id, full_name, employment_type, availability_percentage, workload_percentage, weekly_capacity_hours, performance_score"
     )
     .eq("organization_id", organizationId)
     .order("availability_percentage", { ascending: false })
@@ -237,10 +239,13 @@ export async function listAssignableEmployees(
       )
     : employees;
 
+  const avatars = await getAvatarVariants(filteredEmployees.map((employee) => employee.user_id));
+
   return filteredEmployees
     .map<AssignableEmployeeDirectoryEntry>((employee) => ({
       id: employee.id,
       full_name: employee.full_name,
+      avatarVariant: avatarFor(avatars, employee.user_id),
       employment_type: employee.employment_type,
       availability_percentage: Number(employee.availability_percentage ?? 0),
       workload_percentage: Number(employee.workload_percentage ?? 0),

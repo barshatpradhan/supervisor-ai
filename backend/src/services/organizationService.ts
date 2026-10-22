@@ -22,6 +22,7 @@ import type {
 } from "../types/organization.js";
 import { AppError } from "../utils/appError.js";
 import { isRecord } from "../utils/validation.js";
+import { avatarFor, getAvatarVariants } from "./avatarService.js";
 import { createEmployeeProfileRecordForOrganization } from "./employeeService.js";
 import { replaceEmployeeSkillsWithDetails } from "./skillService.js";
 import { createSupervisorProfileRecordForOrganization } from "./supervisorService.js";
@@ -1232,6 +1233,11 @@ export async function listOrganizationMembers(organizationId: string) {
   const supervisorProfilesByUserId = new Map(
     (supervisorProfilesResult.data ?? []).map((profile) => [profile.user_id, profile])
   );
+  // Avatars only for members shown by name (a profile name); email-only members stay initials.
+  const namedUserIds = userIds.filter(
+    (userId) => employeeProfilesByUserId.get(userId)?.full_name || supervisorProfilesByUserId.get(userId)?.full_name
+  );
+  const avatars = await getAvatarVariants(namedUserIds);
 
   return (memberships ?? []).map<OrganizationMemberSummary>((membership) => {
     const employeeProfile = employeeProfilesByUserId.get(membership.user_id);
@@ -1249,6 +1255,7 @@ export async function listOrganizationMembers(organizationId: string) {
       employee_full_name: employeeProfile?.full_name ?? null,
       supervisor_profile_id: supervisorProfile?.id ?? null,
       supervisor_full_name: supervisorProfile?.full_name ?? null,
+      avatarVariant: avatarFor(avatars, membership.user_id),
     };
   });
 }

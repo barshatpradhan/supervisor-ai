@@ -7,6 +7,7 @@ import type {
   EmployeeRecommendationScoreBreakdown,
 } from "../types/ai.js";
 import { AppError } from "../utils/appError.js";
+import { avatarFor, getAvatarVariants } from "./avatarService.js";
 import { enrichEmployeesWithCapacityMetrics } from "./employeeMetricsService.js";
 import { ensureProjectExistsInOrganization } from "./projectService.js";
 import { assignTask, createTask, getTaskById } from "./taskService.js";
@@ -22,6 +23,7 @@ interface AnalysisRow {
 
 interface EmployeeRow {
   id: string;
+  user_id: string;
   full_name: string;
   availability_percentage: number | null;
   workload_percentage: number | null;
@@ -65,11 +67,14 @@ interface RecommendationRow {
   created_at: string;
 }
 
+/** The avatar is read live for each response; it is never part of the stored recommendation run. */
+type RecommendationWithAvatar = EmployeeRecommendationResult & { avatarVariant: string | null };
+
 interface RecommendationResponse {
   projectId: string;
   analysisId: string | null;
   recommendationRunId: string;
-  recommendations: EmployeeRecommendationResult[];
+  recommendations: RecommendationWithAvatar[];
 }
 
 interface SelectedRecommendationRow {
@@ -301,7 +306,7 @@ async function getLatestAnalysis(projectId: string) {
 async function getEmployees(organizationId: string) {
   const { data, error } = await supabase
     .from("employees")
-    .select("id, full_name, availability_percentage, workload_percentage, performance_score, weekly_capacity_hours, employment_type")
+    .select("id, user_id, full_name, availability_percentage, workload_percentage, performance_score, weekly_capacity_hours, employment_type")
     .eq("organization_id", organizationId)
     .returns<EmployeeRow[]>();
   if (error) throw new AppError("Unable to fetch employees.", 500);
@@ -342,7 +347,11 @@ async function getEmployeeSkills(employeeIds: string[]) {
   return skillsByEmployeeId;
 }
 
-function mapRecommendationRows(rows: RecommendationRow[], employeeNameById: Map<string, string>): RecommendationResponse {
+function mapRecommendationRows(
+  rows: RecommendationRow[],
+  employeeNameById: Map<string, string>,
+  avatarByEmployeeId: Map<string, string | null>
+): RecommendationResponse {
   const firstRow = rows[0];
   return {
     projectId: firstRow?.project_id ?? "",
@@ -363,6 +372,8 @@ function mapRecommendationRows(rows: RecommendationRow[], employeeNameById: Map<
       return {
         employeeId: row.employee_id,
         fullName,
+        // Only beside a name: an employee who no longer resolves shows neither.
+        avatarVariant: fullName ? avatarByEmployeeId.get(row.employee_id) ?? null : null,
         score,
         rank: row.rank,
         matchedRequiredSkills,
@@ -421,7 +432,17 @@ export async function generateProjectRecommendations(authUserId: string, organiz
   const { error } = await supabase.from("ai_recommendations").insert(rowsToInsert);
   if (error) throw new AppError("Unable to save project recommendations.", 500);
   console.info(JSON.stringify({ scope: "recommendations", event: "generation_saved", projectId, recommendationRunId, count: recommendations.length, durationMs: Date.now() - startedAt }));
-  return { projectId, analysisId: latestAnalysis.id, recommendationRunId, recommendations };
+  const avatars = await getAvatarVariants(employees.map((employee) => employee.user_id));
+  const userIdByEmployeeId = new Map(employees.map((employee) => [employee.id, employee.user_id]));
+  return {
+    projectId,
+    analysisId: latestAnalysis.id,
+    recommendationRunId,
+    recommendations: recommendations.map((recommendation) => ({
+      ...recommendation,
+      avatarVariant: avatarFor(avatars, userIdByEmployeeId.get(recommendation.employeeId)),
+    })),
+  };
 }
 
 export async function getLatestProjectRecommendations(authUserId: string, organizationId: string, projectId: string): Promise<RecommendationResponse> {
@@ -442,10 +463,16 @@ export async function getLatestProjectRecommendations(authUserId: string, organi
   if (rows.length === 0) throw new AppError("No recommendations found for this project.", 404);
   const employeeIds = rows.map((row) => row.employee_id);
   const { data: employees, error: employeeError } = await supabase
-    .from("employees").select("id, full_name").eq("organization_id", organizationId).in("id", employeeIds)
-    .returns<Array<{ id: string; full_name: string }>>();
+    .from("employees").select("id, user_id, full_name").eq("organization_id", organizationId).in("id", employeeIds)
+    .returns<Array<{ id: string; user_id: string; full_name: string }>>();
   if (employeeError) throw new AppError("Unable to fetch recommendation employees.", 500);
-  return mapRecommendationRows(rows, new Map((employees ?? []).map((employee) => [employee.id, employee.full_name])));
+  // Read live, so a changed avatar shows on the next load without regenerating the run.
+  const avatars = await getAvatarVariants((employees ?? []).map((employee) => employee.user_id));
+  return mapRecommendationRows(
+    rows,
+    new Map((employees ?? []).map((employee) => [employee.id, employee.full_name])),
+    new Map((employees ?? []).map((employee) => [employee.id, avatarFor(avatars, employee.user_id)]))
+  );
 }
 
 export async function assignRecommendedEmployee(
