@@ -1,0 +1,186 @@
+/*
+ * Supervisor AI avatars: layout + motion.
+ * Tailwind v4: add `@import "./avatar.css";` after `@import "tailwindcss";`.
+ *
+ * Everything that moves animates `transform` or `opacity` only.
+ *   .av-tilt   hover/focus head-turn (CSS vars set by the component, transition only)
+ *   .av-float  idle breathing float (profile only)
+ *   .av-face   face parallax that sells the head-turn
+ *   .av-eyes   blink (inside an SVG; repaints a ≤128px layer, only while animating)
+ *   .av-hand   one-time wave on the profile page
+ */
+
+@layer components {
+  .av {
+    --av-x: 0;
+    --av-y: 0;
+    position: relative;
+    display: inline-block;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    isolation: isolate;
+    vertical-align: middle;
+    outline: none;
+  }
+  .av-clip {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: inherit;
+    box-shadow:
+      0 1px 2px rgb(26 18 32 / 0.08),
+      0 4px 10px -4px rgb(65 87 173 / 0.3);
+  }
+  .av[data-tier="xs"] .av-clip,
+  .av[data-tier="sm"] .av-clip {
+    box-shadow:
+      0 0.5px 1px rgb(26 18 32 / 0.1),
+      0 2px 4px -2px rgb(65 87 173 / 0.3);
+  }
+  .av[data-tier="lg"] .av-clip {
+    box-shadow:
+      0 2px 4px rgb(26 18 32 / 0.06),
+      0 14px 28px -12px rgb(65 87 173 / 0.35);
+  }
+  /* White separator ring for overlapping stacks */
+  .av[data-ring] .av-clip {
+    box-shadow:
+      0 0 0 2px #fff,
+      0 1px 3px 1px rgb(26 18 32 / 0.12);
+  }
+  .av-layer,
+  .av-tilt,
+  .av-float {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+  }
+  .av-tilt {
+    transform: perspective(260px) rotateX(calc(var(--av-y) * -9deg)) rotateY(calc(var(--av-x) * 12deg));
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .av-face {
+    transform: translate(calc(var(--av-x) * 3.5%), calc(var(--av-y) * 2.5%));
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .av-eyes {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .av-hand {
+    opacity: 0;
+    transform-origin: 74% 100%;
+  }
+
+  /* Initials fallback text */
+  .av-initials {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    user-select: none;
+  }
+
+  /* Presence dot */
+  .av-status {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 28%;
+    height: 28%;
+    min-width: 8px;
+    min-height: 8px;
+    border-radius: 9999px;
+    box-shadow: 0 0 0 2px #fff;
+  }
+  .av[data-tier="md"] .av-status {
+    width: 22%;
+    height: 22%;
+    right: 2%;
+    bottom: 2%;
+  }
+  .av[data-tier="lg"] .av-status {
+    width: 18%;
+    height: 18%;
+    right: 6%;
+    bottom: 6%;
+    box-shadow: 0 0 0 3px #fff;
+  }
+  .av-status[data-status="online"] { background: #2E9A67; }
+  .av-status[data-status="away"] { background: #B47C06; }
+  .av-status[data-status="busy"] { background: #D2463C; }
+  .av-status[data-status="offline"] { background: #fff; box-shadow: inset 0 0 0 2px #8F8C84, 0 0 0 2px #fff; }
+
+  /* ---- hover / focus (lists): static until interacted with */
+  .av[data-motion]:not([data-motion="none"]):hover .av-tilt,
+  .av[data-motion]:not([data-motion="none"]):focus-visible .av-tilt {
+    will-change: transform;
+  }
+  .av[data-motion="hover"]:hover .av-eyes,
+  .av[data-motion="hover"]:focus-visible .av-eyes,
+  :is(a, button):focus-visible > .av[data-motion="hover"] .av-eyes {
+    animation: av-blink-once 0.45s 0.2s 1;
+  }
+  /* Keyboard focus has no cursor: look slightly up and to the side */
+  .av[data-motion]:not([data-motion="none"]):focus-visible,
+  :is(a, button):focus-visible > .av[data-motion]:not([data-motion="none"]) {
+    --av-x: 0.35;
+    --av-y: -0.3;
+  }
+  .av:focus-visible .av-clip {
+    box-shadow:
+      0 0 0 2px #fff,
+      0 0 0 4px #4157ad;
+  }
+
+  /* ---- profile: idle float + blink, wave once on load */
+  .av[data-motion="profile"] .av-float {
+    animation: av-float 4.8s ease-in-out infinite;
+  }
+  .av[data-motion="profile"] .av-eyes {
+    animation: av-blink 5.6s 1.2s infinite;
+  }
+  .av[data-motion="profile"][data-wave] .av-hand {
+    animation: av-wave 2.1s 0.4s cubic-bezier(0.3, 0.7, 0.3, 1) 1 both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .av *,
+    .av {
+      animation: none !important;
+      transition: none !important;
+    }
+    .av .av-tilt,
+    .av .av-face {
+      transform: none !important;
+    }
+  }
+}
+
+@keyframes av-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-2.2%) scale(1.008); }
+}
+@keyframes av-blink {
+  0%, 93%, 100% { transform: scaleY(1); }
+  95.5% { transform: scaleY(0.12); }
+}
+@keyframes av-blink-once {
+  0%, 100% { transform: scaleY(1); }
+  45% { transform: scaleY(0.12); }
+}
+@keyframes av-wave {
+  0% { opacity: 0; transform: translateY(32%) rotate(0deg); }
+  14% { opacity: 1; transform: translateY(0) rotate(-6deg); }
+  30% { transform: translateY(0) rotate(14deg); }
+  46% { transform: translateY(0) rotate(-6deg); }
+  62% { transform: translateY(0) rotate(14deg); }
+  78% { opacity: 1; transform: translateY(0) rotate(0deg); }
+  100% { opacity: 0; transform: translateY(32%) rotate(0deg); }
+}
