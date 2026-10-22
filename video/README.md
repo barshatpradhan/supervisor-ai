@@ -31,8 +31,21 @@ lucide-react are shared with the app's components so there is one router context
 | `src/data/surfaces.ts` | Where the app passes `avatarVariant` today. Flip an entry when the app starts passing it |
 | `src/timeline.ts` | Act boundaries and the caption cues (also the SRT) |
 | `src/theme.ts` | One easing curve, 2-frame stagger, 12-frame entrances, colours |
+| `src/typography.ts` | Header font, weight, size scale, line height and tracking (every header uses `headerStyle`) |
 | `src/components/` | `PersonAvatar` (the app's Avatar, always static), cursor, captions, board, chat |
 | `src/scenes/` | One file per act |
+
+## Type
+
+| Use | Font | Weight | License |
+| --- | --- | --- | --- |
+| Headers (title cards, scene headlines, end-card tagline) | Instrument Sans | 700 | SIL Open Font License 1.1 |
+| Recreated app UI, captions | Inter | 400-700 | SIL Open Font License 1.1 |
+| Numbers | JetBrains Mono | 400-600 | SIL Open Font License 1.1 |
+
+Instrument Sans loads through `@remotion/google-fonts` in `src/typography.ts`, and `Master16x9` waits
+for it before mounting any scene, so no frame renders in a fallback font. Rendering fetches the
+font files from Google Fonts, so it needs network access; nothing has to be installed locally.
 
 ## Avatars
 

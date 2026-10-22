@@ -86,8 +86,8 @@ export function DocumentScene() {
         </AppFrame>
       </Stage>
       <Sequence durationInFrames={sec(3.8)} layout="none"><Headline>Drop in the requirements document</Headline></Sequence>
-      <Sequence durationInFrames={sec(3.8)} from={sec(3.8)} layout="none"><Headline tone="ai">AI extracts the skills</Headline></Sequence>
-      <Sequence from={sec(7.6)} layout="none"><Headline tone="ai">Complexity, hours and a short summary</Headline></Sequence>
+      <Sequence durationInFrames={sec(3.8)} from={sec(3.8)} layout="none"><Headline>AI extracts the skills</Headline></Sequence>
+      <Sequence from={sec(7.6)} layout="none"><Headline>Complexity, hours and a short summary</Headline></Sequence>
     </AbsoluteFill>
   )
 }

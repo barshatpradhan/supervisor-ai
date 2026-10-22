@@ -9,20 +9,21 @@ import { Ranking } from './scenes/Ranking.tsx'
 import { Track } from './scenes/Track.tsx'
 import { Trust } from './scenes/Trust.tsx'
 import { COLORS } from './theme.ts'
+import { headerFontReady } from './typography.ts'
 import { ACTS } from './timeline.ts'
 import './styles.css'
 
 const FONT_FACES = ['400 16px Inter', '500 16px Inter', '600 16px Inter', '700 16px Inter', '400 16px "JetBrains Mono"', '500 16px "JetBrains Mono"', '600 16px "JetBrains Mono"']
 
 /**
- * Load Inter and JetBrains Mono before anything is laid out, so text metrics (and the cursor,
- * which measures real buttons) are final in every frame.
+ * Load Inter, JetBrains Mono and the header font before anything is laid out, so text metrics
+ * (and the cursor, which measures real buttons) are final in every frame.
  */
 function useFontsReady() {
   const [handle] = useState(() => delayRender('Loading fonts'))
   const [ready, setReady] = useState(false)
   useEffect(() => {
-    void Promise.all(FONT_FACES.map((face) => document.fonts.load(face)))
+    void Promise.all([headerFontReady, ...FONT_FACES.map((face) => document.fonts.load(face))])
       .then(() => document.fonts.ready)
       .then(() => {
         setReady(true)

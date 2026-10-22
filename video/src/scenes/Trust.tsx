@@ -7,6 +7,7 @@ import { AISHA, PROJECT_TASKS, SAM } from '../data/demo.ts'
 import type { Person } from '../data/demo.ts'
 import { AVATAR_SIZE, variantOn } from '../data/surfaces.ts'
 import { COLORS, STAGGER, progress, sec } from '../theme.ts'
+import { headerStyle } from '../typography.ts'
 
 /** One side of the split: whose view it is (their own avatar, as their header shows it), channels, tasks. */
 function View({ hiddenOpacity, label, viewer }: { hiddenOpacity: number; label: string; viewer: Person }) {
@@ -60,7 +61,7 @@ function TitleCard() {
   return (
     <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', gap: 28, flexDirection: 'column' }}>
       <SupervisorLogo />
-      <p className="m-0 flex gap-6 font-semibold tracking-tight" style={{ color: COLORS.ink, fontSize: 96 }}>
+      <p className="m-0 flex gap-6" style={{ color: COLORS.ink, ...headerStyle('title') }}>
         {words.map(([word, at]) => (
           <span key={word} style={{ opacity: progress(frame, at, 9), transform: `translateY(${(1 - progress(frame, at, 9)) * 14}px)` }}>{word}</span>
         ))}

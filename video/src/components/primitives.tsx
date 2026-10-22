@@ -3,6 +3,7 @@ import type { CSSProperties, ReactNode } from 'react'
 import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion'
 import { CAPTIONS } from '../timeline.ts'
 import { COLORS, ENTER, FPS, STAGE, WIDTH, mix, progress } from '../theme.ts'
+import { headerStyle } from '../typography.ts'
 
 /** Fades and lifts its children in at `at` (frames, relative to the enclosing Sequence). */
 export function Enter({ at, children, className, duration = ENTER, lift = 12, style }: { at: number; children: ReactNode; className?: string; duration?: number; lift?: number; style?: CSSProperties }) {
@@ -45,7 +46,7 @@ export function Stage({ children }: { children: ReactNode }) {
 }
 
 /** On-screen text above the stage: one short line per beat (8 words max). */
-export function Headline({ children, tone = 'primary' }: { children: ReactNode; tone?: 'primary' | 'ai' }) {
+export function Headline({ children }: { children: ReactNode }) {
   const frame = useCurrentFrame()
   const p = progress(frame, 0, ENTER)
   return (
@@ -55,10 +56,7 @@ export function Headline({ children, tone = 'primary' }: { children: ReactNode; 
         opacity: p, transform: `translateY(${(1 - p) * 8}px)`,
       }}
     >
-      <span className="inline-flex items-center gap-3 font-semibold tracking-tight" style={{ color: COLORS.ink, fontSize: 40 }}>
-        <span style={{ width: 12, height: 12, borderRadius: 9999, background: tone === 'ai' ? COLORS.ai : COLORS.primary }} />
-        {children}
-      </span>
+      <span style={{ color: COLORS.ink, ...headerStyle('scene') }}>{children}</span>
     </div>
   )
 }
