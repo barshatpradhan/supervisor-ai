@@ -54,7 +54,7 @@ function SupervisorList({ organizationId }: { organizationId: string }) {
             const name = member.supervisor_full_name ?? member.email ?? 'Profile pending'
             return (
               <li className="flex items-center gap-3 rounded-control border border-chart-grid p-3" key={member.membership_id}>
-                <Avatar name={name} size={32} />
+                <Avatar name={name} size={32} variant={member.avatarVariant} />
                 <div className="min-w-0">
                   <p className="body-strong m-0 truncate text-text-primary">{name}</p>
                   {member.email ? <p className="helper m-0 truncate text-text-tertiary">{member.email}</p> : null}
@@ -275,7 +275,7 @@ export function TeamWorkloadModule() {
                   <tr className="border-t border-chart-grid" key={member.id}>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2.5">
-                        <Avatar name={member.full_name} size={32} />
+                        <Avatar name={member.full_name} size={32} variant={member.avatarVariant} />
                         <div>
                           <div className="body-strong text-text-primary">{member.full_name}</div>
                           <div className="helper text-text-tertiary">

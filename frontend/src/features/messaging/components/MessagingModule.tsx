@@ -91,6 +91,7 @@ export function MessagingModule() {
               conversation={active}
               currentRole={activeMembershipRole}
               currentUserId={user?.id ?? null}
+              currentUserAvatarVariant={user?.avatarVariant ?? null}
               key={active.id}
               onOpenConversations={() => setDrawerOpen(true)}
               onPrefillUsed={() =>

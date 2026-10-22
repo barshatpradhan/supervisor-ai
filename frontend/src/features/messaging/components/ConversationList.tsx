@@ -25,7 +25,7 @@ function ConversationLink({ active, conversation, onNavigate }: { active: boolea
   const icon =
     conversation.kind === 'general' ? <Hash aria-hidden="true" size={16} /> :
     conversation.kind === 'project' ? <FolderKanban aria-hidden="true" size={16} /> :
-    <Avatar name={conversation.title} size={22} />
+    <Avatar name={conversation.title} size={22} variant={conversation.directPeer?.avatarVariant} />
 
   return (
     <NavLink

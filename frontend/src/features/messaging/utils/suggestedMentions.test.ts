@@ -3,6 +3,7 @@ import type { ConversationMember } from '../types/messaging'
 import { suggestedMentionsFor } from './suggestedMentions'
 
 const member = (name: string, role: ConversationMember['role'], isProjectCreator = false): ConversationMember => ({
+  avatarVariant: null,
   isProjectCreator,
   name,
   role,

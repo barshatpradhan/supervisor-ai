@@ -132,7 +132,7 @@ export function ProjectRecommendationCard({ featured = false, onAssign, recommen
           <span className="num-sm w-7 shrink-0 text-center text-text-tertiary" title={`Rank ${recommendation.rank}`}>
             #{recommendation.rank}
           </span>
-          <Avatar name={recommendation.fullName} size={featured ? 48 : 40} />
+          <Avatar name={recommendation.fullName} size={featured ? 48 : 40} variant={recommendation.avatarVariant} />
           <div className="flex min-w-0 flex-1 flex-col gap-1">
             <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
               <h3 className="body-strong m-0 text-text-primary">{recommendation.fullName}</h3>

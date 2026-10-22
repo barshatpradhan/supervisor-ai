@@ -15,7 +15,7 @@ const message: Message = {
   kind: 'text',
   mentions: [],
   reactions: [],
-  sender: { name: 'Avery Admin', userId: 'admin' },
+  sender: { avatarVariant: null, name: 'Avery Admin', userId: 'admin' },
   shownForTask: false,
   task: { accessible: true, assignee: { name: 'Cleo', userId: 'me' }, progressPercent: 10, status: 'in_progress', taskId: 'task-1', title: 'Review' },
   updatedAt: '2026-10-20T10:00:00.000Z',

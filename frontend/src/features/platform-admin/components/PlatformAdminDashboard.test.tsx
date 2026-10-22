@@ -39,6 +39,7 @@ function entry(overrides: Partial<BackendUserDirectoryEntry> & { key: string }):
     user_id: overrides.key,
     email: `${overrides.key}@example.com`,
     full_name: null,
+    avatarVariant: null,
     job_title: null,
     platform_role: null,
     created_at: '2026-01-01',

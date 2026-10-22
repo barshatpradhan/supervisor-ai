@@ -9,6 +9,7 @@ import { taskStatusLabels } from '../utils/taskPresentation'
 import { boardStatuses, formatHours, formatShortDate, statusColorTokens } from '../utils/taskBoard'
 
 export interface TaskBoardCard {
+  assigneeAvatarVariant: string | null
   assigneeName: string | null
   estimatedHours: number
   id: string
@@ -63,7 +64,7 @@ export function TaskBoard({ cardAction, tasks }: { cardAction?: (task: TaskBoard
                   ) : null}
                   <span className="flex items-center justify-between gap-2">
                     <span className="flex min-w-0 items-center gap-2">
-                      <Avatar name={task.assigneeName} size={28} />
+                      <Avatar name={task.assigneeName} size={28} variant={task.assigneeAvatarVariant} />
                       <span className="helper truncate text-text-secondary">{task.assigneeName ?? 'Unassigned'}</span>
                     </span>
                     <span className="num-xs shrink-0 text-text-tertiary">{formatShortDate(task.updatedAt)}</span>

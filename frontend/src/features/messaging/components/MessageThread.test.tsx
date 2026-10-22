@@ -35,10 +35,10 @@ const projectChannel: ConversationSummary = {
 }
 
 const members: ConversationMember[] = [
-  { isProjectCreator: false, name: 'Ella Employee', role: 'employee', userId: 'me' },
-  { isProjectCreator: true, name: 'Cara Creator', role: 'supervisor', userId: 'cara' },
-  { isProjectCreator: false, name: 'Abe Admin', role: 'organization_admin', userId: 'abe' },
-  { isProjectCreator: false, name: 'Ben Builder', role: 'employee', userId: 'ben' },
+  { avatarVariant: null, isProjectCreator: false, name: 'Ella Employee', role: 'employee', userId: 'me' },
+  { avatarVariant: null, isProjectCreator: true, name: 'Cara Creator', role: 'supervisor', userId: 'cara' },
+  { avatarVariant: null, isProjectCreator: false, name: 'Abe Admin', role: 'organization_admin', userId: 'abe' },
+  { avatarVariant: null, isProjectCreator: false, name: 'Ben Builder', role: 'employee', userId: 'ben' },
 ]
 
 function renderThread(props: Partial<Parameters<typeof MessageThread>[0]> = {}) {

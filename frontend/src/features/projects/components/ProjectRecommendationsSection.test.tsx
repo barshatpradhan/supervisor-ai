@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ProjectRecommendationCard } from './ProjectRecommendationsSection'
 
 const recommendation = {
+  avatarVariant: null,
   employeeId: 'employee-1',
   fullName: 'Jordan Lee',
   employeeName: 'Jordan Lee',
