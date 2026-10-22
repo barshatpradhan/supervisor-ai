@@ -1,5 +1,5 @@
-import { AdminUserCreatePage as AdminUserCreateFeaturePage } from '../features/admin-users/pages/AdminUserCreatePage'
+import { AdminUserCreateModule } from '../features/admin-users/components/AdminUserCreateModule'
 
 export function AdminUserCreatePage() {
-  return <AdminUserCreateFeaturePage />
+  return <AdminUserCreateModule />
 }

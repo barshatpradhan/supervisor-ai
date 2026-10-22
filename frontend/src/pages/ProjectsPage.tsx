@@ -1,5 +1,5 @@
-import { ProjectsManagementPage } from '../features/projects/pages/ProjectsManagementPage'
+import { ProjectsRoute } from '../features/projects/components/ProjectsRoute'
 
 export function ProjectsPage() {
-  return <ProjectsManagementPage />
+  return <ProjectsRoute />
 }

@@ -1,5 +1,5 @@
-import { AiRecommendationsManagementPage } from '../features/ai-recommendations/pages/AiRecommendationsManagementPage'
+import { AiRecommendationsRoute } from '../features/ai-recommendations/components/AiRecommendationsRoute'
 
 export function AiRecommendationsPage() {
-  return <AiRecommendationsManagementPage />
+  return <AiRecommendationsRoute />
 }

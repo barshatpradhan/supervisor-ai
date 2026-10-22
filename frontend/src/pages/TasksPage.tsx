@@ -1,5 +1,5 @@
-import { TasksManagementPage } from '../features/tasks/pages/TasksManagementPage'
+import { TasksRoute } from '../features/tasks/components/TasksRoute'
 
 export function TasksPage() {
-  return <TasksManagementPage />
+  return <TasksRoute />
 }

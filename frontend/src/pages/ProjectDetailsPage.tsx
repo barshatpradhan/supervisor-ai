@@ -1,5 +1,5 @@
-import { ProjectDetailsPage as ProjectDetailsFeaturePage } from '../features/projects/pages/ProjectDetailsPage'
+import { ProjectDetailsModule } from '../features/projects/components/ProjectDetailsModule'
 
 export function ProjectDetailsPage() {
-  return <ProjectDetailsFeaturePage />
+  return <ProjectDetailsModule />
 }
