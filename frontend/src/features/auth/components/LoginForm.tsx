@@ -6,6 +6,9 @@ import { ErrorState } from '../../../components/shared/ErrorState'
 import { Button } from '../../../components/ui/Button'
 import { getPostAuthDestination } from '../../invitations/utils/invitationNavigation'
 import { useAuth } from '../hooks/useAuth'
+import { rateLimitRetryAfter } from '../../../lib/api/errors'
+import { useRateLimitCooldown } from '../hooks/useRateLimitCooldown'
+import { RateLimitNotice } from './RateLimitNotice'
 
 export function LoginForm() {
   const location = useLocation()
@@ -15,6 +18,7 @@ export function LoginForm() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const cooldown = useRateLimitCooldown()
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -25,7 +29,9 @@ export function LoginForm() {
       const session = await login({ email, password })
       navigate(getPostAuthDestination(location.search, session.user.platformRole), { replace: true })
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Unable to log in.')
+      const retryAfter = rateLimitRetryAfter(caughtError)
+      if (retryAfter) cooldown.start(retryAfter)
+      else setError(caughtError instanceof Error ? caughtError.message : 'Unable to log in.')
     } finally {
       setIsSubmitting(false)
     }
@@ -33,6 +39,7 @@ export function LoginForm() {
 
   return (
     <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
+      <RateLimitNotice finished={cooldown.finished} initialSeconds={cooldown.initialSeconds} remainingSeconds={cooldown.remainingSeconds} />
       {error ? <ErrorState message={error} title="Login failed" /> : null}
 
       <label className="grid gap-2 text-sm font-semibold text-ink-800">
@@ -67,7 +74,7 @@ export function LoginForm() {
         Forgot password?
       </Link>
 
-      <Button className="mt-2" disabled={isSubmitting} type="submit">
+      <Button className="mt-2" disabled={isSubmitting || cooldown.isCoolingDown} type="submit">
         {isSubmitting ? 'Signing in...' : 'Sign in'}
       </Button>
     </form>

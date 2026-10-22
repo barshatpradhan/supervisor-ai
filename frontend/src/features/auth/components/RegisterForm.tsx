@@ -6,6 +6,9 @@ import { ErrorState } from '../../../components/shared/ErrorState'
 import { Button } from '../../../components/ui/Button'
 import { getPostAuthDestination } from '../../invitations/utils/invitationNavigation'
 import { useAuth } from '../hooks/useAuth'
+import { rateLimitRetryAfter } from '../../../lib/api/errors'
+import { useRateLimitCooldown } from '../hooks/useRateLimitCooldown'
+import { RateLimitNotice } from './RateLimitNotice'
 
 const inputClassName =
   'min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-primary-600 focus:ring-3 focus:ring-primary-200'
@@ -23,6 +26,7 @@ export function RegisterForm({ helperText }: RegisterFormProps) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const cooldown = useRateLimitCooldown()
   const invitationToken = new URLSearchParams(location.search)
     .get('returnTo')
     ?.match(/[?&]token=([^&]+)/)?.[1]
@@ -47,7 +51,9 @@ export function RegisterForm({ helperText }: RegisterFormProps) {
         navigate(getPostAuthDestination(location.search), { replace: true })
       }
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Unable to create account.')
+      const retryAfter = rateLimitRetryAfter(caughtError)
+      if (retryAfter) cooldown.start(retryAfter)
+      else setError(caughtError instanceof Error ? caughtError.message : 'Unable to create account.')
     } finally {
       setIsSubmitting(false)
     }
@@ -55,6 +61,7 @@ export function RegisterForm({ helperText }: RegisterFormProps) {
 
   return (
     <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
+      <RateLimitNotice finished={cooldown.finished} initialSeconds={cooldown.initialSeconds} remainingSeconds={cooldown.remainingSeconds} />
       {error ? <ErrorState message={error} title="Registration failed" /> : null}
 
       {helperText ? <p className="text-sm leading-6 text-ink-600">{helperText}</p> : null}
@@ -100,7 +107,7 @@ export function RegisterForm({ helperText }: RegisterFormProps) {
         />
       </label>
 
-      <Button className="mt-2" disabled={isSubmitting} type="submit">
+      <Button className="mt-2" disabled={isSubmitting || cooldown.isCoolingDown} type="submit">
         {isSubmitting ? 'Creating account...' : 'Create account'}
       </Button>
     </form>

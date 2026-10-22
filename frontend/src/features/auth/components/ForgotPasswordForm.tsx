@@ -3,12 +3,16 @@ import type { FormEvent } from 'react'
 import { ErrorState } from '../../../components/shared/ErrorState'
 import { Button } from '../../../components/ui/Button'
 import { requestPasswordReset } from '../services/authService'
+import { rateLimitRetryAfter } from '../../../lib/api/errors'
+import { useRateLimitCooldown } from '../hooks/useRateLimitCooldown'
+import { RateLimitNotice } from './RateLimitNotice'
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const cooldown = useRateLimitCooldown()
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -19,7 +23,9 @@ export function ForgotPasswordForm() {
       await requestPasswordReset({ email: email.trim().toLowerCase() })
       setIsSubmitted(true)
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : 'Unable to send a reset email.')
+      const retryAfter = rateLimitRetryAfter(caughtError)
+      if (retryAfter) cooldown.start(retryAfter)
+      else setError(caughtError instanceof Error ? caughtError.message : 'Unable to send a reset email.')
     } finally {
       setIsSubmitting(false)
     }
@@ -32,9 +38,10 @@ export function ForgotPasswordForm() {
   return (
     <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
       <p className="text-sm leading-6 text-ink-600">Enter the email address for your account and we’ll send you a secure password reset link.</p>
+      <RateLimitNotice finished={cooldown.finished} initialSeconds={cooldown.initialSeconds} remainingSeconds={cooldown.remainingSeconds} />
       {error ? <ErrorState message={error} title="Could not send reset email" /> : null}
       <label className="grid gap-2 text-sm font-semibold text-ink-800">Email<input autoComplete="email" className="min-h-11 rounded-md border border-border-subtle bg-surface-card px-3 text-sm text-ink-900 outline-none transition placeholder:text-ink-400 focus:border-primary-600 focus:ring-3 focus:ring-primary-200" onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required type="email" value={email} /></label>
-      <Button className="mt-2" disabled={isSubmitting} type="submit">{isSubmitting ? 'Sending reset link...' : 'Send reset link'}</Button>
+      <Button className="mt-2" disabled={isSubmitting || cooldown.isCoolingDown} type="submit">{isSubmitting ? 'Sending reset link...' : 'Send reset link'}</Button>
     </form>
   )
 }
