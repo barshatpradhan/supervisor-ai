@@ -37,6 +37,8 @@ export interface AuthenticatedAppUser {
    * @deprecated Temporary compatibility alias for legacyRole.
    */
   role: LegacyUserRole | null;
+  /** Chosen illustrated avatar ID (e.g. "p03-s4-c2-a1"), or null for initials. */
+  avatarVariant: string | null;
 }
 
 export interface AuthOnboardingState {

@@ -39,6 +39,8 @@ The backend reads environment configuration at startup and fails fast if `SUPABA
 | `AUTH_RL_INVITATION_ACCEPT_IP_MAX` | No | `20` | Invitation acceptances per IP per window. |
 | `AUTH_RL_ADMIN_CREATE_USER_WINDOW_MS` | No | `3600000` | Platform-admin user creation window (1 h). |
 | `AUTH_RL_ADMIN_CREATE_USER_MAX` | No | `20` | Users a platform admin can create per window. |
+| `AUTH_RL_AVATAR_UPDATE_WINDOW_MS` | No | `900000` | Avatar change window per signed-in user (15 min). |
+| `AUTH_RL_AVATAR_UPDATE_MAX` | No | `20` | Avatar changes (`PATCH /auth/me/avatar`) per user per window. |
 | `AUTH_RL_UPSTREAM_RETRY_AFTER_SECONDS` | No | `60` | Retry-After sent when Supabase Auth itself rate-limits a sign-in. |
 | `EMAIL_DAILY_QUOTA` | No | `300` | Emails per day the transactional provider allows (shared by password resets and invitations). |
 | `INVITATION_EMAIL_DAILY_PER_USER_MAX` | No | `25` | Organization invitation emails each inviting user can send per UTC day. |

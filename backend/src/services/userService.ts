@@ -6,6 +6,7 @@ import type {
   PlatformRole,
 } from "../types/auth.js";
 import { AppError } from "../utils/appError.js";
+import { readStoredAvatarVariant } from "../utils/avatarVariant.js";
 
 interface AppUserRow {
   id: string;
@@ -13,6 +14,7 @@ interface AppUserRow {
   email: string | null;
   role: LegacyUserRole | null;
   platform_role: PlatformRole | null;
+  avatar_variant?: string | null;
 }
 
 function mapLegacyCompatibilityRole(row: AppUserRow): LegacyUserRole | null {
@@ -33,18 +35,38 @@ function mapAppUser(row: AppUserRow): AuthenticatedAppUser {
     platformRole: row.platform_role,
     legacyRole,
     role: legacyRole,
+    avatarVariant: readStoredAvatarVariant(row.avatar_variant),
   };
 }
 
 export async function getAppUserByAuthId(authUserId: string) {
   const { data, error } = await supabase
     .from("users")
-    .select("id, auth_user_id, email, role, platform_role")
+    .select("id, auth_user_id, email, role, platform_role, avatar_variant")
     .eq("auth_user_id", authUserId)
     .single<AppUserRow>();
 
   if (error || !data) {
     throw new AppError("Application user profile was not found.", 404);
+  }
+
+  return mapAppUser(data);
+}
+
+/**
+ * Sets the caller's own avatar. The row is chosen only by the verified app user id from the
+ * auth context, never by anything in the request body, so nobody can change another person's.
+ */
+export async function updateOwnAvatarVariant(appUserId: string, variant: string | null) {
+  const { data, error } = await supabase
+    .from("users")
+    .update({ avatar_variant: variant })
+    .eq("id", appUserId)
+    .select("id, auth_user_id, email, role, platform_role, avatar_variant")
+    .single<AppUserRow>();
+
+  if (error || !data) {
+    throw new AppError("Unable to update your avatar.", 500, true, { cause: error });
   }
 
   return mapAppUser(data);

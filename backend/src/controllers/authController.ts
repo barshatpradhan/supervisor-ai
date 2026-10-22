@@ -10,6 +10,8 @@ import {
 import type { LoginInput, RegisterInput } from "../types/auth.js";
 import type { PublicEmployeeSignupInput } from "../types/provisioning.js";
 import { AppError } from "../utils/appError.js";
+import { getAppUserByAuthId, updateOwnAvatarVariant } from "../services/userService.js";
+import { parseAvatarVariantInput } from "../utils/avatarVariant.js";
 import { sendSuccess } from "../utils/apiResponse.js";
 
 export async function signupUser(req: Request, res: Response, next: NextFunction) {
@@ -71,6 +73,30 @@ export async function getCurrentUser(req: Request, res: Response, next: NextFunc
     const data = await getCurrentAppUser(req.user.id);
 
     return sendSuccess(res, 200, "Current user fetched successfully.", data);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+/**
+ * PATCH /auth/me/avatar: sets the caller's own avatar ({ variant: "p03-s4-c2-a1" } or null for
+ * initials). Whose row changes comes only from the verified token, never from the body.
+ */
+export async function updateMyAvatar(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return next(new AppError("Unauthorized.", 401));
+  }
+
+  try {
+    const body = req.body as { variant?: unknown } | undefined;
+    if (!body || typeof body !== "object" || !("variant" in body)) {
+      throw new AppError("variant is required (an avatar ID, or null for initials).", 400);
+    }
+    const variant = parseAvatarVariantInput(body.variant);
+    const appUser = await getAppUserByAuthId(req.user.id);
+    const user = await updateOwnAvatarVariant(appUser.id, variant);
+
+    return sendSuccess(res, 200, "Avatar updated successfully.", { avatarVariant: user.avatarVariant });
   } catch (error) {
     return next(error);
   }

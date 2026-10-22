@@ -94,6 +94,24 @@ export const authPaths = {
       responses: { "200": success, "400": validation, "403": { $ref: "#/components/responses/Forbidden" }, "404": { description: "User not found" } },
     },
   },
+  "/auth/me/avatar": {
+    patch: {
+      summary: "Set the caller's own avatar",
+      description:
+        "Sets users.avatar_variant for the signed-in user only (the row comes from the token, never the body). " +
+        "variant is an avatar ID such as p03-s4-c2-a1, or null to show initials. GET /auth/me returns it as " +
+        "user.avatarVariant. Limited per user.",
+      requestBody: {
+        required: true,
+        content: json({
+          type: "object",
+          required: ["variant"],
+          properties: { variant: { type: ["string", "null"], pattern: "^p(0[1-9]|1[0-2])-s([1-6])-c([1-6])-a([0-3])$", example: "p03-s4-c2-a1" } },
+        }),
+      },
+      responses: { "200": success, "400": validation, "401": { $ref: "#/components/responses/Unauthorized" }, "429": tooMany },
+    },
+  },
   "/admin/users": {
     post: { summary: "Platform admin: create a user and send their invitation email", description: "Limited per platform admin.", responses: { "201": success, "400": validation, "403": { $ref: "#/components/responses/Forbidden" }, "429": tooMany } },
   },

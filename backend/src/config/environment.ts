@@ -98,6 +98,8 @@ export const env = Object.freeze({
     adminCreateUserMax: integer("AUTH_RL_ADMIN_CREATE_USER_MAX", 20),
     /** Retry-After sent when Supabase Auth itself rate-limits a sign-in. */
     upstreamRetryAfterSeconds: integer("AUTH_RL_UPSTREAM_RETRY_AFTER_SECONDS", 60),
+    avatarUpdateWindowMs: integer("AUTH_RL_AVATAR_UPDATE_WINDOW_MS", 15 * MINUTE),
+    avatarUpdateMax: integer("AUTH_RL_AVATAR_UPDATE_MAX", 20),
   }),
   /** Organization invitation emails per UTC day (sent through the transactional email provider). */
   invitationEmailLimits: Object.freeze({
