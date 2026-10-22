@@ -32,9 +32,11 @@ import { openApiDocument } from "./docs/openapi.js";
 const app = express();
 
 app.disable("x-powered-by");
+// Behind a reverse proxy, trust exactly this many hops of X-Forwarded-For for req.ip (0 = none).
+app.set("trust proxy", env.trustProxyHops);
 app.use(requestContext);
 app.use(securityHeaders);
-app.use(cors({ origin(origin, callback) { if (!origin || env.corsOrigins.includes(origin)) return callback(null, true); return callback(new Error("CORS origin is not allowed.")); }, credentials: true, methods: ["GET", "POST", "PATCH", "DELETE"], allowedHeaders: ["Authorization", "Content-Type", "X-Organization-Id", "X-Request-Id"] }));
+app.use(cors({ origin(origin, callback) { if (!origin || env.corsOrigins.includes(origin)) return callback(null, true); return callback(new Error("CORS origin is not allowed.")); }, credentials: true, methods: ["GET", "POST", "PATCH", "DELETE"], allowedHeaders: ["Authorization", "Content-Type", "X-Organization-Id", "X-Request-Id"], exposedHeaders: ["Retry-After"] }));
 app.use(express.json({ limit: env.jsonLimit }));
 app.use(rateLimit);
 

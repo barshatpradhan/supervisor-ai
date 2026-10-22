@@ -1,3 +1,4 @@
+import { authPaths, authResponses } from "./authOpenApi.js";
 import { messagingPaths, messagingSchemas } from "./messagingOpenApi.js";
 
 export const openApiDocument = {
@@ -15,6 +16,7 @@ export const openApiDocument = {
     responses: {
       Unauthorized: { description: "Missing or invalid JWT", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
       Forbidden: { description: "Organization role or tenant access denied", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+      ...authResponses,
     },
   },
   security: [{ bearerAuth: [], organizationContext: [] }],
@@ -26,6 +28,7 @@ export const openApiDocument = {
     "/employees/me/tasks": { get: { summary: "List caller assigned tasks", parameters: [{ name: "status", in: "query", schema: { type: "string" } }, { name: "page", in: "query", schema: { type: "integer", minimum: 1 } }], responses: { "200": { description: "Paginated tasks" } } } },
     "/employees/me/dashboard": { get: { summary: "Employee dashboard", responses: { "200": { description: "Dashboard" } } } },
     "/supervisors/dashboard": { get: { summary: "Supervisor dashboard", responses: { "200": { description: "Dashboard" } } } },
+    ...authPaths,
     ...messagingPaths,
   },
 } as const;

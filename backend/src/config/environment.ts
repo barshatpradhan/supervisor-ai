@@ -16,6 +16,17 @@ function integer(name: string, fallback: number) {
   return parsed;
 }
 
+function nonNegativeInteger(name: string, fallback: number) {
+  const value = process.env[name];
+  if (!value) return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) throw new Error(`${name} must be a non-negative integer.`);
+  return parsed;
+}
+
+const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
+
 const nodeEnv = process.env.NODE_ENV ?? "development";
 const isProduction = nodeEnv === "production";
 const corsOrigins = (process.env.CORS_ORIGINS ?? process.env.FRONTEND_APP_URL ?? "http://localhost:5173")
@@ -42,4 +53,36 @@ export const env = Object.freeze({
   rateLimitMax: integer("RATE_LIMIT_MAX", 120),
   /** Hard cap on keys each in-memory rate-limit store tracks before evicting the oldest. */
   rateLimitMaxKeys: integer("RATE_LIMIT_MAX_KEYS", 50_000),
+  /**
+   * Proxies in front of the app whose X-Forwarded-For entry is trusted when deriving the client IP.
+   * 0 (default) trusts none, so req.ip is the socket address. On Render use 1. Never "true": a hop
+   * count stops clients from spoofing their IP with extra X-Forwarded-For entries.
+   */
+  trustProxyHops: nonNegativeInteger("TRUST_PROXY_HOPS", 0),
+  /** Limits for abusable auth endpoints, on top of the global limiter. Counts are per window. */
+  authRateLimits: Object.freeze({
+    loginWindowMs: integer("AUTH_RL_LOGIN_WINDOW_MS", 15 * MINUTE),
+    loginIpMax: integer("AUTH_RL_LOGIN_IP_MAX", 30),
+    loginEmailMax: integer("AUTH_RL_LOGIN_EMAIL_MAX", 20),
+    loginPairWindowMs: integer("AUTH_RL_LOGIN_PAIR_WINDOW_MS", 10 * MINUTE),
+    loginPairMax: integer("AUTH_RL_LOGIN_PAIR_MAX", 5),
+    registerWindowMs: integer("AUTH_RL_REGISTER_WINDOW_MS", HOUR),
+    registerIpMax: integer("AUTH_RL_REGISTER_IP_MAX", 5),
+    registerEmailMax: integer("AUTH_RL_REGISTER_EMAIL_MAX", 3),
+    resetIpWindowMs: integer("AUTH_RL_RESET_IP_WINDOW_MS", 15 * MINUTE),
+    resetIpMax: integer("AUTH_RL_RESET_IP_MAX", 5),
+    resetEmailWindowMs: integer("AUTH_RL_RESET_EMAIL_WINDOW_MS", HOUR),
+    resetEmailMax: integer("AUTH_RL_RESET_EMAIL_MAX", 3),
+    resetEmailDailyMax: integer("AUTH_RL_RESET_EMAIL_DAILY_MAX", 5),
+    resetDailyTotalMax: integer("AUTH_RL_RESET_DAILY_TOTAL_MAX", 100),
+    resetConfirmIpMax: integer("AUTH_RL_RESET_CONFIRM_IP_MAX", 10),
+    invitationWindowMs: integer("AUTH_RL_INVITATION_WINDOW_MS", 15 * MINUTE),
+    invitationInspectIpMax: integer("AUTH_RL_INVITATION_INSPECT_IP_MAX", 30),
+    invitationRegisterIpMax: integer("AUTH_RL_INVITATION_REGISTER_IP_MAX", 10),
+    invitationAcceptIpMax: integer("AUTH_RL_INVITATION_ACCEPT_IP_MAX", 20),
+    adminCreateUserWindowMs: integer("AUTH_RL_ADMIN_CREATE_USER_WINDOW_MS", HOUR),
+    adminCreateUserMax: integer("AUTH_RL_ADMIN_CREATE_USER_MAX", 20),
+    /** Retry-After sent when Supabase Auth itself rate-limits a sign-in. */
+    upstreamRetryAfterSeconds: integer("AUTH_RL_UPSTREAM_RETRY_AFTER_SECONDS", 60),
+  }),
 });

@@ -13,6 +13,8 @@ export interface RateLimitStore {
   hit(key: string, windowMs: number, now?: number): RateLimitBucket;
   /** The live bucket for `key` without counting, or null when there is none or it expired. */
   peek(key: string, now?: number): RateLimitBucket | null;
+  /** Gives back one hit counted in the current window (for attempts that turned out not to count). */
+  refund(key: string, now?: number): void;
   /** Forgets `key` (for example after a successful login). */
   clear(key: string): void;
   readonly size: number;
@@ -67,6 +69,11 @@ export class MemoryRateLimitStore implements RateLimitStore {
   peek(key: string, now = Date.now()) {
     const bucket = this.buckets.get(key);
     return bucket && bucket.resetAt > now ? bucket : null;
+  }
+
+  refund(key: string, now = Date.now()) {
+    const bucket = this.buckets.get(key);
+    if (bucket && bucket.resetAt > now && bucket.count > 0) bucket.count -= 1;
   }
 
   clear(key: string) {

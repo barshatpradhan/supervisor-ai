@@ -613,6 +613,31 @@ The command removes any platform-admin account. Bootstrap a replacement afterwar
 first-platform-admin procedure above. Do not run this command against a shared or production
 Supabase project.
 
+## Authentication rate limits
+
+Abusable auth endpoints have their own limits on top of the global per-IP limiter (`RATE_LIMIT_*`). Every limit and window is an env var (see `docs/environment.md`); the defaults are:
+
+| Endpoint | Limits | What counts |
+|---|---|---|
+| `POST /auth/login` | 5 per IP+email pair per 10 min, 20 per email per 15 min, 30 per IP per 15 min | Failed attempts only. A success clears the pair counter, not the IP counter. Validation errors, Supabase rate limits and outages never count. |
+| `POST /auth/register`, `POST /auth/signup` | 5 per IP and 3 per email per hour | Every attempt |
+| `POST /auth/password-reset` | 5 per IP per 15 min, 3 per email per hour, 5 per email per UTC day, **100 per UTC day in total** | Every attempt |
+| `POST /auth/password-reset/confirm` | 10 per IP per 15 min | Every attempt |
+| `GET /invitations/:token`, `POST .../register`, `POST .../accept` | 30, 10, 20 per IP per 15 min | Every attempt |
+| `POST /admin/users` | 20 per platform admin per hour | Every attempt |
+
+- **Responses.** A blocked request gets HTTP 429 in the normal error envelope with a `Retry-After` header (exposed to the browser through CORS) and always the same message, "Too many attempts. Please wait a moment and try again." It never says which limit tripped. When Supabase Auth throttles a sign-in (it sees every sign-in from this server's IP), the same 429 is returned, with `Retry-After: AUTH_RL_UPSTREAM_RETRY_AFTER_SECONDS`.
+- **No account enumeration.** The counters never look accounts up, so registered and unknown emails are limited, answered and timed identically.
+- **Lockout trade-off.** The IP+email pair is the strictest counter, so attempts from someone else's network never block your own device. The per-email counter is looser so it only slows a distributed attack on one account. Nothing locks permanently: every block ends when its window does, and there is no account flag.
+- **Daily reset total.** Once 100 reset requests have been made in a UTC day, everyone (including legitimate users) gets 429 until midnight UTC. This protects the email quota shared with invitation emails. The block is logged; see break-glass below.
+- **Client IP.** Set `TRUST_PROXY_HOPS` to the number of reverse proxies in front of the app (**1 on Render**). It is a hop count, never `true`, so clients cannot spoof their IP with extra `X-Forwarded-For` entries. IPv6 clients are keyed by their /64 prefix. After deploying, check that the masked IP in `auth_rate_limited` logs matches your own public IP rather than a proxy range; if it shows a proxy, increase the value by one.
+- **Storage.** Counters are in memory (`MemoryRateLimitStore`): one bounded store per counter type (`RATE_LIMIT_MAX_KEYS`, oldest window evicted when full, expired windows swept every minute). They reset when the process restarts and are not shared between instances; move to Redis before running more than one instance.
+- **Observability.** Each block logs `auth_rate_limited` with the route, the limiter that tripped, the retry delay and a masked identifier (`203.0.113.x`, `j***@e***.com`); passwords and full emails are never logged. The `/metrics` endpoint exposes `auth_rate_limited_total{route,limiter}`.
+
+**Break-glass: clearing a lockout.** Every block expires on its own (at most 15 minutes for login, one hour for register and reset, or the next UTC midnight for the daily reset caps). To clear all lockouts immediately, for any user including a platform admin, restart the backend service: the counters live only in process memory. To lift a daily cap for the rest of the day, raise the env var (for example `AUTH_RL_RESET_DAILY_TOTAL_MAX`) and restart.
+
+**Supabase dashboard (Authentication → Rate Limits and SMTP), to check by hand.** Supabase applies its own per-IP limits, and because the backend calls Supabase, every user arrives from the server's IP: raise "sign-ups and sign-ins" and "token refreshes" well above the defaults so one noisy client cannot block everyone. Check whether Auth uses custom SMTP (Brevo): if it does, password-reset emails share the 300/day Brevo quota; if it uses the built-in SMTP, reset emails are capped very low and may only reach project team members.
+
 ## Build and Development Commands
 
 | Command | Description |

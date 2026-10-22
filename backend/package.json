@@ -8,7 +8,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "lint": "tsc --noEmit",
-    "test": "tsx --test src/services/taskProgressMetrics.test.ts src/services/email/emailService.test.ts src/scripts/developmentDatabaseReset.test.ts src/services/messagingRules.test.ts src/services/taskAssignmentRules.test.ts src/services/ai/skillVerification.test.ts src/utils/skillNames.test.ts src/middleware/rateLimitStore.test.ts src/middleware/rateLimiter.behavior.test.ts",
+    "test": "tsx --test src/services/taskProgressMetrics.test.ts src/services/email/emailService.test.ts src/scripts/developmentDatabaseReset.test.ts src/services/messagingRules.test.ts src/services/taskAssignmentRules.test.ts src/services/ai/skillVerification.test.ts src/utils/skillNames.test.ts src/middleware/rateLimitStore.test.ts src/middleware/rateLimiter.behavior.test.ts src/middleware/clientIdentity.test.ts src/middleware/authRateLimiter.test.ts src/routes/authRateLimit.http.test.ts",
     "test:messaging": "tsx --test src/services/messagingService.test.ts",
     "test:integration": "tsx --test src/services/messagingService.test.ts src/services/invitationDelivery.test.ts src/services/taskService.test.ts src/services/taskProgress.characterization.test.ts",
     "test:coverage": "tsx --test --experimental-test-coverage src/services/taskProgressMetrics.test.ts",

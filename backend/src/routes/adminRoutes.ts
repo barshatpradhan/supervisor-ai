@@ -12,6 +12,7 @@ import {
 import { authenticateUser } from "../middleware/authMiddleware.js";
 import { validateAdminCreateUserRequest } from "../middleware/authValidation.js";
 import { requirePlatformRole } from "../middleware/roleMiddleware.js";
+import { adminCreateUserRateLimit } from "../middleware/authRateLimiter.js";
 
 const router = Router();
 
@@ -40,7 +41,7 @@ router.get("/dashboard", getDashboardMetrics);
 
 router.get("/users", getUsers);
 router.get("/users/directory", getUserDirectory);
-router.post("/users", validateAdminCreateUserRequest, createUserHandler);
+router.post("/users", adminCreateUserRateLimit, validateAdminCreateUserRequest, createUserHandler);
 router.patch("/users/:userId/role", updateUserRole);
 
 export default router;

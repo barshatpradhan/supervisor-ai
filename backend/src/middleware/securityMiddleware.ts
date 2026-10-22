@@ -3,6 +3,7 @@ import { AppError } from "../utils/appError.js";
 import { env } from "../config/environment.js";
 import { isMessagingPollRequest } from "./rateLimiter.js";
 import { MemoryRateLimitStore } from "./rateLimitStore.js";
+import { clientIpKey } from "./clientIdentity.js";
 
 const attempts = new MemoryRateLimitStore({ maxKeys: env.rateLimitMaxKeys });
 
@@ -22,7 +23,7 @@ export function rateLimit(req: Request, res: Response, next: NextFunction) {
   const isPoll = isMessagingPollRequest(req);
   const scope = isPoll ? "poll" : req.path.startsWith("/api/v1/auth") ? "auth" : "api";
   const max = isPoll ? env.rateLimitMax * MESSAGING_POLL_IP_MULTIPLIER : env.rateLimitMax;
-  const current = attempts.hit(`${req.ip}:${scope}`, env.rateLimitWindowMs);
+  const current = attempts.hit(`${clientIpKey(req.ip)}:${scope}`, env.rateLimitWindowMs);
 
   res.setHeader("RateLimit-Limit", max);
   res.setHeader("RateLimit-Remaining", Math.max(0, max - current.count));

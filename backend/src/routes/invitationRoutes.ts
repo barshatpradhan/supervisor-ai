@@ -8,11 +8,17 @@ import {
   authenticateUser,
   authenticateUserIfPresent,
 } from "../middleware/authMiddleware.js";
+import {
+  invitationAcceptRateLimit,
+  invitationInspectRateLimit,
+  invitationRegisterRateLimit,
+} from "../middleware/authRateLimiter.js";
 
 const router = Router();
 
-router.get("/:token", authenticateUserIfPresent, inspectInvitationByTokenHandler);
-router.post("/:token/register", registerInvitationAccountHandler);
-router.post("/:token/accept", authenticateUser, acceptInvitationByTokenHandler);
+// Per-IP limits before anything else, to stop token scanning.
+router.get("/:token", invitationInspectRateLimit, authenticateUserIfPresent, inspectInvitationByTokenHandler);
+router.post("/:token/register", invitationRegisterRateLimit, registerInvitationAccountHandler);
+router.post("/:token/accept", invitationAcceptRateLimit, authenticateUser, acceptInvitationByTokenHandler);
 
 export default router;

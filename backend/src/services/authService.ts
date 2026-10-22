@@ -11,6 +11,9 @@ import type {
 } from "../types/auth.js";
 import type { PublicEmployeeSignupInput } from "../types/provisioning.js";
 import { AppError } from "../utils/appError.js";
+import { logger } from "../utils/logger.js";
+import { incrementMetric } from "../middleware/observabilityMiddleware.js";
+import { tooManyAuthAttempts } from "../middleware/authRateLimiter.js";
 import {
   registerCustomerAccount,
   signupEmployeeWithProvisioning,
@@ -70,6 +73,16 @@ export async function login(input: LoginInput) {
     email: input.email,
     password: input.password,
   });
+
+  // Supabase Auth throttles sign-ins per IP, and every sign-in reaches it from this server's IP,
+  // so this says nothing about the account. Answer exactly like our own login limiter (same 429,
+  // message and Retry-After) rather than as a wrong password, and don't count it as a failure.
+  if (error && (error.status === 429 || error.code === "over_request_rate_limit")) {
+    const retryAfterSeconds = env.authRateLimits.upstreamRetryAfterSeconds;
+    logger.warn("auth_rate_limited", { route: "login", limiter: "supabase_auth", retryAfterSeconds });
+    incrementMetric("auth_rate_limited_total", { route: "login", limiter: "supabase_auth" });
+    throw tooManyAuthAttempts(retryAfterSeconds);
+  }
 
   // A network failure is not a wrong password; say so instead of blaming the user.
   if (error && isAuthRetryableFetchError(error)) {

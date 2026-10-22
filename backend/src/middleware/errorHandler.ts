@@ -20,6 +20,7 @@ export function errorHandler(
   if (isAppError(error)) {
     logger.warn("request_failed", { requestId: req.requestId, operation: req.originalUrl, statusCode: error.statusCode, error: error.message });
     const message = error.expose ? error.message : "Internal server error.";
+    if (error.retryAfterSeconds !== undefined) res.setHeader("Retry-After", Math.max(1, Math.ceil(error.retryAfterSeconds)));
     return sendError(res, error.statusCode, message);
   }
 
