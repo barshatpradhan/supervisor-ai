@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { supabase } from "../config/supabase.js";
+import { avatarFor, getAvatarVariants } from "./avatarService.js";
 import type {
   ConversationKind,
   ConversationSummary,
@@ -11,6 +12,7 @@ import type {
   MessagingActor,
   MessagingMember,
   MessagingPerson,
+  MessagingPersonWithAvatar,
   ProgressRequestResult,
   SendMessageInput,
   TaskChip,
@@ -214,12 +216,19 @@ function person(names: Map<string, string>, userId: string): MessagingPerson {
   return { userId, name: names.get(userId) ?? "Deleted user" };
 }
 
+function personWithAvatar(names: Map<string, string>, avatars: ReadonlyMap<string, string | null>, userId: string): MessagingPersonWithAvatar {
+  return { ...person(names, userId), avatarVariant: avatarFor(avatars, userId) };
+}
+
 export async function listMembers(actor: MessagingActor): Promise<MessagingMember[]> {
   const members = await activeMembers(actor.organizationId);
-  const names = await resolvePeople(actor.organizationId, members.keys());
+  const [names, avatars] = await Promise.all([
+    resolvePeople(actor.organizationId, members.keys()),
+    getAvatarVariants(members.keys()),
+  ]);
 
   return [...members]
-    .map(([userId, role]) => ({ ...person(names, userId), role }))
+    .map(([userId, role]) => ({ ...personWithAvatar(names, avatars, userId), role }))
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
@@ -279,11 +288,14 @@ export async function listConversationMembers(
 ): Promise<ConversationMember[]> {
   const { row } = await loadConversation(actor, conversationId);
   const members = await conversationMembers(actor, row);
-  const names = await resolvePeople(actor.organizationId, members.keys());
+  const [names, avatars] = await Promise.all([
+    resolvePeople(actor.organizationId, members.keys()),
+    getAvatarVariants(members.keys()),
+  ]);
   const creatorId = row.kind === "project" ? row.projects?.created_by_user_id ?? null : null;
 
   return [...members]
-    .map(([userId, role]) => ({ ...person(names, userId), role, isProjectCreator: userId === creatorId }))
+    .map(([userId, role]) => ({ ...personWithAvatar(names, avatars, userId), role, isProjectCreator: userId === creatorId }))
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
@@ -490,14 +502,16 @@ export async function listConversations(actor: MessagingActor): Promise<Conversa
   const mentionedIds = [...previewById.values()].flatMap((preview) => (preview ? parseMentionUserIds(preview.body) : []));
   const senderIds = [...previewById.values()].flatMap((preview) => (preview?.sender_user_id ? [preview.sender_user_id] : []));
 
-  const [names, activePeers] = await Promise.all([
+  // Avatars only for direct-message peers: the list shows their name; preview senders are text.
+  const [names, activePeers, peerAvatars] = await Promise.all([
     resolvePeople(actor.organizationId, [...peerIds, ...mentionedIds, ...senderIds]),
     activeMembers(actor.organizationId, peerIds),
+    getAvatarVariants(peerIds),
   ]);
 
   const summaries = conversations.map(({ row, historySince }): ConversationSummary => {
     const preview = previewById.get(row.id) ?? null;
-    const peer = row.kind === "direct" ? person(names, directPeerId(row, actor.userId)) : null;
+    const peer = row.kind === "direct" ? personWithAvatar(names, peerAvatars, directPeerId(row, actor.userId)) : null;
     const count = counts.get(row.id) ?? { unreadCount: 0, unreadMentions: 0 };
 
     return {
@@ -592,8 +606,8 @@ export async function getOrCreateDirectConversation(actor: MessagingActor, other
     fail("add_direct_participants", participantError, "Unable to open the conversation.");
   }
 
-  const names = await resolvePeople(actor.organizationId, [otherUserId]);
-  return { id: conversation.id, kind: "direct" as const, directPeer: person(names, otherUserId), created };
+  const [names, avatars] = await Promise.all([resolvePeople(actor.organizationId, [otherUserId]), getAvatarVariants([otherUserId])]);
+  return { id: conversation.id, kind: "direct" as const, directPeer: personWithAvatar(names, avatars, otherUserId), created };
 }
 
 // Tasks -------------------------------------------------------------------------------------------
@@ -754,17 +768,17 @@ async function hydrateMessages(
   if (reactions?.error) fail("message_reactions", reactions.error, "Unable to load messages.");
   if (taskRefs?.error) fail("message_task_refs", taskRefs.error, "Unable to load messages.");
 
-  const peopleIds = [
-    ...rows.flatMap((row) => (row.sender_user_id ? [row.sender_user_id] : [])),
-    ...(mentions?.data ?? []).map((mention) => mention.user_id),
-  ];
+  const senderIds = rows.flatMap((row) => (row.sender_user_id ? [row.sender_user_id] : []));
+  const peopleIds = [...senderIds, ...(mentions?.data ?? []).map((mention) => mention.user_id)];
 
   const taskIdByMessage = new Map((taskRefs?.data ?? []).map((ref) => [ref.message_id, ref.task_id]));
   const taskIds = [...taskIdByMessage.values()].filter((taskId): taskId is string => taskId !== null);
 
-  const [names, chips] = await Promise.all([
+  // Avatars for senders only; mentions render as text and chips draw no avatar.
+  const [names, chips, senderAvatars] = await Promise.all([
     resolvePeople(actor.organizationId, peopleIds),
     resolveTaskChips(actor, taskIds),
+    getAvatarVariants(senderIds),
   ]);
 
   return rows.map((row): MessageView => {
@@ -786,7 +800,7 @@ async function hydrateMessages(
       conversationId: row.conversation_id,
       kind: row.kind,
       body: deleted ? "" : row.body,
-      sender: row.sender_user_id ? person(names, row.sender_user_id) : null,
+      sender: row.sender_user_id ? personWithAvatar(names, senderAvatars, row.sender_user_id) : null,
       clientId: row.sender_user_id === actor.userId ? row.client_id : null,
       createdAt: row.created_at,
       editedAt: row.edited_at,
