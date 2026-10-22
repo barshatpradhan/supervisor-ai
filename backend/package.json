@@ -10,7 +10,7 @@
     "lint": "tsc --noEmit",
     "test": "tsx --test src/services/taskProgressMetrics.test.ts src/services/email/emailService.test.ts src/scripts/developmentDatabaseReset.test.ts src/services/messagingRules.test.ts src/services/taskAssignmentRules.test.ts src/services/ai/skillVerification.test.ts src/utils/skillNames.test.ts",
     "test:messaging": "tsx --test src/services/messagingService.test.ts",
-    "test:integration": "tsx --test src/services/messagingService.test.ts src/services/invitationDelivery.test.ts src/services/taskService.test.ts",
+    "test:integration": "tsx --test src/services/messagingService.test.ts src/services/invitationDelivery.test.ts src/services/taskService.test.ts src/services/taskProgress.characterization.test.ts",
     "test:coverage": "tsx --test --experimental-test-coverage src/services/taskProgressMetrics.test.ts",
     "start": "node dist/server.js",
     "verify:onboarding": "tsx src/scripts/onboardingVerification.ts",
