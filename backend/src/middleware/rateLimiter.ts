@@ -1,29 +1,11 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../utils/appError.js";
+import { MemoryRateLimitStore } from "./rateLimitStore.js";
 
-export interface Bucket {
-  count: number;
-  resetAt: number;
-}
-
-const MAX_TRACKED_KEYS = 10_000;
+/** Per-store key cap for limiters that cannot read env (this module must stay env-free). */
+const DEFAULT_MAX_KEYS = 50_000;
 
 const MESSAGING_THREAD_PATH = /^\/api\/v1\/messaging\/conversations\/[^/]+\/messages$/;
-
-/** Counts one request against `key`; returns the bucket after counting. */
-export function consume(store: Map<string, Bucket>, key: string, windowMs: number, now = Date.now()) {
-  if (store.size > MAX_TRACKED_KEYS) {
-    for (const [storedKey, bucket] of store) {
-      if (bucket.resetAt <= now) store.delete(storedKey);
-    }
-  }
-
-  const entry = store.get(key);
-  const current = !entry || entry.resetAt <= now ? { count: 0, resetAt: now + windowMs } : entry;
-  current.count += 1;
-  store.set(key, current);
-  return current;
-}
 
 export function isMessagingPollRequest(req: Pick<Request, "method" | "path" | "query">) {
   if (req.method !== "GET") return false;
@@ -33,19 +15,20 @@ export function isMessagingPollRequest(req: Pick<Request, "method" | "path" | "q
 
 /**
  * A per-user limiter for one kind of request. Must run after authenticateUser.
- * In-memory, so each server instance counts separately.
+ * In-memory (bounded, see MemoryRateLimitStore), so each server instance counts separately.
  */
 export function createUserRateLimiter(options: {
   name: string;
   max: number;
   windowMs: number;
   message?: string;
+  maxKeys?: number;
 }) {
-  const store = new Map<string, Bucket>();
+  const store = new MemoryRateLimitStore({ maxKeys: options.maxKeys ?? DEFAULT_MAX_KEYS });
 
   return function userRateLimit(req: Request, res: Response, next: NextFunction) {
     const subject = req.user?.id ?? `ip:${req.ip}`;
-    const current = consume(store, `${options.name}:${subject}`, options.windowMs);
+    const current = store.hit(`${options.name}:${subject}`, options.windowMs);
 
     if (current.count > options.max) {
       res.setHeader("Retry-After", Math.max(1, Math.ceil((current.resetAt - Date.now()) / 1000)));

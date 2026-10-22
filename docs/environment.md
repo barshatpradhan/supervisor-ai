@@ -16,6 +16,7 @@ The backend reads environment configuration at startup and fails fast if `SUPABA
 | `JSON_BODY_LIMIT` | No | `1mb` | Maximum JSON payload size. File uploads have their own 10 MB limit. |
 | `RATE_LIMIT_WINDOW_MS` | No | `60000` | In-memory limiter window. Use a shared limiter before multi-instance deployment. |
 | `RATE_LIMIT_MAX` | No | `120` | Requests per client IP per window. |
+| `RATE_LIMIT_MAX_KEYS` | No | `50000` | Hard cap on keys each in-memory limiter store tracks; the oldest window is evicted when full, and expired windows are swept every minute. |
 | `TRANSACTIONAL_EMAIL_PROVIDER` | Required for invitations | — | Invitation email provider selector: `brevo` for real delivery or explicit `console` for offline development/tests. |
 | `BREVO_API_KEY` | Conditional | — | Required when Brevo is selected. Backend-only secret. |
 | `INVITATION_EMAIL_FROM` | Conditional | — | Required when Brevo is selected. Must be a sender verified in Brevo (Senders & IPs). |

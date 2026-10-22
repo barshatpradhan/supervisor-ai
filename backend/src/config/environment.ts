@@ -40,4 +40,6 @@ export const env = Object.freeze({
   jsonLimit: process.env.JSON_BODY_LIMIT?.trim() || "1mb",
   rateLimitWindowMs: integer("RATE_LIMIT_WINDOW_MS", 60_000),
   rateLimitMax: integer("RATE_LIMIT_MAX", 120),
+  /** Hard cap on keys each in-memory rate-limit store tracks before evicting the oldest. */
+  rateLimitMaxKeys: integer("RATE_LIMIT_MAX_KEYS", 50_000),
 });

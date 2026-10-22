@@ -1,9 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../utils/appError.js";
 import { env } from "../config/environment.js";
-import { type Bucket, consume, isMessagingPollRequest } from "./rateLimiter.js";
+import { isMessagingPollRequest } from "./rateLimiter.js";
+import { MemoryRateLimitStore } from "./rateLimitStore.js";
 
-const attempts = new Map<string, Bucket>();
+const attempts = new MemoryRateLimitStore({ maxKeys: env.rateLimitMaxKeys });
 
 // Messaging polls are frequent by design, so they get their own per-IP bucket (and a per-user
 // limiter on the route) instead of using up the shared API allowance.
@@ -21,7 +22,7 @@ export function rateLimit(req: Request, res: Response, next: NextFunction) {
   const isPoll = isMessagingPollRequest(req);
   const scope = isPoll ? "poll" : req.path.startsWith("/api/v1/auth") ? "auth" : "api";
   const max = isPoll ? env.rateLimitMax * MESSAGING_POLL_IP_MULTIPLIER : env.rateLimitMax;
-  const current = consume(attempts, `${req.ip}:${scope}`, env.rateLimitWindowMs);
+  const current = attempts.hit(`${req.ip}:${scope}`, env.rateLimitWindowMs);
 
   res.setHeader("RateLimit-Limit", max);
   res.setHeader("RateLimit-Remaining", Math.max(0, max - current.count));
