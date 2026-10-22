@@ -1,5 +1,6 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 import { ProjectRecommendationCard } from './ProjectRecommendationsSection'
 
 const recommendation = {
@@ -37,9 +38,12 @@ describe('ProjectRecommendationCard', () => {
   it('renders persisted recommendation fields without assignment controls', () => {
     render(<ProjectRecommendationCard recommendation={recommendation} />)
 
-    expect(screen.getByLabelText('Rank 1: Jordan Lee')).toBeInTheDocument()
+    const card = screen.getByLabelText('Rank 1: Jordan Lee')
+    expect(card).toBeInTheDocument()
     expect(screen.getByText('87.25')).toBeInTheDocument()
-    expect(screen.getByText('Matches 1 required project skill.')).toBeInTheDocument()
+    expect(screen.getByText('Strong fit')).toBeInTheDocument()
+    expect(within(card).getByText('1/2')).toBeInTheDocument()
+    expect(screen.getAllByText('Matches 1 required project skill.')).toHaveLength(2) // headline + full reasons
     expect(screen.getByLabelText('Required skills matched')).toHaveTextContent('React')
     expect(screen.getByLabelText('Preferred skills matched')).toHaveTextContent('Accessibility')
     expect(screen.getByLabelText('Missing skills')).toHaveTextContent('TypeScript')
@@ -51,5 +55,35 @@ describe('ProjectRecommendationCard', () => {
 
     expect(screen.getByText('Score breakdown')).toBeInTheDocument()
     expect(screen.getByText('Proficiency')).toBeInTheDocument()
+    expect(screen.queryByText('Experience')).not.toBeInTheDocument()
+  })
+
+  it('previews up to three missing skills and counts the rest', () => {
+    render(
+      <ProjectRecommendationCard
+        recommendation={{ ...recommendation, missingRequiredSkills: ['TypeScript', 'GraphQL', 'Docker', 'AWS', 'Redis'] }}
+      />,
+    )
+
+    expect(screen.getByText('+2 more')).toBeInTheDocument()
+  })
+
+  it('highlights the top match with its details open, and offers assignment when allowed', async () => {
+    const onAssign = vi.fn()
+    render(<ProjectRecommendationCard featured onAssign={onAssign} recommendation={recommendation} />)
+
+    expect(screen.getByText('Top match')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Jordan Lee match score: 87%' })).toBeInTheDocument()
+    expect(screen.getByText('Why this match').closest('details')).toHaveAttribute('open')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Assign employee' }))
+    expect(onAssign).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps details collapsed for other candidates', () => {
+    render(<ProjectRecommendationCard recommendation={{ ...recommendation, rank: 2 }} />)
+
+    expect(screen.queryByText('Top match')).not.toBeInTheDocument()
+    expect(screen.getByText('Why this match').closest('details')).not.toHaveAttribute('open')
   })
 })
