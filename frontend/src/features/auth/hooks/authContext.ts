@@ -24,6 +24,8 @@ export interface AuthContextValue {
   refreshAuth: () => Promise<void>
   role: UserRole | null
   signup: (credentials: SignupCredentials) => Promise<void>
+  /** Saves the signed-in user's avatar (null = initials) and updates `user`. */
+  updateAvatar: (variant: string | null) => Promise<void>
   user: AuthenticatedUser | null
 }
 

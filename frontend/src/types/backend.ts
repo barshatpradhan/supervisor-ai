@@ -36,6 +36,8 @@ export interface BackendAuthUser {
   platformRole: BackendPlatformRole | null
   legacyRole: BackendUserRole | null
   role: BackendUserRole | null
+  /** Chosen illustrated avatar ID (for example p03-s4-c2-a1); null shows initials. */
+  avatarVariant: string | null
 }
 
 export interface BackendAuthOnboardingState {

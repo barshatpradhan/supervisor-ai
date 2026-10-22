@@ -10,6 +10,7 @@ import {
   register as registerWithBackend,
   registerInvitation as registerInvitationWithBackend,
   signup as signupWithBackend,
+  updateMyAvatar,
 } from '../services/authService'
 import type {
   AuthOnboardingState,
@@ -169,6 +170,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [handleSession],
   )
 
+  const updateAvatar = useCallback(async (variant: string | null) => {
+    const { avatarVariant } = await updateMyAvatar(variant)
+    setUser((current) => (current ? { ...current, avatarVariant } : current))
+  }, [])
+
   const logout = useCallback((options?: { redirectTo?: string }) => {
     clearSession()
     navigate(options?.redirectTo ?? '/login', { replace: true })
@@ -189,9 +195,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       refreshAuth,
       role: user?.role ?? null,
       signup,
+      updateAvatar,
       user,
     }),
-    [error, isLoading, login, logout, onboarding, refreshAuth, register, registerInvitation, signup, user],
+    [error, isLoading, login, logout, onboarding, refreshAuth, register, registerInvitation, signup, updateAvatar, user],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

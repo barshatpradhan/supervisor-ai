@@ -4,8 +4,10 @@ import { Card } from '../../../components/ui/Card'
 import { formatEmploymentType } from '../utils/profileForm'
 
 interface EmployeeProfileCardProps {
+  avatarVariant?: string | null
   email: string | null
   profile: BackendEmployeeProfile
+  userId?: string | null
 }
 
 function formatDate(value: string) {
@@ -13,7 +15,7 @@ function formatDate(value: string) {
 }
 
 /** Who you are to your organization: identity, bio and skill counts. */
-export function EmployeeProfileCard({ email, profile }: EmployeeProfileCardProps) {
+export function EmployeeProfileCard({ avatarVariant = null, email, profile, userId = null }: EmployeeProfileCardProps) {
   const approvedSkills = profile.skills.filter((skill) => skill.isApproved).length
   const pendingSkills = profile.skills.length - approvedSkills
   const role = [profile.job_title, profile.department].filter(Boolean).join(' · ')
@@ -21,7 +23,7 @@ export function EmployeeProfileCard({ email, profile }: EmployeeProfileCardProps
   return (
     <Card aria-label="Profile summary" className="flex h-full flex-col gap-5">
       <div className="flex items-center gap-4">
-        <Avatar name={profile.full_name} size={56} />
+        <Avatar fallbackKey={userId} name={profile.full_name} size={56} variant={avatarVariant} />
         <div className="min-w-0">
           <h2 className="section-title m-0 truncate text-text-primary">{profile.full_name}</h2>
           <p className="body m-0 text-text-secondary">{role || formatEmploymentType(profile.employment_type)}</p>

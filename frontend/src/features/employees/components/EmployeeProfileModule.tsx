@@ -2,6 +2,7 @@ import { Button } from '../../../components/ui/Button'
 import { Card } from '../../../components/ui/Card'
 import { PageHeader } from '../../../components/ui/PageHeader'
 import { StateBlock } from '../../../components/ui/StateBlock'
+import { AvatarPicker } from '../../auth/components/AvatarPicker'
 import { useAuth } from '../../auth/hooks/useAuth'
 import { useEmployeeProfileEditor } from '../hooks/useEmployeeProfileEditor'
 import { EmployeeProfileCard } from './EmployeeProfileCard'
@@ -53,9 +54,10 @@ export function EmployeeProfileModule() {
     <div className="flex flex-col gap-6">
       <PageHeader subtitle={subtitle} title="Profile" />
       <div className="grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr))]">
-        <EmployeeProfileCard email={user?.email ?? null} profile={editor.currentProfile} />
+        <EmployeeProfileCard avatarVariant={user?.avatarVariant ?? null} email={user?.email ?? null} profile={editor.currentProfile} userId={user?.id ?? null} />
         <EmployeeProfileWorkInfo profile={editor.currentProfile} />
       </div>
+      <AvatarPicker name={editor.currentProfile.full_name} />
       <EmployeeProfileForm approvedSkillCount={editor.approvedSkills.length} editor={editor} />
     </div>
   )

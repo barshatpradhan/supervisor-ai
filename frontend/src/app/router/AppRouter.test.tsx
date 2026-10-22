@@ -26,6 +26,7 @@ function createAuthValue(isAuthenticated: boolean): AuthContextValue {
     refreshAuth: async () => {},
     role: null,
     signup: async () => {},
+    updateAvatar: async () => {},
     user: null,
   }
 }

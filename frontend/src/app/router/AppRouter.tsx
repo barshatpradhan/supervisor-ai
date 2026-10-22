@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { RoleGuard } from '../../features/auth/components/RoleGuard'
 import { ProtectedRoute } from '../../features/auth/components/ProtectedRoute'
@@ -29,10 +30,16 @@ import { TaskDetailPage } from '../../pages/TaskDetailPage'
 import { TeamPage } from '../../pages/TeamPage'
 import { DashboardEntryRoute } from '../../features/dashboard/components/DashboardEntryRoute'
 
+// Dev-only visual check for avatar sizes; import.meta.env.DEV is false in builds, so this is dropped.
+const AvatarCheckPage = import.meta.env.DEV
+  ? lazy(() => import('../../pages/dev/AvatarCheckPage').then((module) => ({ default: module.AvatarCheckPage })))
+  : null
+
 export function AppRouter() {
   return (
     <Routes>
       <Route element={<LandingPage />} path="/" />
+      {AvatarCheckPage ? <Route element={<Suspense><AvatarCheckPage /></Suspense>} path="/dev/avatars" /> : null}
       <Route element={<PublicLayout />}>
         <Route element={<InvitationAcceptPage />} path="/invitations/accept" />
         <Route element={<LoginPage />} path="/login" />

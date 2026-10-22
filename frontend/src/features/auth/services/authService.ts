@@ -7,7 +7,7 @@ import type {
   RegisterRequest,
   SignupRequest,
 } from '../../../types/backend'
-import { getJson, postJson } from '../../../lib/api'
+import { getJson, patchJson, postJson } from '../../../lib/api'
 
 export function login(credentials: LoginRequest) {
   return postJson<BackendAuthSession, LoginRequest>('/auth/login', credentials)
@@ -40,6 +40,15 @@ export function registerInvitation(token: string, password: string) {
   return postJson<BackendAuthSession, { password: string }>(
     `/invitations/${encodeURIComponent(token)}/register`,
     { password },
+    { skipOrganizationContext: true },
+  )
+}
+
+/** Sets the signed-in user's own avatar; null goes back to initials. */
+export function updateMyAvatar(variant: string | null) {
+  return patchJson<{ avatarVariant: string | null }, { variant: string | null }>(
+    '/auth/me/avatar',
+    { variant },
     { skipOrganizationContext: true },
   )
 }

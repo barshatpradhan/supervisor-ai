@@ -59,7 +59,9 @@ export function AppLayout() {
       onSignOut={() => {
         logout()
       }}
+      userAvatarVariant={user?.avatarVariant ?? null}
       userEmail={user?.email ?? null}
+      userId={user?.id ?? null}
       userName={userName}
     >
       <main className="mx-auto w-full max-w-[1240px] flex-1 px-4 py-6 sm:px-6 xl:px-8 xl:py-8">

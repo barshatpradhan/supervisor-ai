@@ -12,7 +12,9 @@ interface PageShellProps {
   headerLeading?: ReactNode
   navigationItems: NavigationItem[]
   onSignOut: () => void
+  userAvatarVariant?: string | null
   userEmail: string | null
+  userId?: string | null
   userName?: string | null
 }
 
@@ -20,7 +22,7 @@ interface PageShellProps {
  * The page frame: a 232px sidebar (a 72px icon rail from 1024 to 1279px, a drawer below
  * 1024px), a 64px top bar and the canvas content area.
  */
-export function PageShell({ activePath, children, headerLeading, navigationItems, onSignOut, userEmail, userName = null }: PageShellProps) {
+export function PageShell({ activePath, children, headerLeading, navigationItems, onSignOut, userAvatarVariant = null, userEmail, userId = null, userName = null }: PageShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   return (
@@ -46,7 +48,7 @@ export function PageShell({ activePath, children, headerLeading, navigationItems
       </DialogPrimitive.Root>
 
       <div className="flex min-w-0 flex-col">
-        <Header leading={headerLeading} onOpenNavigation={() => setMobileNavOpen(true)} onSignOut={onSignOut} userEmail={userEmail} userName={userName} />
+        <Header leading={headerLeading} onOpenNavigation={() => setMobileNavOpen(true)} onSignOut={onSignOut} userAvatarVariant={userAvatarVariant} userEmail={userEmail} userId={userId} userName={userName} />
         {children}
       </div>
     </div>

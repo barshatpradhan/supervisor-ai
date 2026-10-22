@@ -5,6 +5,7 @@ import { Card, CardHeader } from '../../../components/ui/Card'
 import { fieldErrorClass, fieldInputClass, fieldLabelClass, fieldTextareaClass } from '../../../components/ui/fieldStyles'
 import { PageHeader } from '../../../components/ui/PageHeader'
 import { StateBlock } from '../../../components/ui/StateBlock'
+import { AvatarPicker } from '../../auth/components/AvatarPicker'
 import { useAuth } from '../../auth/hooks/useAuth'
 import { useOrganization } from '../../organizations/hooks/useOrganization'
 import { formatOrganizationRole } from '../../organizations/utils/organizationPresentation'
@@ -102,7 +103,7 @@ export function SupervisorProfileModule() {
       <div className="flex flex-wrap items-start gap-6">
         <Card aria-label="Profile summary" className="flex min-w-0 flex-[1_1_300px] flex-col gap-5 xl:max-w-[380px]">
           <div className="flex items-center gap-4">
-            <Avatar name={profile.full_name} size={56} />
+            <Avatar fallbackKey={user?.id} name={profile.full_name} size={56} variant={user?.avatarVariant} />
             <div className="min-w-0">
               <h2 className="section-title m-0 truncate text-text-primary">{profile.full_name}</h2>
               <p className="body m-0 text-text-secondary">
@@ -140,6 +141,8 @@ export function SupervisorProfileModule() {
           </form>
         </Card>
       </div>
+
+      <AvatarPicker name={profile.full_name} />
     </div>
   )
 }

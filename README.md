@@ -101,6 +101,8 @@ See [frontend/README.md](frontend/README.md) for frontend architecture and setup
 
 Authentication uses Supabase Auth on the backend. The frontend stores the access and refresh tokens for development, restores the user with `/api/v1/auth/me`, loads the authenticated user’s memberships from `GET /api/v1/organizations`, and only sends `X-Organization-Id` after a verified active organization is selected.
 
+Each person can pick an illustrated profile picture on the Profile page (`PATCH /api/v1/auth/me/avatar`, stored in `users.avatar_variant`, the same in every workspace); until they do, and for everyone else in Phase 1, the app shows initials. In `npm run dev`, `/dev/avatars` shows every avatar at each in-app size.
+
 ```mermaid
 sequenceDiagram
   participant User
