@@ -15,6 +15,7 @@ import { ensureProjectExistsInOrganization } from "./projectService.js";
 import { getAppUserByAuthId } from "./userService.js";
 import { logActivity } from "./activityLogService.js";
 import { nextAssignedAt } from "./taskAssignmentRules.js";
+import { projectProgressFromHours, statusForProgress } from "./taskProgressMetrics.js";
 import { incrementMetric } from "../middleware/observabilityMiddleware.js";
 
 const TASK_SELECT = `
@@ -193,11 +194,9 @@ async function recalculateProjectProgress(
     throw new AppError("Unable to calculate project progress.", 500);
   }
 
-  const totalHours = (tasks ?? []).reduce((total, task) => total + Number(task.estimated_hours), 0);
-  const completedHours = (tasks ?? [])
-    .filter((task) => task.status === "completed")
-    .reduce((total, task) => total + Number(task.estimated_hours), 0);
-  const progressPercentage = totalHours === 0 ? 0 : Math.max(0, Math.min(100, Math.round((completedHours / totalHours) * 10000) / 100));
+  const progressPercentage = projectProgressFromHours(
+    (tasks ?? []).map((task) => ({ status: task.status, estimatedHours: Number(task.estimated_hours) }))
+  );
 
   const { error: updateError } = await supabase
     .from("projects")
@@ -704,9 +703,7 @@ export async function createTaskProgress(
     throw new AppError("Unable to create task progress update.", 400);
   }
 
-  const nextStatus: TaskStatus = input.status ?? (input.progressPercentage === 0
-    ? "todo"
-    : input.progressPercentage === 100 ? "completed" : "in_progress");
+  const nextStatus: TaskStatus = input.status ?? statusForProgress(input.progressPercentage);
   const completedAt = nextStatus === "completed" ? task.completed_at ?? new Date().toISOString() : task.completed_at ?? null;
   const { data: updatedTask, error: updateTaskError } = await supabase
     .from("tasks")

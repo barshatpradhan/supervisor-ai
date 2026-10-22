@@ -18,7 +18,7 @@ Applied on branch `chore/structure-cleanup`, one commit per batch, each with tsc
 | D. Service placement | `7d49059` | Single-feature services and hooks moved into their features; services convention documented. |
 | E. Single route layer | `0ae48f8` | `features/*/pages` wrappers removed; routes unchanged. |
 | H, I | not applied | Replaced by "Allowed cross-feature imports" in `docs/ARCHITECTURE.md` (`2d409d3`). |
-| G. Task progress single source | **not started** | Characterization tests are in place first (`taskProgress.characterization.test.ts`, run with `npm run test:integration`); waiting for approval. |
+| G. Task progress single source | see `git log` | `taskService.ts` now calls `statusForProgress` and `projectProgressFromHours`, so `taskProgressMetrics.test.ts` covers the real rules. Characterization tests (`1b79529`, `npm run test:integration`) pass unchanged before and after. |
 
 Known flaky test: `InviteMemberDialog` "Sending invitation" checks a short-lived pending state and can fail when the machine is under heavy load; it passes on rerun. Not changed by the cleanup.
 
