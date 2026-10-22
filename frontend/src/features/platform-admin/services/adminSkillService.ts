@@ -1,5 +1,5 @@
-import type { BackendApproveSkillRequest, BackendPendingSkill } from '../../types/backend'
-import { deleteJson, getJson, patchJson } from '../../lib/api'
+import type { BackendApproveSkillRequest, BackendPendingSkill } from '../../../types/backend'
+import { deleteJson, getJson, patchJson } from '../../../lib/api'
 
 export function listPendingSkills() {
   return getJson<BackendPendingSkill[]>('/admin/skills/pending')

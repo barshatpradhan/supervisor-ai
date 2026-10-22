@@ -2,9 +2,9 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PlatformAdminDashboard } from './PlatformAdminDashboard'
-import { getDashboardMetrics } from '../../../services/admin/adminDashboardService'
-import { listPendingSkills } from '../../../services/admin/adminSkillService'
-import { listUserDirectory } from '../../../services/admin/adminUserDirectoryService'
+import { getDashboardMetrics } from '../services/adminDashboardService'
+import { listPendingSkills } from '../services/adminSkillService'
+import { listUserDirectory } from '../services/adminUserDirectoryService'
 import { listEmployeeUsers } from '../../../services/employees/employeeService'
 import type { BackendUserDirectoryEntry, BackendUserDirectoryPage } from '../../../types/backend'
 
@@ -12,17 +12,17 @@ vi.mock('../../../services/employees/employeeService', () => ({
   listEmployeeUsers: vi.fn(),
 }))
 
-vi.mock('../../../services/admin/adminDashboardService', () => ({
+vi.mock('../services/adminDashboardService', () => ({
   getDashboardMetrics: vi.fn(),
 }))
 
-vi.mock('../../../services/admin/adminSkillService', () => ({
+vi.mock('../services/adminSkillService', () => ({
   listPendingSkills: vi.fn(),
   approveSkill: vi.fn(),
   rejectSkill: vi.fn(),
 }))
 
-vi.mock('../../../services/admin/adminUserDirectoryService', () => ({
+vi.mock('../services/adminUserDirectoryService', () => ({
   listUserDirectory: vi.fn(),
 }))
 

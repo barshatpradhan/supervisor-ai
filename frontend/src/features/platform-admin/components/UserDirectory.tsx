@@ -8,7 +8,8 @@ import { StateBlock } from '../../../components/ui/StateBlock'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { fieldInputClass, fieldLabelClass } from '../../../components/ui/fieldStyles'
 import { useApiResource } from '../../../hooks/useApiResource'
-import { listUserDirectory, type UserDirectoryFilters } from '../../../services/admin/adminUserDirectoryService'
+import { listUserDirectory } from '../services/adminUserDirectoryService'
+import type { UserDirectoryFilters } from '../types/userDirectory'
 import type { BackendUserDirectoryEntry, BackendUserDirectoryRoleFilter } from '../../../types/backend'
 
 const EMPTY_FILTERS: UserDirectoryFilters = { organizationId: '', page: 1, role: '', search: '', teamId: '' }

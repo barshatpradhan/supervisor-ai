@@ -6,7 +6,7 @@ import { StateBlock } from '../../../components/ui/StateBlock'
 import { fieldInputClass } from '../../../components/ui/fieldStyles'
 import { useApiResource } from '../../../hooks/useApiResource'
 import { parseApiError } from '../../../lib/api'
-import { approveSkill, listPendingSkills, rejectSkill } from '../../../services/admin/adminSkillService'
+import { approveSkill, listPendingSkills, rejectSkill } from '../services/adminSkillService'
 import { listSkillCategories } from '../../../services/skills/skillService'
 import type { BackendPendingSkill } from '../../../types/backend'
 

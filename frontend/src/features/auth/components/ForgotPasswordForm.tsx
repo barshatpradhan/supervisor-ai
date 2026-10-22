@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { ErrorState } from '../../../components/shared/ErrorState'
 import { Button } from '../../../components/ui/Button'
-import { requestPasswordReset } from '../../../services/auth/authService'
+import { requestPasswordReset } from '../services/authService'
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState('')

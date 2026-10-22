@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { ErrorState } from '../../../components/shared/ErrorState'
 import { Button } from '../../../components/ui/Button'
-import { confirmPasswordReset } from '../../../services/auth/authService'
+import { confirmPasswordReset } from '../services/authService'
 
 interface ResetPasswordFormProps {
   accessToken: string | null

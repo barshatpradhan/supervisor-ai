@@ -1,15 +1,6 @@
-import type { BackendUserDirectoryPage, BackendUserDirectoryRoleFilter } from '../../types/backend'
-import { getJson } from '../../lib/api'
-
-export interface UserDirectoryFilters {
-  /** An organization id, 'none' for users without one, or '' for all. */
-  organizationId: string
-  page: number
-  role: BackendUserDirectoryRoleFilter | ''
-  search: string
-  /** A team id, 'none' for users without a team, or '' for all. */
-  teamId: string
-}
+import type { BackendUserDirectoryPage } from '../../../types/backend'
+import { getJson } from '../../../lib/api'
+import type { UserDirectoryFilters } from '../types/userDirectory'
 
 /** Platform-wide users grouped by organization then team, 10 per page. */
 export function listUserDirectory(filters: UserDirectoryFilters) {

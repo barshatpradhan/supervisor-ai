@@ -5,7 +5,8 @@ import type {
 } from '../../../types/backend'
 import { useEmployeeProfile } from '../../../hooks/useEmployeeProfile'
 import { useNotifications } from '../../../hooks/useNotifications'
-import { useSkillCheck, type SkillCheckOutcome } from '../../../hooks/useSkillCheck'
+import { useSkillCheck } from '../../../hooks/useSkillCheck'
+import type { SkillCheckOutcome } from '../../../types/skills'
 import { updateEmployeeProfile } from '../../../services/employees/employeeService'
 import { useApprovedSkills } from './useApprovedSkills'
 import {

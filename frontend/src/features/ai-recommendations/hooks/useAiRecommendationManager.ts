@@ -8,7 +8,7 @@ import {
   getSavedRecommendationsForProject,
   listRecommendationEmployees,
   listRecommendationProjectDocuments,
-} from '../services/recommendationService'
+} from '../services/recommendationWorkspaceService'
 import type { RecommendationEmployeeCard, RecommendationRun } from '../types/recommendation'
 import {
   buildRecommendationEmployeeCards,

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNotifications } from '../../../hooks/useNotifications'
-import { useSupervisorProfile } from '../../../hooks/useSupervisorProfile'
+import { useSupervisorProfile } from './useSupervisorProfile'
 import {
   createSupervisorProfile,
   updateSupervisorProfile,
