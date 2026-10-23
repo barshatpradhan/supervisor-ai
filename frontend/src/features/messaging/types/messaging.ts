@@ -10,7 +10,12 @@ export interface MessagingPerson {
   name: string
 }
 
-export interface MessagingMember extends MessagingPerson {
+/** A person shown by name with their avatar beside it. Mentions and task chips stay MessagingPerson. */
+export interface MessagingPersonWithAvatar extends MessagingPerson {
+  avatarVariant: string | null
+}
+
+export interface MessagingMember extends MessagingPersonWithAvatar {
   role: BackendOrganizationMembershipRole
 }
 
@@ -24,7 +29,7 @@ export interface ConversationSummary {
   kind: ConversationKind
   title: string
   projectId: string | null
-  directPeer: MessagingPerson | null
+  directPeer: MessagingPersonWithAvatar | null
   lastMessageAt: string | null
   lastMessagePreview: { senderName: string | null; text: string } | null
   unreadCount: number
@@ -60,7 +65,7 @@ export interface Message {
   conversationId: string
   kind: MessageKind
   body: string
-  sender: MessagingPerson | null
+  sender: MessagingPersonWithAvatar | null
   clientId: string | null
   createdAt: string
   editedAt: string | null
@@ -87,7 +92,7 @@ export interface MessageChanges {
 export interface DirectConversation {
   id: string
   kind: 'direct'
-  directPeer: MessagingPerson
+  directPeer: MessagingPersonWithAvatar
   created: boolean
 }
 

@@ -579,7 +579,7 @@ describe("employees in project channels", () => {
     assert.deepEqual(memberIds, [admin.userId, supervisor.userId, ella.userId, ben.userId].sort());
 
     for (const member of members) {
-      assert.deepEqual(Object.keys(member).sort(), ["isProjectCreator", "name", "role", "userId"]);
+      assert.deepEqual(Object.keys(member).sort(), ["avatarVariant", "isProjectCreator", "name", "role", "userId"]);
     }
     assert.ok(!JSON.stringify(members).includes("@"), "no email addresses");
     assert.equal(members.find((member) => member.userId === supervisor.userId)?.isProjectCreator, true);

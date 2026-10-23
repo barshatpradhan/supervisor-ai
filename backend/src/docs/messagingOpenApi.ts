@@ -45,7 +45,7 @@ export const messagingSchemas = {
           title: { type: "string" },
           status: { type: "string" },
           progressPercent: { type: "integer", minimum: 0, maximum: 100 },
-          assignee: { type: ["object", "null"] },
+          assignee: { type: ["object", "null"], description: "userId and name only; chips never carry an avatar." },
         },
       },
       {
@@ -66,7 +66,7 @@ export const messagingPaths = {
       description:
         "General for every member; every live project channel for organization admins and supervisors; for employees, " +
         "the channels of projects where they have at least one live task (messages from their earliest current assignment onward); " +
-        "the caller's own direct messages.",
+        "the caller's own direct messages. A direct conversation's directPeer carries avatarVariant (null for initials).",
       responses: { "200": ok("Conversations") },
     },
   },
@@ -78,7 +78,12 @@ export const messagingPaths = {
     },
   },
   "/messaging/members": {
-    get: { tags: ["Messaging"], summary: "Active organization members, for direct messages and @mentions", responses: { "200": ok("Members") } },
+    get: {
+      tags: ["Messaging"],
+      summary: "Active organization members, for direct messages and @mentions",
+      description: "Each entry has userId, name, role and avatarVariant (null for initials); no email addresses.",
+      responses: { "200": ok("Members") },
+    },
   },
   "/messaging/conversations/direct": {
     post: {
@@ -93,7 +98,7 @@ export const messagingPaths = {
       tags: ["Messaging"],
       summary: "People who can open this conversation right now, for @mention autocomplete",
       description:
-        "Each entry has only userId, name, role and isProjectCreator; no email addresses. A project channel lists active " +
+        "Each entry has only userId, name, role, isProjectCreator and avatarVariant; no email addresses. A project channel lists active " +
         "organization admins and supervisors plus employees with a live task in the project.",
       parameters: [conversationId],
       responses: { "200": ok("Conversation members"), "404": notFound },
@@ -107,7 +112,8 @@ export const messagingPaths = {
         "Without updatedSince: a page of messages, newest first; pass nextCursor as cursor for older ones. " +
         "With updatedSince: messages created or changed since then (edits, deletes, reactions), oldest change first; pass syncedAt back on the next poll. " +
         "Employees in a project channel get messages from their access date onward, plus earlier messages that tag a task now assigned to them; " +
-        "those carry shownForTask: true and are returned whole (text, sender, mentions, reactions, task chip).",
+        "those carry shownForTask: true and are returned whole (text, sender, mentions, reactions, task chip). " +
+        "The sender carries avatarVariant; mentions and task chips never do, and a restricted chip is only { accessible: false }.",
       parameters: [
         conversationId,
         { name: "cursor", in: "query", schema: { type: "string" } },

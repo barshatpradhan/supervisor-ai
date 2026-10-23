@@ -172,6 +172,22 @@ Controllers are uniformly thin: validate `req.body`/`params`/`query` via `utils/
 | `taskService.ts` | Core task lifecycle: `createTask`, `updateTask`, `assignTask` (all trigger a non-blocking, error-swallowing `recalculateEmployeeCapacity` follow-up), `createTaskProgress` (validates the actor is the assignee when role is `employee`; derives next status purely from `progressPercentage` — 0→todo, 100→completed, else→in_progress, **bypassing `blocked`/`review`/`cancelled` entirely**; triggers non-blocking capacity+performance recalculation; blockingly recalculates project progress; logs to `activityLogService`), `listTasks`/`getTaskById` (see Flow 5, §3 for the recently-fixed bug). | → `employeeMetricsService`, `projectService`, `userService`, `activityLogService`, `observabilityMiddleware`. ← `taskController`, `employeeController` (`listEmployeeTasks`), `recommendationService`. |
 | `userService.ts` | Thin, heavily-reused identity layer: `getAppUserByAuthId()` (Supabase-Auth-id → app `users` row, 404 if missing — called at the top of nearly every other service as an existence/auth guard), `getAuthOnboardingStateForAppUser()`, `mapLegacyCompatibilityRole()` (a `role:"admin"`+`platform_role:null` user reports legacy role as `null`, not `"admin"` — an undocumented migration-compatibility quirk). | The most widely-depended-on services file — imported by essentially every other service. |
 
+#### Avatars (`avatarService.ts`)
+
+Every response that shows another person's avatar reads it through `getAvatarVariants(userIds)`: one
+`users` query for up to 200 ids (chunks run in parallel beyond that), no query for an empty list,
+null for missing or invalid values, and initials (with a log line) if the lookup fails. Callers pass
+only the people their response already shows by name, so an avatar never appears without a name.
+It is called by messaging (members, conversation members, DM peers, message senders), assignable
+employees, organization members and teams, recommendations (read live, never stored with a run) and
+the platform user directory (current page only). Mentions, task chips, progress-request recipients,
+dashboards and public routes don't carry avatars. `src/routes/avatars.integration.test.ts` checks
+these rules against a local disposable database.
+
+Cost: one extra query per response that shows people. On the messaging polls that is +1 per
+conversation-list poll (30 s) and +1 per thread poll only when it returns messages; empty polls and
+the unread summary cost nothing.
+
 ### 2.6 `backend/src/utils/`
 
 | File | Purpose | Notes |

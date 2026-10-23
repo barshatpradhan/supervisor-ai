@@ -9,6 +9,8 @@ interface AssignableEmployeeSkill {
 export interface AssignableEmployeeDirectoryEntry {
   id: string;
   full_name: string;
+  /** The employee's chosen avatar ID, or null for initials. */
+  avatarVariant: string | null;
   employment_type: EmploymentType;
   availability_percentage: number;
   workload_percentage: number;

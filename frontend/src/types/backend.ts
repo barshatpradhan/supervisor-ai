@@ -156,6 +156,8 @@ export interface BackendUserDirectoryEntry {
   user_id: string
   email: string | null
   full_name: string | null
+  /** Null for initials, and always null when no name is shown. */
+  avatarVariant: string | null
   job_title: string | null
   platform_role: BackendPlatformRole | null
   created_at: string
@@ -267,6 +269,8 @@ interface BackendAssignableEmployeeSkill {
 export interface BackendAssignableEmployee {
   id: string
   full_name: string
+  /** The person's chosen avatar ID (users.avatar_variant), or null for initials. */
+  avatarVariant: string | null
   employment_type: 'full_time' | 'part_time'
   availability_percentage: number
   workload_percentage: number
@@ -419,6 +423,8 @@ interface BackendRecommendationScoreBreakdown {
 export interface BackendRecommendation {
   employeeId: string
   fullName: string
+  /** The person's chosen avatar ID (users.avatar_variant), or null for initials. */
+  avatarVariant: string | null
   score: number
   employeeName: string
   rank: number
@@ -677,14 +683,16 @@ export interface BackendOrganizationMemberSummary {
   employee_full_name: string | null
   supervisor_profile_id: string | null
   supervisor_full_name: string | null
+  /** Null for initials, and always null when the member is shown only by email. */
+  avatarVariant: string | null
 }
 
 export interface BackendOrganizationTeamSummary {
   id: string
   name: string
   description: string | null
-  lead: { supervisor_id: string; full_name: string } | null
-  members: Array<{ employee_id: string; full_name: string; job_title: string | null }>
+  lead: { supervisor_id: string; full_name: string; avatarVariant: string | null } | null
+  members: Array<{ employee_id: string; full_name: string; job_title: string | null; avatarVariant: string | null }>
 }
 
 export interface BackendCreateOrganizationRequest {

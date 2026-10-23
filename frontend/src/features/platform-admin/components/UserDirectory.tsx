@@ -209,7 +209,7 @@ export function UserDirectory() {
                       <tr className="border-t border-chart-grid">
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-2.5">
-                            <Avatar name={name} size={32} />
+                            <Avatar name={name} size={32} variant={entry.avatarVariant} />
                             <div className="min-w-0">
                               <div className="body-strong truncate text-text-primary">{name}</div>
                               <div className="helper truncate text-text-tertiary">

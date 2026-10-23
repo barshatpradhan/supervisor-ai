@@ -41,6 +41,7 @@ const sampleStatus = [
 
 const sampleRecommendation: BackendRecommendation = {
   availabilityPercentage: 28,
+  avatarVariant: null,
   confidenceScore: 86,
   employeeId: 'sample-aisha',
   employeeName: 'Aisha Bello',

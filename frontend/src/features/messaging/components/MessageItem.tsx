@@ -67,7 +67,7 @@ export function MessageItem({
 
   return (
     <li className="group relative flex gap-3 rounded-control px-2 py-2 hover:bg-surface-muted/60">
-      <Avatar name={senderName} size={32} />
+      <Avatar name={senderName} size={32} variant={message.sender?.avatarVariant} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2">
           <span className="text-sm font-semibold text-text-primary">{senderName}</span>

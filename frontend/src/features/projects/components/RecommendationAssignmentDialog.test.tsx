@@ -8,6 +8,7 @@ vi.mock('../../../services/recommendations/recommendationService', () => ({
 }))
 
 const recommendation = {
+  avatarVariant: null,
   employeeId: 'employee-internal-id',
   fullName: 'Jordan Lee',
   employeeName: 'Jordan Lee',

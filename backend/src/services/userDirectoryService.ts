@@ -2,6 +2,7 @@ import { supabase } from "../config/supabase.js";
 import type { OrganizationMembershipRole, OrganizationMembershipStatus } from "../types/organization.js";
 import { AppError } from "../utils/appError.js";
 import { requireUuid } from "../utils/validation.js";
+import { avatarFor, getAvatarVariants } from "./avatarService.js";
 
 const DIRECTORY_PAGE_SIZE = 10;
 
@@ -23,6 +24,8 @@ interface UserDirectoryEntry {
   user_id: string;
   email: string | null;
   full_name: string | null;
+  /** Beside the name; null when no name is shown (email only). */
+  avatarVariant: string | null;
   job_title: string | null;
   platform_role: string | null;
   created_at: string;
@@ -154,6 +157,7 @@ export async function listUserDirectory(query: UserDirectoryQuery): Promise<User
         user_id: user.id,
         email: user.email,
         full_name: employee?.full_name ?? supervisor?.full_name ?? null,
+        avatarVariant: null,
         job_title: employee?.job_title ?? null,
         platform_role: user.platform_role,
         created_at: user.created_at,
@@ -202,8 +206,12 @@ export async function listUserDirectory(query: UserDirectoryQuery): Promise<User
   const page = Math.min(query.page, totalPages);
   const start = (page - 1) * DIRECTORY_PAGE_SIZE;
 
+  // Avatars for this page only, and only for entries shown by name.
+  const items = filtered.slice(start, start + DIRECTORY_PAGE_SIZE);
+  const avatars = await getAvatarVariants(items.filter((entry) => entry.full_name).map((entry) => entry.user_id));
+
   return {
-    items: filtered.slice(start, start + DIRECTORY_PAGE_SIZE),
+    items: items.map((entry) => ({ ...entry, avatarVariant: entry.full_name ? avatarFor(avatars, entry.user_id) : null })),
     page,
     page_size: DIRECTORY_PAGE_SIZE,
     total: filtered.length,

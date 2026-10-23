@@ -59,7 +59,7 @@ export function NewDirectMessageDialog({
                 onClick={() => onChoose(member.userId)}
                 type="button"
               >
-                <Avatar name={member.name} size={28} />
+                <Avatar name={member.name} size={28} variant={member.avatarVariant} />
                 <span className="flex-1 text-sm text-text-primary">{member.name}</span>
                 <span className="text-xs text-text-tertiary">{roleLabels[member.role]}</span>
               </button>

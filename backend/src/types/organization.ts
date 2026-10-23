@@ -95,6 +95,8 @@ export interface OrganizationMemberSummary {
   employee_full_name: string | null;
   supervisor_profile_id: string | null;
   supervisor_full_name: string | null;
+  /** Avatar ID beside the member's name; null for initials, and always null when no name is shown. */
+  avatarVariant: string | null;
 }
 
 export interface OrganizationInvitationSummary {

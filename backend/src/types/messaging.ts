@@ -18,7 +18,15 @@ export interface MessagingPerson {
   name: string;
 }
 
-export interface MessagingMember extends MessagingPerson {
+/**
+ * A person shown by name with their avatar beside it (users.avatar_variant; null shows initials).
+ * Used only where the viewer already sees the name; task chips and mentions stay MessagingPerson.
+ */
+export interface MessagingPersonWithAvatar extends MessagingPerson {
+  avatarVariant: string | null;
+}
+
+export interface MessagingMember extends MessagingPersonWithAvatar {
   role: OrganizationMembershipRole;
 }
 
@@ -33,7 +41,7 @@ export interface ConversationSummary {
   kind: ConversationKind;
   title: string;
   projectId: string | null;
-  directPeer: MessagingPerson | null;
+  directPeer: MessagingPersonWithAvatar | null;
   lastMessageAt: string | null;
   lastMessagePreview: { senderName: string | null; text: string } | null;
   unreadCount: number;
@@ -56,6 +64,7 @@ export type TaskChip =
       title: string;
       status: TaskStatus;
       progressPercent: number;
+      /** Name only: the chip draws no avatar. */
       assignee: MessagingPerson | null;
     }
   | { accessible: false };
@@ -72,7 +81,7 @@ export interface MessageView {
   kind: MessageKind;
   /** Always "" for a deleted message. */
   body: string;
-  sender: MessagingPerson | null;
+  sender: MessagingPersonWithAvatar | null;
   /** Only returned to the sender, so their client can match an optimistic message. */
   clientId: string | null;
   createdAt: string;

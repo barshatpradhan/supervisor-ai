@@ -10,10 +10,11 @@ import { Segmented } from '../../../components/ui/Segmented'
 import { StateBlock } from '../../../components/ui/StateBlock'
 import { AskAboutTaskLink } from '../../messaging/components/AskAboutTaskLink'
 import { useOrganization } from '../../organizations/hooks/useOrganization'
-import { useEmployeeNames } from '../hooks/useEmployeeNames'
+import { useAuth } from '../../auth/hooks/useAuth'
+import { useEmployeeAvatars, useEmployeeNames } from '../hooks/useEmployeeNames'
 import { useTaskManager } from '../hooks/useTaskManager'
 import { taskStatusLabels } from '../utils/taskPresentation'
-import { boardStatuses, getTaskProgress, resolveAssigneeName, statusColorTokens } from '../utils/taskBoard'
+import { boardStatuses, getTaskProgress, resolveAssigneeAvatar, resolveAssigneeName, statusColorTokens } from '../utils/taskBoard'
 import { TaskBoard } from './TaskBoard'
 import type { TaskBoardCard } from './TaskBoard'
 import { TaskForm } from './TaskForm'
@@ -30,6 +31,8 @@ export function TasksModule() {
   const manager = useTaskManager()
   const { activeOrganization } = useOrganization()
   const employeeNames = useEmployeeNames(manager.canManageTasks)
+  const employeeAvatars = useEmployeeAvatars(manager.canManageTasks)
+  const ownAvatar = useAuth().user?.avatarVariant ?? null
   const [filter, setFilter] = useState<TaskFilter>('all')
 
   const cards = useMemo<TaskBoardCard[]>(
@@ -37,6 +40,7 @@ export function TasksModule() {
       manager.taskList
         .filter((task) => filter === 'all' || (filter === 'assigned') === Boolean(task.assigned_employee_id))
         .map((task) => ({
+          assigneeAvatarVariant: resolveAssigneeAvatar(task, employeeNames, employeeAvatars, ownAvatar),
           assigneeName: resolveAssigneeName(task, employeeNames),
           estimatedHours: task.estimated_hours,
           id: task.id,
@@ -48,7 +52,7 @@ export function TasksModule() {
           title: task.title,
           updatedAt: task.updated_at,
         })),
-    [employeeNames, filter, manager.taskList],
+    [employeeAvatars, employeeNames, filter, manager.taskList, ownAvatar],
   )
 
   const statusMix = boardStatuses.map((status) => ({

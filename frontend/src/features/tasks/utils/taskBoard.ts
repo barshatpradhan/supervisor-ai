@@ -29,6 +29,21 @@ export function formatHours(value: number) {
 }
 
 /** Replaces the "Employee 1a2b3c4d" reference with a real name when the directory has it. */
+/**
+ * The assignee's avatar, only where resolveAssigneeName shows a real name: the viewer's own for
+ * "You", the directory's for others, and null (initials) when only a placeholder label is known.
+ */
+export function resolveAssigneeAvatar(
+  task: TaskDisplay,
+  employeeNames: ReadonlyMap<string, string>,
+  employeeAvatars: ReadonlyMap<string, string | null>,
+  ownAvatar: string | null,
+) {
+  if (!task.assigned_employee_id) return null
+  if (task.assignmentState === 'self') return ownAvatar
+  return employeeNames.has(task.assigned_employee_id) ? employeeAvatars.get(task.assigned_employee_id) ?? null : null
+}
+
 export function resolveAssigneeName(task: TaskDisplay, employeeNames: ReadonlyMap<string, string>) {
   if (!task.assigned_employee_id) return null
   if (task.assignmentState === 'self') return 'You'

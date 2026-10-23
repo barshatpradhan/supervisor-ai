@@ -20,6 +20,8 @@ interface MessageThreadProps {
   conversation: ConversationSummary
   organizationId: string
   currentUserId: string | null
+  /** The viewer's own avatar, for their messages that are still sending. */
+  currentUserAvatarVariant?: string | null
   currentRole: BackendOrganizationMembershipRole | null
   onOpenConversations: () => void
   /** "Ask about this task": start with this task tagged and suggest people to mention. */
@@ -34,6 +36,7 @@ export function MessageThread({
   conversation,
   currentRole,
   currentUserId,
+  currentUserAvatarVariant = null,
   onOpenConversations,
   onPrefillUsed,
   organizationId,
@@ -96,7 +99,7 @@ export function MessageThread({
         >
           <Menu aria-hidden="true" size={18} />
         </button>
-        {TitleIcon ? <TitleIcon aria-hidden="true" className="text-text-secondary" size={18} /> : <Avatar name={conversation.title} size={28} />}
+        {TitleIcon ? <TitleIcon aria-hidden="true" className="text-text-secondary" size={18} /> : <Avatar name={conversation.title} size={28} variant={conversation.directPeer?.avatarVariant} />}
         <h2 className="m-0 min-w-0 flex-1 truncate text-base font-semibold text-text-primary" id="thread-title">{conversation.title}</h2>
         {conversation.kind === 'project' && conversation.projectId && canOpenProject ? (
           <Link className="text-sm font-semibold text-text-link" to={`/projects/${conversation.projectId}`}>Open project</Link>
@@ -162,7 +165,7 @@ export function MessageThread({
                   className="flex gap-3 px-2 py-2 opacity-80"
                   key={entry.clientId}
                 >
-                  <Avatar name="You" size={32} />
+                  <Avatar name="You" size={32} variant={currentUserAvatarVariant} />
                   <div className="min-w-0 flex-1">
                     <p className="m-0 whitespace-pre-wrap break-words text-sm text-text-primary">{bodyToDraft(entry.body, members ?? [])}</p>
                     {entry.task ? (

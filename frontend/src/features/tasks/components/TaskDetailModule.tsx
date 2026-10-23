@@ -12,9 +12,10 @@ import { StateBlock } from '../../../components/ui/StateBlock'
 import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { AskAboutTaskLink } from '../../messaging/components/AskAboutTaskLink'
 import { useOrganization } from '../../organizations/hooks/useOrganization'
-import { useEmployeeNames } from '../hooks/useEmployeeNames'
+import { useAuth } from '../../auth/hooks/useAuth'
+import { useEmployeeAvatars, useEmployeeNames } from '../hooks/useEmployeeNames'
 import { useTaskManager } from '../hooks/useTaskManager'
-import { formatHours, formatShortDate, getTaskProgress, resolveAssigneeName } from '../utils/taskBoard'
+import { formatHours, formatShortDate, getTaskProgress, resolveAssigneeAvatar, resolveAssigneeName } from '../utils/taskBoard'
 import { SuggestedOwnersPanel } from './SuggestedOwnersPanel'
 import { TaskAssignmentSection } from './TaskAssignmentSection'
 import { TaskProgressForm } from './TaskProgressForm'
@@ -36,6 +37,8 @@ export function TaskDetailModule() {
   const { activeOrganization } = useOrganization()
   const manager = useTaskManager(taskId)
   const employeeNames = useEmployeeNames(manager.canManageTasks)
+  const employeeAvatars = useEmployeeAvatars(manager.canManageTasks)
+  const ownAvatar = useAuth().user?.avatarVariant ?? null
   const task = manager.taskList.find((entry) => entry.id === taskId) ?? null
 
   // /tasks/:id?update=progress (the "Update progress" link on a chat progress request) opens the
@@ -88,6 +91,7 @@ export function TaskDetailModule() {
   }
 
   const assigneeName = resolveAssigneeName(task, employeeNames)
+  const assigneeAvatar = resolveAssigneeAvatar(task, employeeNames, employeeAvatars, ownAvatar)
   const progress = getTaskProgress(task)
   const project = manager.projectList.find((entry) => entry.id === task.project_id)
 
@@ -134,7 +138,7 @@ export function TaskDetailModule() {
               </DetailItem>
               <DetailItem label="Owner">
                 <span className="inline-flex items-center gap-2">
-                  <Avatar name={assigneeName} size={24} />
+                  <Avatar name={assigneeName} size={24} variant={assigneeAvatar} />
                   <span className="body-strong">{assigneeName ?? 'Unassigned'}</span>
                 </span>
               </DetailItem>

@@ -44,7 +44,7 @@ export function RecommendationCard({ liveMetrics, onAssign, rec, showNote = true
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <span className="num-sm w-7 shrink-0 text-text-tertiary">#{rec.rank}</span>
-          <Avatar name={name} size={40} />
+          <Avatar name={name} size={40} variant={rec.avatarVariant} />
           <div className="min-w-0">
             <h3 className="section-title m-0 truncate text-text-primary">{name}</h3>
             <p className="helper m-0 text-text-tertiary">
