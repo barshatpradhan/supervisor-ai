@@ -10,6 +10,8 @@
     "render:cut15": "remotion render Cut15 out/cut-15s.mp4 --concurrency=2",
     "still": "remotion still Master16x9",
     "srt": "node scripts/export-srt.ts",
+    "voiceover": "node scripts/export-voiceover.ts",
+    "mix": "node scripts/mix-audio.ts",
     "test": "node --test src/data/demo.test.ts",
     "typecheck": "tsc --noEmit"
   },

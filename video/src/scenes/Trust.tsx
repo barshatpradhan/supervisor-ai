@@ -73,10 +73,10 @@ function TitleCard() {
 export function Trust() {
   return (
     <AbsoluteFill>
-      <Sequence durationInFrames={sec(3.9)} layout="none">
+      <Sequence durationInFrames={sec(3.4)} layout="none">
         <Stage><Split /></Stage>
       </Sequence>
-      <Sequence from={sec(3.9)} layout="none"><TitleCard /></Sequence>
+      <Sequence from={sec(3.4)} layout="none"><TitleCard /></Sequence>
     </AbsoluteFill>
   )
 }

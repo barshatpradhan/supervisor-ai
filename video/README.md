@@ -17,6 +17,8 @@ npm run studio      # preview in the browser
 npm run still -- out/frame.png --frame=600
 npm run render:master
 npm run srt         # out/captions.srt from the burned-in cues
+npm run voiceover   # out/voiceover-elevenlabs.txt, the script to paste into ElevenLabs
+npm run mix         # public/audio/mix.mp3 from voiceover.mp3 and music.mp3, see Audio
 ```
 
 The frontend's dependencies must be installed (`cd ../frontend && npm install`): React Router and
@@ -56,15 +58,21 @@ change in `surfaces.ts`. The real RecommendationCard decides for itself, exactly
 
 ## Audio
 
-The video takes **one** soundtrack: music and voiceover already mixed together.
+The video plays **one** soundtrack, `public/audio/mix.mp3`, which `npm run mix` builds:
 
-1. Mix the voiceover over the music (duck the music about 10-12 dB under the voice; master to
-   -14 LUFS integrated, -1 dBTP true peak), 60.0 s long, starting at 0:00.
-2. Export it as MP3 and save it as **`video/public/audio/mix.mp3`** (create the folder if needed).
-3. Run `npm run render:master`. `src/Master.tsx` adds it with `staticFile('audio/mix.mp3')`.
+1. `npm run voiceover` writes `out/voiceover-elevenlabs.txt`. Generate it in ElevenLabs
+   (Multilingual v2 reads the `<break>` pauses) and save the MP3 as **`public/audio/voiceover.mp3`**.
+2. Save the music as **`public/audio/music.mp3`** (optional).
+3. `npm run mix` cuts the voiceover at its pauses and places each line where its caption starts.
+   It extends the 30 s music to 60 s on its own beat grid (bar-line cuts, the track's ending at
+   60 s), dips it around 2.5 kHz and ducks it while she speaks. It masters to -14 LUFS with peaks
+   under -1 dBTP and writes exactly 60.0 s to `public/audio/mix.mp3`.
+4. `npm run render:master`. `src/Master.tsx` adds the mix with `staticFile('audio/mix.mp3')`.
 
-Without that file the video renders silent, which is how previews work until the mix exists.
-Audio files are not committed (`public/audio/*.mp3` is ignored); keep the source mix elsewhere.
+Where each line sits in the current take is listed in `LINES` in `scripts/mix-audio.ts` (found with
+ffmpeg `silencedetect`), and how the music is cut is in `BED` (120 BPM, downbeat at 0.24 s); a new
+take or a new track needs its table updated. Without `mix.mp3` the video renders
+silent. Audio files are not committed (`public/audio/*.mp3` is ignored); keep the sources elsewhere.
 
 ## Renders
 
@@ -78,4 +86,4 @@ Each uses `--concurrency=2`. `out/` and `node_modules/` are not committed.
 
 ## Before the final render
 
-- Put the mixed soundtrack at `public/audio/mix.mp3` (see Audio).
+- Build the soundtrack with `npm run mix` (see Audio).

@@ -36,8 +36,8 @@ export const CAPTIONS: Cue[] = [
   { start: 39.4, end: 42.3, text: 'Discuss the work in project channels.' },
   { start: 42.4, end: 45.7, text: 'Tag a task, ask for an update,' },
   { start: 45.8, end: 48.9, text: 'and the assignee updates their progress.' },
-  { start: 49.1, end: 52.9, text: 'Employees see only their own tasks and channels.' },
-  { start: 53.1, end: 55.0, text: 'AI recommends. You decide.' },
-  { start: 55.2, end: 58.1, text: 'Right person. Right project. Less guesswork.' },
+  { start: 49.1, end: 52.4, text: 'Employees see only their own tasks and channels.' },
+  { start: 52.5, end: 55.0, text: 'AI recommends. You decide.' },
+  { start: 55.0, end: 58.1, text: 'Right person. Right project. Less guesswork.' },
   { start: 58.3, end: 60.0, text: 'Supervisor AI.' },
 ]
