@@ -2,7 +2,7 @@ import { AbsoluteFill, Sequence, useCurrentFrame } from 'remotion'
 import { SupervisorLogo } from '../components/app.ts'
 import { ChannelList } from '../components/chat.tsx'
 import { PersonAvatar } from '../components/PersonAvatar.tsx'
-import { Enter, Headline, Stage } from '../components/primitives.tsx'
+import { Enter, Stage } from '../components/primitives.tsx'
 import { AISHA, PROJECT_TASKS, SAM } from '../data/demo.ts'
 import type { Person } from '../data/demo.ts'
 import { AVATAR_SIZE, variantOn } from '../data/surfaces.ts'
@@ -74,7 +74,6 @@ export function Trust() {
   return (
     <AbsoluteFill>
       <Sequence durationInFrames={sec(3.9)} layout="none">
-        <Headline>Employees see only their own work</Headline>
         <Stage><Split /></Stage>
       </Sequence>
       <Sequence from={sec(3.9)} layout="none"><TitleCard /></Sequence>

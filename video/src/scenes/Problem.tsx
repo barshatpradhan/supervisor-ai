@@ -1,7 +1,7 @@
 import { AbsoluteFill, Sequence, interpolate, useCurrentFrame } from 'remotion'
 import { Chip, StatusBadge } from '../components/app.ts'
-import { Enter, Headline, Stage, useCount } from '../components/primitives.tsx'
-import { STAGGER, sec } from '../theme.ts'
+import { Enter, PopHeadline, Stage, useCount } from '../components/primitives.tsx'
+import { COLORS, STAGGER, sec } from '../theme.ts'
 
 /** The world before the product: a spreadsheet, overload, the wrong owner. Not app UI. */
 const SHEET = [
@@ -86,16 +86,16 @@ export function Problem() {
   return (
     <AbsoluteFill>
       <Sequence durationInFrames={sec(2.6)} layout="none">
-        <Headline>Staffing by spreadsheet and gut feel?</Headline>
-        <Stage><Enter at={0} style={{ paddingTop: 40 }}><Spreadsheet /></Enter></Stage>
+        <PopHeadline lines={[['Staffing', 'by', ['spreadsheet', COLORS.accentText.tool]], ['and', ['gut', COLORS.accentText.problem], ['feel?', COLORS.accentText.problem]]]} />
+        <Stage><Enter at={0} style={{ paddingTop: 110 }}><Spreadsheet /></Enter></Stage>
       </Sequence>
       <Sequence durationInFrames={sec(1.4)} from={sec(2.6)} layout="none">
-        <Headline>Some people are overloaded</Headline>
-        <Stage><Enter at={0} style={{ paddingTop: 200, paddingInline: 220 }}><OverloadBars /></Enter></Stage>
+        <PopHeadline lines={[['Some', 'people', 'are'], [['overloaded', COLORS.accentText.problem]]]} />
+        <Stage><Enter at={0} style={{ paddingTop: 230, paddingInline: 220 }}><OverloadBars /></Enter></Stage>
       </Sequence>
       <Sequence durationInFrames={sec(3)} from={sec(4)} layout="none">
-        <Headline>Wrong person on the task</Headline>
-        <Stage><Enter at={0} style={{ display: 'flex', justifyContent: 'center', paddingTop: 200 }}><WrongOwner /></Enter></Stage>
+        <PopHeadline lines={[[['Wrong', COLORS.accentText.problem], ['person', COLORS.accentText.problem]], ['on', 'the', 'task']]} />
+        <Stage><Enter at={0} style={{ display: 'flex', justifyContent: 'center', paddingTop: 230 }}><WrongOwner /></Enter></Stage>
       </Sequence>
     </AbsoluteFill>
   )

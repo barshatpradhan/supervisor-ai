@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
-import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion'
+import { AbsoluteFill, interpolate, spring, useCurrentFrame } from 'remotion'
 import { CAPTIONS } from '../timeline.ts'
 import { COLORS, ENTER, FPS, STAGE, WIDTH, mix, progress } from '../theme.ts'
 import { headerStyle } from '../typography.ts'
@@ -26,6 +26,55 @@ export function useCount(at: number, from: number, to: number, duration = 18) {
   return mix(progress(useCurrentFrame(), at, duration), from, to)
 }
 
+/** Frames between one word and the next in a PopHeadline. */
+const WORD_STEP = 3
+
+/** Sideways swing and tilt per word, cycled so neighbours never come in the same way. */
+const SWINGS = [
+  { x: -28, r: -9 },
+  { x: 24, r: 7 },
+  { x: 0, r: -5 },
+  { x: 30, r: 10 },
+]
+
+/** A word, or a word with its accent colour. */
+export type HeadlineWord = string | readonly [string, string]
+
+/**
+ * Two-line header above the stage. Its words pop in one by one in reading order, each with its
+ * own swing and tilt, and key words carry an accent colour. The one place the video uses a spring
+ * instead of EASE: the small overshoot is the point. Every word is readable within about half a
+ * second, so even a 1.4 s beat holds the full header for longer than 0.8 s.
+ */
+export function PopHeadline({ lines }: { lines: readonly (readonly HeadlineWord[])[] }) {
+  const frame = useCurrentFrame()
+  let order = 0
+  return (
+    <div style={{ position: 'absolute', top: 34, left: 0, right: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', ...headerStyle('tagline') }}>
+      {lines.map((line, lineIndex) => (
+        <p className="m-0 flex" key={lineIndex} style={{ gap: '0.2em' }}>
+          {line.map((word) => {
+            const [text, color] = typeof word === 'string' ? [word, COLORS.ink] : word
+            const index = order++
+            const swing = SWINGS[index % SWINGS.length]
+            // The first line drops in from above and the second rises from below, so no word crosses the other line.
+            const from = { ...swing, y: lineIndex === 0 ? -46 : 46 }
+            const s = spring({ frame: frame - index * WORD_STEP, fps: FPS, config: { damping: 10, stiffness: 170, mass: 0.6 } })
+            return (
+              <span
+                key={index}
+                style={{ display: 'inline-block', color, opacity: Math.min(1, s * 2), transform: `translate(${(1 - s) * from.x}px, ${(1 - s) * from.y}px) rotate(${(1 - s) * from.r}deg) scale(${0.6 + 0.4 * s})` }}
+              >
+                {text}
+              </span>
+            )
+          })}
+        </p>
+      ))}
+    </div>
+  )
+}
+
 /** The app canvas: a 1240 x 700 CSS-px viewport scaled up and centred on the 1080p frame. */
 export function Stage({ children }: { children: ReactNode }) {
   return (
@@ -41,22 +90,6 @@ export function Stage({ children }: { children: ReactNode }) {
       }}
     >
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>{children}</div>
-    </div>
-  )
-}
-
-/** On-screen text above the stage: one short line per beat (8 words max). */
-export function Headline({ children }: { children: ReactNode }) {
-  const frame = useCurrentFrame()
-  const p = progress(frame, 0, ENTER)
-  return (
-    <div
-      style={{
-        position: 'absolute', top: 34, left: 0, right: 0, display: 'flex', justifyContent: 'center',
-        opacity: p, transform: `translateY(${(1 - p) * 8}px)`,
-      }}
-    >
-      <span style={{ color: COLORS.ink, ...headerStyle('scene') }}>{children}</span>
     </div>
   )
 }

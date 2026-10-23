@@ -2,7 +2,7 @@ import { AbsoluteFill, Sequence, useCurrentFrame } from 'remotion'
 import { AppFrame } from '../components/AppFrame.tsx'
 import { ChannelList, ChatMessage, Mention, ProgressForm, SentBanner, Thread } from '../components/chat.tsx'
 import type { ChipData } from '../components/chat.tsx'
-import { Cursor, Enter, Headline, Stage, useCount } from '../components/primitives.tsx'
+import { Cursor, Enter, Stage, useCount } from '../components/primitives.tsx'
 import { AISHA, MARCUS, NEW_TASK, PROGRESS_REQUEST_TEXT, SAM, TASK_PROGRESS } from '../data/demo.ts'
 import { progress, sec } from '../theme.ts'
 
@@ -83,10 +83,6 @@ export function Chat() {
           <AppFrame title="Messages" viewer={AISHA}><FormBeat /></AppFrame>
         </Sequence>
       </Stage>
-      <Sequence durationInFrames={sec(3)} layout="none"><Headline>Channels for every project</Headline></Sequence>
-      <Sequence durationInFrames={sec(2.1)} from={sec(3)} layout="none"><Headline>Tag a task. Ask for an update.</Headline></Sequence>
-      <Sequence durationInFrames={sec(2)} from={sec(5.1)} layout="none"><Headline>The request lands in her messages</Headline></Sequence>
-      <Sequence from={sec(7.1)} layout="none"><Headline>The form updates the task, not chat</Headline></Sequence>
     </AbsoluteFill>
   )
 }

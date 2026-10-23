@@ -17,7 +17,6 @@ export const HEADER = {
   lineHeight: 1.08,
   /** px on the 1080p frame, with tracking that tightens as the size grows. */
   scale: {
-    scene: { fontSize: 40, letterSpacing: '-0.012em' },
     tagline: { fontSize: 54, letterSpacing: '-0.018em' },
     title: { fontSize: 96, letterSpacing: '-0.025em' },
   },

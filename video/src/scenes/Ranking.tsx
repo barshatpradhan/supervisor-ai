@@ -1,7 +1,7 @@
 import { AbsoluteFill, Sequence, useCurrentFrame } from 'remotion'
 import { AppFrame } from '../components/AppFrame.tsx'
 import { RecommendationCard, StatusBadge } from '../components/app.ts'
-import { Cursor, Headline, Stage } from '../components/primitives.tsx'
+import { Cursor, Stage } from '../components/primitives.tsx'
 import { ScoreExplainer } from '../components/ScoreExplainer.tsx'
 import { PROJECT, RECOMMENDATIONS, SAM, toBackendRecommendation } from '../data/demo.ts'
 import { STAGGER, mix, progress, sec } from '../theme.ts'
@@ -62,10 +62,6 @@ export function Ranking() {
           </div>
         </AppFrame>
       </Stage>
-      <Sequence durationInFrames={sec(3.3)} layout="none"><Headline>Ranked by fit, with reasons</Headline></Sequence>
-      <Sequence durationInFrames={sec(3.6)} from={sec(3.3)} layout="none"><Headline>Skills, availability and performance, scored</Headline></Sequence>
-      <Sequence durationInFrames={sec(3)} from={sec(6.9)} layout="none"><Headline>See what matches and what's missing</Headline></Sequence>
-      <Sequence from={sec(9.9)} layout="none"><Headline>Assign in one click</Headline></Sequence>
     </AbsoluteFill>
   )
 }

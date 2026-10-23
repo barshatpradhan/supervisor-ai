@@ -28,6 +28,8 @@ export const COLORS = {
   ai: '#784bd1',
   ink: '#16182a',
   captionPlate: 'rgba(22, 24, 42, 0.85)',
+  /** Accent words in headers; each is above 4.5:1 on the canvas. */
+  accentText: { problem: '#c93c37', tool: '#14806f' },
 }
 
 /** The app is drawn at 1240 x 700 CSS px and scaled up so interface text reads on a 1080p frame. */

@@ -1,6 +1,6 @@
 import { AbsoluteFill, Sequence } from 'remotion'
 import { AppFrame } from '../components/AppFrame.tsx'
-import { Headline, Stage, useCount } from '../components/primitives.tsx'
+import { Stage, useCount } from '../components/primitives.tsx'
 import { ProjectProgress, TaskBoard, WorkloadList } from '../components/work.tsx'
 import type { BoardCard } from '../components/work.tsx'
 import { AISHA, BOARD_COUNTS, DANIEL, LENA, MARCUS, NEW_TASK, PROJECT, PROJECT_PROGRESS, SAM, TASK_PROGRESS, TOM, workloadOf } from '../data/demo.ts'
@@ -77,10 +77,6 @@ export function Track() {
           </AppFrame>
         </Sequence>
       </Stage>
-      <Sequence durationInFrames={sec(3)} layout="none"><Headline>The task lands on the board</Headline></Sequence>
-      <Sequence durationInFrames={sec(2.6)} from={sec(3)} layout="none"><Headline>Workload updates for the whole team</Headline></Sequence>
-      <Sequence durationInFrames={sec(2.1)} from={sec(5.6)} layout="none"><Headline>Progress from the people doing it</Headline></Sequence>
-      <Sequence from={sec(7.7)} layout="none"><Headline>Completed work moves the project</Headline></Sequence>
     </AbsoluteFill>
   )
 }

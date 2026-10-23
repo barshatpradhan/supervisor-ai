@@ -39,7 +39,7 @@ lucide-react are shared with the app's components so there is one router context
 
 | Use | Font | Weight | License |
 | --- | --- | --- | --- |
-| Headers (title cards, scene headlines, end-card tagline) | Instrument Sans | 700 | SIL Open Font License 1.1 |
+| Headers (opening headlines, title cards, end-card tagline) | Instrument Sans | 700 | SIL Open Font License 1.1 |
 | Recreated app UI, captions | Inter | 400-700 | SIL Open Font License 1.1 |
 | Numbers | JetBrains Mono | 400-600 | SIL Open Font License 1.1 |
 
@@ -78,5 +78,4 @@ Each uses `--concurrency=2`. `out/` and `node_modules/` are not committed.
 
 ## Before the final render
 
-- Replace `WEBSITE_URL` in `src/scenes/Cta.tsx`.
 - Put the mixed soundtrack at `public/audio/mix.mp3` (see Audio).

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { AbsoluteFill, Audio, Sequence, continueRender, delayRender, getStaticFiles, staticFile } from 'remotion'
+import { SideShapes } from './components/decor.tsx'
 import { Captions } from './components/primitives.tsx'
 import { Chat } from './scenes/Chat.tsx'
 import { Cta } from './scenes/Cta.tsx'
@@ -55,6 +56,7 @@ export function Master16x9() {
   const fontsReady = useFontsReady()
   return (
     <AbsoluteFill className="video-root" style={{ background: COLORS.canvas, fontFamily: 'var(--font-sans)' }}>
+      <SideShapes />
       {fontsReady && scenes.map(([act, Scene]) => (
         <Sequence durationInFrames={act.to - act.from} from={act.from} key={act.from} name={Scene.name}>
           <Scene />

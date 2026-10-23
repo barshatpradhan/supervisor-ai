@@ -5,8 +5,7 @@ import { headerStyle } from '../typography.ts'
 
 export const TAGLINE = 'Staff projects with AI you can check.'
 export const CTA = 'Create your organization'
-/** Replace before rendering the final cut. */
-export const WEBSITE_URL = '[PLACEHOLDER: website URL]'
+export const WEBSITE_URL = 'supervisor-ai-psi.vercel.app'
 
 function Payoff() {
   const frame = useCurrentFrame()
