@@ -375,6 +375,65 @@ describe("unassignable open tasks", () => {
   });
 });
 
+// Avatars (Phase 2) and the readers of assignable_employees ---------------------------------------------
+
+describe("avatars and assignable readers after a role change", () => {
+  const AVATAR = "p03-s4-c2-a1";
+
+  test("avatars still appear on the team list, the member list and the role-change response", async () => {
+    await supabase.from("users").update({ avatar_variant: AVATAR }).in("id", [sup.userId, ben.userId, lena.userId]);
+    assert.equal((await call(rita, "POST", `/organizations/${orgA}/teams/${platform}/members`, { body: { employeeId: ben.employeeId } })).status, 201);
+
+    type TeamRow = { id: string; lead: { avatarVariant: string | null } | null; members: Array<{ employee_id: string; avatarVariant: string | null; assignable: boolean }> };
+    let platformTeam = (await call<TeamRow[]>(sam, "GET", `/organizations/${orgA}/teams`)).body.data!.find((team) => team.id === platform)!;
+    assert.equal(platformTeam.lead?.avatarVariant, AVATAR, "lead avatar");
+    assert.equal(platformTeam.members.find((member) => member.employee_id === ben.employeeId)?.avatarVariant, AVATAR, "member avatar");
+
+    const membersList = (await call<Array<{ membership_id: string; avatarVariant: string | null }>>(sam, "GET", `/organizations/${orgA}/members`)).body.data!;
+    assert.equal(membersList.find((entry) => entry.membership_id === lena.membershipId)?.avatarVariant, AVATAR, "member directory avatar");
+
+    // Someone no longer assignable keeps their avatar in the team list.
+    const changed = await setRole(rita, ben, "supervisor", "Ben Lead");
+    assert.equal(changed.status, 200, changed.body.message);
+    assert.equal((changed.body.data as { avatarVariant: string | null }).avatarVariant, AVATAR, "role-change response avatar");
+    platformTeam = (await call<TeamRow[]>(sam, "GET", `/organizations/${orgA}/teams`)).body.data!.find((team) => team.id === platform)!;
+    const benRow = platformTeam.members.find((member) => member.employee_id === ben.employeeId)!;
+    assert.deepEqual([benRow.assignable, benRow.avatarVariant], [false, AVATAR]);
+    assert.equal((await setRole(rita, ben, "employee")).status, 200);
+    assert.equal((await call(rita, "DELETE", `/organizations/${orgA}/teams/${platform}/members/${ben.employeeId}`)).status, 200);
+  });
+
+  test("recommendations and the supervisor dashboard follow assignable_employees", async () => {
+    const document = await insert<{ id: string }>("project_documents", {
+      project_id: project, uploaded_by_user_id: sam.userId, storage_path: `test/${suffix}.pdf`,
+      original_filename: "requirements.pdf", mime_type: "application/pdf", size_bytes: 1000,
+    });
+    await insert("project_document_analyses", { document_id: document.id, project_id: project, summary: "Scanner work", required_skills: ["Node.js"], estimated_hours: 20 });
+
+    type Run = { recommendations: Array<{ employeeId: string; avatarVariant: string | null }> };
+    const run = async () => {
+      const reply = await call<Run>(sam, "POST", `/projects/${project}/recommendations`);
+      assert.equal(reply.status, 201, reply.body.message);
+      return reply.body.data!.recommendations;
+    };
+    const totalEmployees = async () =>
+      (await call<{ employees: { total_employees: number } }>(sam, "GET", "/dashboard/supervisor")).body.data!.employees.total_employees;
+
+    const before = await run();
+    assert.ok(before.some((entry) => entry.employeeId === lena.employeeId), "lena is in the pool");
+    assert.equal(before.find((entry) => entry.employeeId === lena.employeeId)?.avatarVariant, AVATAR, "recommendation avatar");
+    const dashboardBefore = await totalEmployees();
+
+    assert.equal((await setRole(rita, lena, "supervisor")).status, 200, "lena keeps her supervisor profile from earlier, no name needed");
+    assert.ok(!(await run()).some((entry) => entry.employeeId === lena.employeeId), "lena left the recommendation pool");
+    assert.equal(await totalEmployees(), dashboardBefore - 1, "and the dashboard workload");
+
+    assert.equal((await setRole(rita, lena, "employee")).status, 200);
+    assert.ok((await run()).some((entry) => entry.employeeId === lena.employeeId), "back in the pool");
+    assert.equal(await totalEmployees(), dashboardBefore);
+  });
+});
+
 // Limiter (last: it uses up nora's budget) --------------------------------------------------------------
 
 describe("rate limit", () => {

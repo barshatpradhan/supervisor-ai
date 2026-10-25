@@ -135,6 +135,32 @@ describe('MemberRolesCard', () => {
   })
 })
 
+describe('avatars (Phase 2)', () => {
+  const AVATAR = 'p03-s4-c2-a1'
+  const hasFace = (name: string) => screen.getAllByRole('img', { name }).every((image) => image.querySelector('.av-face') !== null)
+
+  it('shows the illustrated avatar on the member list, and initials without one', () => {
+    members[2] = { ...members[2], avatarVariant: AVATAR }
+    wrap(<MemberRolesCard organizationId="org-1" />)
+    expect(hasFace('Aisha Bello')).toBe(true)
+    const ben = screen.getByRole('img', { name: 'Ben Okafor' })
+    expect(ben.querySelector('.av-face')).toBeNull()
+    expect(ben).toHaveTextContent('BO')
+  })
+
+  it('shows avatars for the lead and members on the team list, assignable or not', () => {
+    teams[0] = {
+      ...teams[0],
+      lead: { ...teams[0].lead!, avatarVariant: AVATAR },
+      members: teams[0].members.map((entry) => ({ ...entry, avatarVariant: AVATAR })),
+    }
+    wrap(<TeamsAdminCard organizationId="org-1" />)
+    expect(hasFace('Sue Lead')).toBe(true)
+    expect(hasFace('Aisha Bello')).toBe(true)
+    expect(hasFace('Olu Former')).toBe(true)
+  })
+})
+
 describe('TeamsAdminCard', () => {
   it('disables delete with the reason while a team has members', () => {
     wrap(<TeamsAdminCard organizationId="org-1" />)
