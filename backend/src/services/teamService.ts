@@ -7,6 +7,8 @@ interface TeamMemberSummary {
   full_name: string;
   job_title: string | null;
   avatarVariant: string | null;
+  /** False when the person is no longer an active member in the employee role (kept, not counted). */
+  assignable: boolean;
 }
 
 export interface TeamSummary {
@@ -30,8 +32,9 @@ interface TeamRow {
 }
 
 /**
- * Teams in an organization with their lead and members. Read-only: teams are created by
- * the demo seed or SQL for now. Members from another organization are never returned.
+ * Teams in an organization with their lead and members. Organization admins change them through
+ * organizationAdminService. Members from another organization are never returned; members who can
+ * no longer be assigned are returned with assignable: false.
  */
 export async function listOrganizationTeams(organizationId: string): Promise<TeamSummary[]> {
   const { data, error } = await supabase
@@ -56,6 +59,16 @@ export async function listOrganizationTeams(organizationId: string): Promise<Tea
   if (error) {
     throw new AppError("Unable to fetch teams.", 500, true, { cause: error });
   }
+
+  const { data: assignableRows, error: assignableError } = await supabase
+    .from("assignable_employees")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .returns<Array<{ id: string }>>();
+  if (assignableError) {
+    throw new AppError("Unable to fetch teams.", 500, true, { cause: assignableError });
+  }
+  const assignable = new Set((assignableRows ?? []).map((row) => row.id));
 
   // Avatars only for people in this organization who are shown by name.
   const sameOrganization = <T extends { organization_id: string }>(profile: T | null): profile is T =>
@@ -85,6 +98,7 @@ export async function listOrganizationTeams(organizationId: string): Promise<Tea
         full_name: member.employees?.full_name ?? "Unknown",
         job_title: member.employees?.job_title ?? null,
         avatarVariant: avatarFor(avatars, member.employees?.user_id),
+        assignable: assignable.has(member.employee_id),
       }))
       .sort((left, right) => left.full_name.localeCompare(right.full_name)),
   }));

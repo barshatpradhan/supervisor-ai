@@ -194,8 +194,9 @@ export async function listAssignableEmployees(
 ) {
   await getAppUserByAuthId(authUserId);
 
+  // Only people who can be assigned: active members whose role is employee.
   let employeeQuery = supabase
-    .from("employees")
+    .from("assignable_employees")
     .select(
       "id, user_id, full_name, employment_type, availability_percentage, workload_percentage, weekly_capacity_hours, performance_score"
     )

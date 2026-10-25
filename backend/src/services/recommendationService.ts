@@ -303,9 +303,10 @@ async function getLatestAnalysis(projectId: string) {
   return data;
 }
 
+/** The recommendation pool: employee profiles of active members whose role is employee. */
 async function getEmployees(organizationId: string) {
   const { data, error } = await supabase
-    .from("employees")
+    .from("assignable_employees")
     .select("id, user_id, full_name, availability_percentage, workload_percentage, performance_score, weekly_capacity_hours, employment_type")
     .eq("organization_id", organizationId)
     .returns<EmployeeRow[]>();

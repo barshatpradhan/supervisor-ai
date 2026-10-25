@@ -113,6 +113,27 @@ async function ensureEmployeeExists(employeeId: string, organizationId: string) 
   return data;
 }
 
+/**
+ * For a new assignment: the employee must be assignable (an active member whose role is employee).
+ * Known race, accepted: a role change that lands between this check and the task write can leave
+ * the task with someone no longer assignable; the team page lists such tasks for admins.
+ */
+async function ensureAssignableEmployee(employeeId: string, organizationId: string) {
+  const { data, error } = await supabase
+    .from("assignable_employees")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("id", employeeId)
+    .maybeSingle<{ id: string }>();
+
+  if (error) {
+    throw new AppError("Unable to check the assignee.", 500);
+  }
+  if (!data) {
+    throw new AppError("Assigned employee was not found or can't be assigned work.", 404);
+  }
+}
+
 async function getTaskForOrganization(taskId: string, organizationId: string) {
   const { data, error } = await supabase
     .from("tasks")
@@ -517,7 +538,7 @@ export async function createTask(
   await ensureProjectExistsInOrganization(input.projectId, organizationId);
 
   if (input.assignedEmployeeId) {
-    await ensureEmployeeExists(input.assignedEmployeeId, organizationId);
+    await ensureAssignableEmployee(input.assignedEmployeeId, organizationId);
   }
 
   const { data, error } = await supabase
@@ -626,8 +647,9 @@ export async function assignTask(
   await getAppUserByAuthId(authUserId);
   const existingTask = await getTaskForOrganization(taskId, organizationId);
 
-  if (employeeId) {
-    await ensureEmployeeExists(employeeId, organizationId);
+  // Keeping the current assignee is always allowed, even if they can no longer take new work.
+  if (employeeId && employeeId !== existingTask.assigned_employee_id) {
+    await ensureAssignableEmployee(employeeId, organizationId);
   }
 
   const { data, error } = await supabase

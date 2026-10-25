@@ -210,9 +210,10 @@ async function listTasksForDashboard(projectIds: string[]) {
   return data ?? [];
 }
 
+/** Workload rows: only people who can be assigned (active members in the employee role). */
 async function listEmployeesForDashboard(organizationId: string) {
   const { data, error } = await supabase
-    .from("employees")
+    .from("assignable_employees")
     .select(
       "id, full_name, employment_type, weekly_capacity_hours, performance_score"
     )

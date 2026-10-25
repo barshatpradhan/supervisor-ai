@@ -1,6 +1,7 @@
 import { authPaths, authResponses } from "./authOpenApi.js";
 import { avatarPaths, avatarSchemas } from "./avatarsOpenApi.js";
 import { messagingPaths, messagingSchemas } from "./messagingOpenApi.js";
+import { organizationAdminPaths, organizationAdminSchemas } from "./organizationAdminOpenApi.js";
 
 export const openApiDocument = {
   openapi: "3.1.0",
@@ -14,6 +15,7 @@ export const openApiDocument = {
       Success: { type: "object", required: ["success", "message"], properties: { success: { type: "boolean", const: true }, message: { type: "string" }, data: {} } },
       ...messagingSchemas,
       ...avatarSchemas,
+      ...organizationAdminSchemas,
     },
     responses: {
       Unauthorized: { description: "Missing or invalid JWT", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
@@ -33,5 +35,6 @@ export const openApiDocument = {
     ...authPaths,
     ...messagingPaths,
     ...avatarPaths,
+    ...organizationAdminPaths,
   },
 } as const;
