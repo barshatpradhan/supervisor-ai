@@ -14,8 +14,10 @@ import { StatusBadge } from '../../../components/ui/StatusBadge'
 import { useOrganization } from '../../organizations/hooks/useOrganization'
 import { useAssignableEmployees } from '../../tasks/hooks/useAssignableEmployees'
 import { useTasks } from '../../tasks/hooks/useTasks'
-import { useOrganizationTeam } from '../hooks/useOrganizationTeam'
 import { useOrganizationTeams } from '../hooks/useOrganizationTeams'
+import { MemberRolesCard } from './MemberRolesCard'
+import { TeamsAdminCard } from './TeamsAdminCard'
+import { UnassignableTasksCard } from './UnassignableTasksCard'
 
 const ALL_TEAMS = 'all'
 const HIGH_WORKLOAD_THRESHOLD = 80
@@ -31,43 +33,6 @@ function formatHours(value: number) {
   return `${Number(value.toFixed(1))}h`
 }
 
-/** Supervisors from the membership list. Only organization admins can read it. */
-function SupervisorList({ organizationId }: { organizationId: string }) {
-  const teamQuery = useOrganizationTeam(organizationId)
-  const supervisors = (teamQuery.data ?? []).filter((member) => member.status === 'active' && member.role === 'supervisor')
-
-  return (
-    <Card aria-labelledby="team-supervisors-title" className="flex flex-col gap-4">
-      <CardHeader helper="Active supervisor memberships" id="team-supervisors-title" title="Supervisors" />
-      {teamQuery.isLoading ? <StateBlock compact kind="loading" title="Loading supervisors" /> : null}
-      {teamQuery.error ? (
-        <StateBlock action={<Button onClick={() => { void teamQuery.refetch() }} variant="secondary">Retry</Button>} compact kind="error">
-          Supervisors could not be loaded.
-        </StateBlock>
-      ) : null}
-      {!teamQuery.isLoading && !teamQuery.error && supervisors.length === 0 ? (
-        <StateBlock compact>No supervisors yet. Invite one from Invitations.</StateBlock>
-      ) : null}
-      {supervisors.length > 0 ? (
-        <ul className="m-0 grid list-none gap-3 p-0 [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))]">
-          {supervisors.map((member) => {
-            const name = member.supervisor_full_name ?? member.email ?? 'Profile pending'
-            return (
-              <li className="flex items-center gap-3 rounded-control border border-chart-grid p-3" key={member.membership_id}>
-                <Avatar name={name} size={32} variant={member.avatarVariant} />
-                <div className="min-w-0">
-                  <p className="body-strong m-0 truncate text-text-primary">{name}</p>
-                  {member.email ? <p className="helper m-0 truncate text-text-tertiary">{member.email}</p> : null}
-                </div>
-              </li>
-            )
-          })}
-        </ul>
-      ) : null}
-    </Card>
-  )
-}
-
 export function TeamWorkloadModule() {
   const { activeMembershipRole, activeOrganization } = useOrganization()
   const isAdmin = activeMembershipRole === 'organization_admin'
@@ -77,6 +42,11 @@ export function TeamWorkloadModule() {
   const teams = useMemo(() => teamsQuery.data ?? [], [teamsQuery.data])
   const [selectedTeamId, setSelectedTeamId] = useState(ALL_TEAMS)
   const selectedTeam = teams.find((team) => team.id === selectedTeamId) ?? null
+  // After an admin change: the workload directory and task list above reload without a page reload.
+  const refreshPeople = () => {
+    void directory.refetch()
+    void tasksQuery.refetch()
+  }
 
   // Team names per employee; an employee can be on more than one team.
   const teamNamesByEmployee = useMemo(() => {
@@ -302,7 +272,13 @@ export function TeamWorkloadModule() {
         ) : null}
       </Card>
 
-      {isAdmin && activeOrganization ? <SupervisorList organizationId={activeOrganization.id} /> : null}
+      {isAdmin && activeOrganization ? (
+        <>
+          <UnassignableTasksCard organizationId={activeOrganization.id} />
+          <MemberRolesCard organizationId={activeOrganization.id} onPeopleChanged={refreshPeople} />
+          <TeamsAdminCard organizationId={activeOrganization.id} onPeopleChanged={refreshPeople} />
+        </>
+      ) : null}
     </div>
   )
 }

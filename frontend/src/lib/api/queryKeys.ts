@@ -4,6 +4,9 @@ export const queryKeys = {
   team: {
     list: (organizationId: string) => ['team', organizationId] as const,
     teams: (organizationId: string) => ['team', organizationId, 'teams'] as const,
+    rolePreview: (organizationId: string, membershipId: string, role: string) =>
+      ['team', organizationId, 'role-preview', membershipId, role] as const,
+    unassignableTasks: (organizationId: string) => ['team', organizationId, 'unassignable-tasks'] as const,
   },
   projects: {
     all: ['projects'] as const,

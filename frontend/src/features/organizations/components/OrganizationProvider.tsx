@@ -12,6 +12,7 @@ import {
   clearStoredOrganizationId,
   storeOrganizationId,
 } from '../utils/organizationStorage'
+import { organizationAccessChangedEvent } from '../utils/organizationAccessEvents'
 import { getActiveOrganizations } from '../utils/organizationPresentation'
 import { setActiveOrganizationId as setRequestContextOrganizationId } from '../utils/organizationRequestContext'
 
@@ -148,6 +149,20 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
       ) ?? null,
     [organizations, selectedOrganizationId],
   )
+
+  // The server refused an organization request (403): the role may have changed, so reload
+  // memberships. At most once every 10 seconds, so a page of failing requests causes one reload.
+  useEffect(() => {
+    if (!isAuthenticated) return
+    let lastRefresh = 0
+    const onAccessChanged = () => {
+      if (Date.now() - lastRefresh < 10_000) return
+      lastRefresh = Date.now()
+      void refreshOrganizations().catch(() => undefined)
+    }
+    window.addEventListener(organizationAccessChangedEvent, onAccessChanged)
+    return () => window.removeEventListener(organizationAccessChangedEvent, onAccessChanged)
+  }, [isAuthenticated, refreshOrganizations])
 
   const value = useMemo<OrganizationContextValue>(
     () => ({

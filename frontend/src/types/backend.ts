@@ -692,7 +692,37 @@ export interface BackendOrganizationTeamSummary {
   name: string
   description: string | null
   lead: { supervisor_id: string; full_name: string; avatarVariant: string | null } | null
-  members: Array<{ employee_id: string; full_name: string; job_title: string | null; avatarVariant: string | null }>
+  /** assignable is false for people who are no longer active members in the employee role. */
+  members: Array<{ employee_id: string; full_name: string; job_title: string | null; avatarVariant: string | null; assignable: boolean }>
+}
+
+/** What a role change would do, for the confirmation dialog (organization admins only). */
+export interface BackendRoleChangePreview {
+  membershipId: string
+  fromRole: BackendOrganizationMembershipRole
+  toRole: BackendOrganizationMembershipRole
+  unchanged: boolean
+  blockedReason: 'last_admin' | 'has_open_tasks' | 'leads_teams' | 'member_not_active' | null
+  openTasks: number
+  completedTasks: number
+  teamsLed: string[]
+  teamsMemberOf: string[]
+  /** A profile the new role needs and the member doesn't have yet; the dialog asks for its name. */
+  needsProfile: 'employee' | 'supervisor' | null
+  suggestedName: string | null
+}
+
+/** An open task whose assignee can no longer be assigned work. */
+export interface BackendUnassignableOpenTask {
+  taskId: string
+  taskTitle: string
+  taskStatus: BackendTaskStatus
+  projectId: string
+  projectTitle: string
+  employeeId: string
+  employeeName: string
+  memberRole: BackendOrganizationMembershipRole | null
+  memberStatus: BackendOrganizationMembershipStatus | null
 }
 
 export interface BackendCreateOrganizationRequest {

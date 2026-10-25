@@ -6,6 +6,7 @@ import {
   getStoredAccessToken,
   notifyAuthSessionExpired,
 } from '../features/auth/utils/tokenStorage'
+import { notifyOrganizationAccessChanged } from '../features/organizations/utils/organizationAccessEvents'
 import {
   getActiveOrganizationId,
   shouldSkipOrganizationHeader,
@@ -50,6 +51,11 @@ api.interceptors.response.use(
       // Route guards own navigation. Clearing the session here lets public
       // routes remain public while ProtectedRoute redirects only protected
       // locations after auth state has settled.
+    }
+
+    // A 403 on an organization request can mean the user's role just changed: reload memberships.
+    if (error instanceof AxiosError && error.response?.status === 403 && error.config?.headers?.['X-Organization-Id']) {
+      notifyOrganizationAccessChanged()
     }
 
     return Promise.reject(parseApiError(error))
