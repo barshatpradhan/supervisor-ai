@@ -428,6 +428,16 @@ All API routes are mounted under `/api/v1`.
 | `POST` | `/api/v1/organizations` | Authenticated | Creates the caller's first organization and active `organization_admin` membership. |
 | `GET` | `/api/v1/organizations/:organizationId` | Organization member | Returns organization details in verified context. |
 | `GET` | `/api/v1/organizations/:organizationId/members` | Organization admin, supervisor | Lists organization members. |
+| `GET` | `/api/v1/organizations/:organizationId/members/:membershipId/role-change-preview?role=` | Organization admin | What a role change would do: open and completed tasks, teams led and joined, the profile it would create, and the first blocking rule. |
+| `PATCH` | `/api/v1/organizations/:organizationId/members/:membershipId/role` | Organization admin | Changes an active member's role (`{ role, fullName? }`). One transaction; refused with 409 for the last active admin, an employee with open tasks, or a team lead becoming an employee. |
+| `GET` | `/api/v1/organizations/:organizationId/teams` | Organization admin, supervisor | Lists teams with their lead and members (`assignable: false` for people who can no longer take work). |
+| `POST` | `/api/v1/organizations/:organizationId/teams` | Organization admin | Creates a team (`{ name, description?, leadSupervisorId? }`). |
+| `PATCH` | `/api/v1/organizations/:organizationId/teams/:teamId` | Organization admin | Renames a team, edits its description, or sets or clears its lead. |
+| `DELETE` | `/api/v1/organizations/:organizationId/teams/:teamId` | Organization admin | Deletes a team that has no members. |
+| `POST` | `/api/v1/organizations/:organizationId/teams/:teamId/members` | Organization admin | Adds an assignable employee (`{ employeeId }`). |
+| `DELETE` | `/api/v1/organizations/:organizationId/teams/:teamId/members/:employeeId` | Organization admin | Removes an employee, assignable or not. |
+| `POST` | `/api/v1/organizations/:organizationId/teams/:teamId/members/:employeeId/move` | Organization admin | Moves an employee to `toTeamId` in one step. |
+| `GET` | `/api/v1/organizations/:organizationId/unassignable-open-tasks` | Organization admin | Open tasks whose assignee can no longer be assigned work. |
 | `GET` | `/api/v1/organizations/:organizationId/invitations` | Organization admin | Lists organization invitations. |
 | `POST` | `/api/v1/organizations/:organizationId/invitations` | Organization admin | Creates an employee or supervisor invitation. |
 | `POST` | `/api/v1/organizations/:organizationId/invitations/:invitationId/resend` | Organization admin | Rotates the invitation token, extends expiry, and resends the acceptance link. |

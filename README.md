@@ -342,6 +342,25 @@ The two polling endpoints have their own per-user limit (240/min) instead of the
 
 **Database.** The tables are added by `supabase/migrations/202610220001_team_messaging.sql`; `supabase/rollbacks/202610220001_team_messaging_down.sql` undoes it. Employee access to project channels and per-channel unread counts come from the two functions in `supabase/migrations/202610230001_messaging_project_members.sql`; `supabase/migrations/202610240001_messaging_project_access_history.sql` (applied after it) adds the stored access dates and the tagged-message lookup. Both have rollbacks in `supabase/rollbacks/`, and `supabase/tests/messaging_project_access_backfill_check.sql` is a read-only check that the access table matches live task assignments. All of these are covered by `supabase/tests/`. To run the service tests against a disposable database with the migrations applied: `cd backend && npm run test:messaging`, or `npm run test:integration` for every database-backed backend test (messaging, invitation delivery, task listing). They refuse to run against a non-local `SUPABASE_URL` unless `INTEGRATION_TESTS_ALLOW_REMOTE=true` (`MESSAGING_TESTS_ALLOW_REMOTE=true` for the messaging suite). `npm test` runs only tests that need no database.
 
+## Member roles and teams
+
+Organization admins manage roles and teams on the **Team** page (`/team`). Nobody else can change them; supervisors can still read teams. The API is under `/api/v1/organizations/:organizationId` (see the backend README and `/api/docs`).
+
+**Roles.** An admin can make any active member an `organization_admin`, `supervisor` or `employee`, including themselves while another active admin remains. A confirmation dialog says what changes and what stays before anything is saved.
+
+- The organization always keeps at least one active admin. The check takes a per-organization lock, so two admins demoting each other (or themselves) at the same moment can't both succeed.
+- An employee with open tasks (anything not completed or cancelled) can't leave the role until the tasks are reassigned. A team lead can't become an employee until the team has a new lead.
+- Profiles are never deleted. If the new role needs a profile the member doesn't have (employee or supervisor), the admin types its name; becoming an admin creates none. Changing the role back brings everything back: skills, completed tasks, progress history and team memberships stay with the employee profile.
+- The change applies on the member's next request, everywhere: page access, messaging (supervisors and admins see every project channel with full history; employees see only channels where they have a task, from when they got access) and assignment. The browser reloads the member's own memberships when the server answers 403.
+- Who can be recommended and assigned work is decided by the `assignable_employees` view: employee profiles of **active** members whose role is **employee**. Suspended members and anyone in another role drop out of the recommendation pool, the assign list and workload figures.
+- Every change writes an activity log entry (`member_role_changed`: who, whom, from, to).
+
+**Teams.** Admins create, rename and delete teams, set or clear the lead, and add, remove or move members. A person can be in several teams; a move leaves one team and joins another in one step. The lead must be an active supervisor, or an admin with a supervisor profile. A team can only be deleted once it has no members. People who are no longer assignable stay listed in their teams, marked as such, until removed or made an employee again. **Teams don't change permissions**: who can see tasks, projects and channels depends only on roles and task assignments.
+
+**Known race.** Assigning a task checks that the assignee is assignable outside the role-change transaction, so an assignment that lands at the same moment as a role change can leave an open task with someone who can no longer take work. This is accepted (there is deliberately no trigger on `tasks`): the Team page lists such tasks for admins under "Tasks that need a new assignee".
+
+**Database.** `supabase/migrations/202610260001_member_roles_and_teams.sql` adds the view, the functions every change runs in (one transaction each, callable only by the backend) and the new activity log event types; `supabase/rollbacks/202610260001_member_roles_and_teams_down.sql` undoes it. `supabase/tests/member_roles_and_teams_migration_test.sql` covers every rule and the all-or-nothing behavior, and `supabase/tests/member_roles_and_teams_concurrency_test.sh` runs the two-connection races; both are for disposable databases only. The HTTP suite is `backend/src/routes/organizationAdmin.integration.test.ts`, part of `npm run test:integration`. Apply order: the migration first, then the backend, then the frontend.
+
 ## Production operations
 
 ```mermaid
